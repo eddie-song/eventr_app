@@ -1,0 +1,257 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { authService } from '../services/authService';
+import './Dashboard.css';
+import Explore from './components/explore.js';
+import Home from './components/home.js';
+import Events from './components/events.js';
+import People from './components/people.js';
+import Social from './components/social.js';
+import Profile from './components/profile.js';
+import Plan from './components/plan.js';
+import { PageCacheProvider } from './context/PageCacheContext.js';
+import { supabase } from '../lib/supabaseClient';
+
+function Dashboard({ service }) {
+  const navigate = useNavigate();
+  const [selectedService, setSelectedService] = useState('home');
+  const [exploreDropdownOpen, setExploreDropdownOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  const handleExploreClick = () => {
+    if (exploreDropdownOpen) {
+      setIsClosing(true);
+      setTimeout(() => {
+        setExploreDropdownOpen(false);
+        setIsClosing(false);
+      }, 300);
+    } else {
+      setExploreDropdownOpen(true);
+    }
+  };
+
+  const handleServiceClick = (serviceName) => {
+    setSelectedService(serviceName);
+    if (exploreDropdownOpen && serviceName !== 'explore') {
+      setIsClosing(true);
+      setTimeout(() => {
+        setExploreDropdownOpen(false);
+        setIsClosing(false);
+      }, 300);
+    }
+  };
+
+  const handleExploreOptionClick = (option) => {
+    setSelectedService(option);
+  };
+
+  // Check authentication on component mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { data: { user } } = await authService.getCurrentUser();
+        if (!user) {
+          // User is not authenticated, redirect to login
+          navigate('/login');
+        } else {
+          // User is authenticated, now check if profile exists
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('uuid')
+            .eq('uuid', user.id)
+            .single();
+          console.log('profile', profile);
+          console.log('user', user);
+          if (!profile) {
+            // Profile not found, redirect to onboarding
+            navigate('/onboarding');
+            return;
+          }
+          setIsCheckingAuth(false);
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        // If there's an error checking auth, redirect to login for safety
+        navigate('/login');
+      }
+    };
+    checkAuth();
+  }, [navigate]);
+
+  const renderServiceContent = () => {
+    switch (selectedService) {
+      case 'home':
+        return <Home />;
+      case 'explore':
+        return <Explore />;
+      case 'places':
+        return <Explore />;
+      case 'events':
+        return <Events />;
+      case 'people':
+        return <People />;
+      case 'deep-search':
+        return <div>Deep Search content will be displayed here</div>;
+      case 'social':
+        return <Social />;
+      case 'profile':
+        return <Profile />;
+      case 'plan':
+        return <Plan />;
+      default:
+        return <Explore />;
+    }
+  };
+
+  // Show loading while checking authentication
+  if (isCheckingAuth) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        fontSize: '16px',
+        color: '#86868b'
+      }}>
+        Checking authentication...
+      </div>
+    );
+  }
+
+  return (
+    <PageCacheProvider>
+    <div id="dashboard-page-container">
+      <div id="dashboard-side-bar">
+        <div className="logo-text">
+          <h1 onClick={() => navigate('/')}>
+            eventr
+          </h1>
+        </div>
+        <div id="service-list">
+          <div 
+            id="service-list-item" 
+            className={selectedService === 'home' ? 'selected' : ''}
+            onClick={() => handleServiceClick('home')}
+          >
+            <div>
+              <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24">
+                <path fill="currentColor" d="M6 19h3v-5q0-.425.288-.712T10 13h4q.425 0 .713.288T15 14v5h3v-9l-6-4.5L6 10zm-2 0v-9q0-.475.213-.9t.587-.7l6-4.5q.525-.4 1.2-.4t1.2.4l6 4.5q.375.275.588.7T20 10v9q0 .825-.588 1.413T18 21h-4q-.425 0-.712-.288T13 20v-5h-2v5q0 .425-.288.713T10 21H6q-.825 0-1.412-.587T4 19m8-6.75"></path>
+              </svg>
+            </div>
+            <p>Home</p>
+          </div>
+          <div 
+            id="service-list-item" 
+            className={selectedService === 'explore' ? 'selected' : ''}
+            onClick={handleExploreClick}
+          >
+            <div>
+              <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24">
+                <path fill="currentColor" d="m8.375 16.25l5.05-1.45q.5-.15.863-.513t.512-.862l1.45-5.05q.075-.275-.137-.488t-.488-.137l-5.05 1.45q-.5.15-.862.513t-.513.862l-1.45 5.05q-.075.275.138.488t.487.137M12 13.5q-.625 0-1.062-.437T10.5 12t.438-1.062T12 10.5t1.063.438T13.5 12t-.437 1.063T12 13.5m0 8.5q-2.075 0-3.9-.788t-3.175-2.137T2.788 15.9T2 12t.788-3.9t2.137-3.175T8.1 2.788T12 2t3.9.788t3.175 2.137T21.213 8.1T22 12t-.788 3.9t-2.137 3.175t-3.175 2.138T12 22m0-2q3.325 0 5.663-2.337T20 12t-2.337-5.663T12 4T6.337 6.338T4 12t2.338 5.663T12 20m0-8"></path>
+              </svg>
+            </div>
+            <p>Explore</p>
+            <div>
+              <svg 
+                className={`dropdown-icon ${exploreDropdownOpen ? 'rotated' : ''}`}
+                xmlns="http://www.w3.org/2000/svg" 
+                width={24} 
+                height={24} 
+                viewBox="0 0 24 24"
+              >
+                <g fill="none" fillRule="evenodd">
+                  <path d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"></path>
+                  <path fill="currentColor" d="M12.707 15.707a1 1 0 0 1-1.414 0L5.636 10.05A1 1 0 1 1 7.05 8.636l4.95 4.95l4.95-4.95a1 1 0 0 1 1.414 1.414z"></path>
+                </g>
+              </svg>
+            </div>
+          </div>
+          {(exploreDropdownOpen || isClosing) && (
+            <div id="explore-dropdown" className={isClosing ? 'closing' : ''}>
+                <div 
+                  className={`explore-option ${selectedService === 'places' ? 'selected' : ''}`} 
+                  onClick={() => handleExploreOptionClick('places')}
+                >
+                  Places
+                </div>
+                <div 
+                  className={`explore-option ${selectedService === 'events' ? 'selected' : ''}`} 
+                  onClick={() => handleExploreOptionClick('events')}
+                >
+                  Events
+                </div>
+                <div 
+                  className={`explore-option ${selectedService === 'people' ? 'selected' : ''}`} 
+                  onClick={() => handleExploreOptionClick('people')}
+                >
+                  People
+                </div>
+            </div>
+          )}
+          <div 
+            id="service-list-item"
+            className={selectedService === 'deep-search' ? 'selected' : ''}
+            onClick={() => handleServiceClick('deep-search')}
+          >
+            <div>
+              <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24">
+                <path fill="currentColor" d="M9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l5.6 5.6q.275.275.275.7t-.275.7t-.7.275t-.7-.275l-5.6-5.6q-.75.6-1.725.95T9.5 16m0-2q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5T6.313 6.313T5 9.5t1.313 3.188T9.5 14"></path>
+              </svg>
+            </div>
+            <p>Deep Search</p>
+          </div>
+          <div 
+            id="service-list-item"
+            className={selectedService === 'social' ? 'selected' : ''}
+            onClick={() => handleServiceClick('social')}
+          >
+            <div>
+              <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24">
+                <path fill="currentColor" d="M13.07 10.41a5 5 0 0 0 0-5.82A3.4 3.4 0 0 1 15 4a3.5 3.5 0 0 1 0 7a3.4 3.4 0 0 1-1.93-.59M5.5 7.5A3.5 3.5 0 1 1 9 11a3.5 3.5 0 0 1-3.5-3.5m2 0A1.5 1.5 0 1 0 9 6a1.5 1.5 0 0 0-1.5 1.5M16 17v2H2v-2s0-4 7-4s7 4 7 4m-2 0c-.14-.78-1.33-2-5-2s-4.93 1.31-5 2m11.95-4A5.32 5.32 0 0 1 18 17v2h4v-2s0-3.63-6.06-4Z"></path>
+              </svg>
+            </div>
+            <p>Social</p>
+          </div>
+          <div 
+            id="service-list-item"
+            className={selectedService === 'profile' ? 'selected' : ''}
+            onClick={() => handleServiceClick('profile')}
+          >
+            <div>
+              <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24">
+                <g fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinejoin="round" d="M4 18a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"></path>
+                  <circle cx={12} cy={7} r={3}></circle>
+                </g>
+              </svg>
+            </div>
+            <p>Profile</p>
+            </div>
+            <div 
+              id="service-list-item"
+              className={selectedService === 'plan' ? 'selected' : ''}
+              onClick={() => handleServiceClick('plan')}
+            >
+              <div>
+                <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24">
+                  <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}>
+                    <path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0-6 0"></path>
+                    <path d="M17.657 16.657L13.414 20.9a2 2 0 0 1-2.827 0l-4.244-4.243a8 8 0 1 1 11.314 0"></path>
+                </g>
+              </svg>
+            </div>
+            <p>Plan</p>
+          </div>
+        </div>
+      </div>
+      <div id="service-container">
+        {renderServiceContent()}
+      </div>
+    </div>
+    </PageCacheProvider>
+  );
+}
+
+export default Dashboard;

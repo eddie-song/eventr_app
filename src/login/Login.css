@@ -1,0 +1,103 @@
+#login-page-container {
+  height: 100vh;
+  width: 100vw;
+}
+
+#login-header {
+  position: fixed;
+}
+
+.login-section {
+  padding-top: 65px;
+  width: 100vw;
+  height: 80vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#login-modal {
+  width: 20vw;
+  height: 70vh;
+  border-radius: 10px;
+  padding-top: 50px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  align-items: center;
+}
+
+#login-modal-header {
+  width: 100%;
+  font-size: 25px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+form {
+  width: 100%;
+}
+
+.login-required {
+  font-size: 12px;
+  margin-top: -35px;
+  color: #FF3B30;
+  user-select: none;
+}
+
+.login-modal-form-input {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  font-size: 12px;
+  gap: 10px;
+  input {
+    max-width: 100%;
+    height: 30px;
+    font-size: 15px;
+    padding: 0px 10px;
+    border: 1px #E5E5EA solid;
+    outline: none;
+    font-size: 12px;
+  }
+}
+
+#login-modal-form-tos {
+  flex-direction: row;
+  width: 100%;
+  align-items: center;
+  gap: 15px;
+  input {
+    width: 15px;
+  }
+  label {
+    font-size: 12px;
+  }
+}
+
+#login-form-continue {
+  width: 100%;
+  padding: 8px;
+  border: none;
+  cursor: pointer;
+  background-color: #F2F2F7;
+}
+
+#login-form-continue:hover {
+  background-color: #E5E5EA;
+}
+
+#login-modal-form-register-switch {
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  font-size: 12px;
+  a {
+    cursor: pointer;
+  }
+}

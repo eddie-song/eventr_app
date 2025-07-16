@@ -1,0 +1,175 @@
+#header {
+    display: flex;
+    flex-direction: row;
+    height: 65px;
+    width: 100%;
+    background-color: white;
+}
+
+#button-container {
+    width: 60%;
+    height: full;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0px 150px;
+    box-sizing: border-box;
+}
+
+.thin-text {
+    font-weight: 400;
+    font-size: 25px;
+}
+
+.logo-text {
+    height: full;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    width: 20%;
+
+    h1 {
+        cursor: pointer;
+    }
+}
+
+#button-container button {
+    background-color: transparent;
+    border: white solid 1px;
+    height: 35px;
+    margin: 0px 10px;
+    cursor: pointer;
+}
+
+#button-container button:hover {
+    border-bottom: black solid 1px;
+}
+
+#login-buttons {
+    width: 20%;
+    height: full;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+#login-buttons button {
+    background-color: transparent;
+    border: white solid 1px;
+    height: 35px;
+    margin: 0px 10px;
+    cursor: pointer;
+}
+
+#login-buttons button:hover {
+    border-bottom: black solid 1px;
+}
+
+.section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#main-section-top-text {
+    font-weight: 200;
+}
+
+#main-section-search-box {
+    background-color: #F0F0F0;
+    padding: 0px 25px;
+    border-radius: 50px;
+    width: 500px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    border: #E8E9E8 solid 2px;
+}
+
+h1,
+h2 {
+    font-weight: 200;
+}
+
+#main-section-search-text {
+    width: 80%;
+}
+
+#top-section {
+    text-align: center;
+    height: 400px;
+    justify-content: center;
+    font-size: 25px;
+    padding-top: 65px;
+    margin-bottom: -50px;
+}
+
+#top-section-top-text {
+    margin-bottom: -30px;
+}
+
+#top-section-desc {
+    margin-top: -10px;
+    font-size: 20px;
+    color: #555555;
+}
+
+#third-section {
+    margin-top: 100px;
+    height: 400px;
+    text-align: center;
+}
+
+#third-header {
+    color: #9ba59b;
+}
+
+#third-button {
+    font-family: 'Poppins', sans-serif;
+    padding: 10px 30px;
+    margin-top: 50px;
+    border-radius: 50px;
+    border: none;
+    background-color: #2B0A50;
+    cursor: pointer;
+    color: white;
+    font-size: 15px;
+    transition: transform 0.2s ease-in-out;
+}
+
+#third-button:hover {
+    transform: scale(1.1);
+}
+
+.green-text {
+    color: #2B0A50;
+}
+
+.typing-text {
+    white-space: nowrap;
+}
+
+.cursor {
+    display: inline-block;
+    width: 1ch;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+
+    0%,
+    50%,
+    100% {
+        opacity: 1;
+    }
+
+    25%,
+    75% {
+        opacity: 0;
+    }
+}

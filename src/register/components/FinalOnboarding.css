@@ -1,0 +1,28 @@
+.final-onboarding-modal {
+  width: 100%;
+  max-width: 100%;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 100px;
+  div {
+    width: 100%;
+    text-align: center;
+
+    button {
+      width: 100%;
+      border: none;
+      padding: 5px 0px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    
+    button:hover {
+      transform: scale(1.05);
+    }
+  }
+}
+
+#suggested-events {
+  text-align: left;
+}
