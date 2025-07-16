@@ -14,10 +14,20 @@ import { supabase } from '../lib/supabaseClient';
 
 function Dashboard({ service }) {
   const navigate = useNavigate();
-  const [selectedService, setSelectedService] = useState('home');
+  // Initialize selectedService from localStorage if available
+  const getInitialService = () => {
+    const saved = localStorage.getItem('dashboard_selected_service');
+    return saved || 'home';
+  };
+  const [selectedService, setSelectedService] = useState(getInitialService());
   const [exploreDropdownOpen, setExploreDropdownOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // Persist selectedService to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('dashboard_selected_service', selectedService);
+  }, [selectedService]);
 
   const handleExploreClick = () => {
     if (exploreDropdownOpen) {
