@@ -1,65 +1,100 @@
--- users table schema
-CREATE TABLE IF NOT EXISTS users (
-  uuid UUID PRIMARY KEY,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  username TEXT UNIQUE NOT NULL,
-  email TEXT UNIQUE NOT NULL,
-  display_name TEXT,
-  phone TEXT,
-  bio TEXT,
-  user_interests TEXT[],
-  locations TEXT[],
-  avatar_url TEXT,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  posted_events UUID[],
-  saved_events UUID[],
-  posted_locations UUID[],
-  saved_locations UUID[],
-  posted_person UUID[],
-  saved_person UUID[],
-  posts UUID[],
-  liked_posts UUID[],
-  saved_posts UUID[],
-  comments UUID[],
-  following UUID[],
-  followers UUID[]
-);
+-- ========================================
+-- DATABASE SCHEMA REFERENCE
+-- ========================================
 
--- interests table
-CREATE TABLE IF NOT EXISTS interests (
-  uuid UUID PRIMARY KEY,
-  interest TEXT NOT NULL,
-  popular_events UUID[]
-);
+-- ========================================
+-- PROFILES TABLE
+-- ========================================
+-- Primary table for user accounts and profiles
+-- 
+-- Columns:
+--   uuid: UUID (PRIMARY KEY) - Unique user identifier
+--   created_at: TIMESTAMP WITH TIME ZONE - Account creation time
+--   username: TEXT (UNIQUE, NOT NULL) - Username for login
+--   email: TEXT (UNIQUE, NOT NULL) - User's email address
+--   display_name: TEXT - User's display name
+--   phone: TEXT - User's phone number
+--   bio: TEXT - User's biography/description
+--   user_interests: TEXT[] - Array of user's interests
+--   locations: TEXT[] - Array of user's preferred locations
+--   avatar_url: TEXT - URL to user's profile picture
+--   updated_at: TIMESTAMP WITH TIME ZONE - Last profile update time
+--   posted_events: UUID[] - Array of events created by user
+--   saved_events: UUID[] - Array of events saved by user
+--   posted_locations: UUID[] - Array of locations created by user
+--   saved_locations: UUID[] - Array of locations saved by user
+--   posted_person: UUID[] - Array of person records created by user
+--   saved_person: UUID[] - Array of person records saved by user
+--   posts: UUID[] - Array of posts created by user
+--   liked_posts: UUID[] - Array of posts liked by user
+--   saved_posts: UUID[] - Array of posts saved by user
+--   comments: UUID[] - Array of comments made by user
+--   following: UUID[] - Array of users this user follows
+--   followers: UUID[] - Array of users following this user
 
--- events table
-CREATE TABLE IF NOT EXISTS events (
-  uuid UUID PRIMARY KEY,
-  event TEXT NOT NULL,
-  tags TEXT[],
-  hosts UUID[],
-  attendees UUID[],
-  location TEXT,
-  review_count INTEGER DEFAULT 0,
-  rating NUMERIC(3,2) DEFAULT 0.00
-);
+-- ========================================
+-- INTERESTS TABLE
+-- ========================================
+-- Table for storing interest categories
+--
+-- Columns:
+--   uuid: UUID (PRIMARY KEY) - Unique interest identifier
+--   interest: TEXT (NOT NULL) - Name of the interest
+--   popular_events: UUID[] - Array of popular events in this category
 
--- location table
-CREATE TABLE IF NOT EXISTS location (
-  uuid UUID PRIMARY KEY,
-  location TEXT NOT NULL,
-  longitude NUMERIC(9,6),
-  latitude NUMERIC(9,6),
-  events UUID[],
-  review_count INTEGER DEFAULT 0,
-  rating NUMERIC(3,2) DEFAULT 0.00
-);
+-- ========================================
+-- EVENTS TABLE
+-- ========================================
+-- Table for storing event information
+--
+-- Columns:
+--   uuid: UUID (PRIMARY KEY) - Unique event identifier
+--   event: TEXT (NOT NULL) - Event name/description
+--   tags: TEXT[] - Array of tags for the event
+--   hosts: UUID[] - Array of user UUIDs hosting the event
+--   attendees: UUID[] - Array of user UUIDs attending the event
+--   location: TEXT - Event location
+--   review_count: INTEGER - Number of reviews (default: 0)
+--   rating: NUMERIC(3,2) - Average rating (default: 0.00)
 
--- person table
-CREATE TABLE IF NOT EXISTS person (
-  uuid UUID PRIMARY KEY,
-  user_id UUID,
-  service TEXT NOT NULL,
-  review_count INTEGER DEFAULT 0,
-  rating NUMERIC(3,2) DEFAULT 0.00
-); 
+-- ========================================
+-- LOCATION TABLE
+-- ========================================
+-- Table for storing location information
+--
+-- Columns:
+--   uuid: UUID (PRIMARY KEY) - Unique location identifier
+--   location: TEXT (NOT NULL) - Location name/address
+--   longitude: NUMERIC(9,6) - Longitude coordinate
+--   latitude: NUMERIC(9,6) - Latitude coordinate
+--   events: UUID[] - Array of events at this location
+--   review_count: INTEGER - Number of reviews (default: 0)
+--   rating: NUMERIC(3,2) - Average rating (default: 0.00)
+
+-- ========================================
+-- PERSON TABLE
+-- ========================================
+-- Table for storing person/service provider information
+--
+-- Columns:
+--   uuid: UUID (PRIMARY KEY) - Unique person identifier
+--   user_id: UUID - Associated user UUID
+--   service: TEXT (NOT NULL) - Type of service provided
+--   review_count: INTEGER - Number of reviews (default: 0)
+--   rating: NUMERIC(3,2) - Average rating (default: 0.00)
+
+-- ========================================
+-- POSTS TABLE
+-- ========================================
+-- Table for storing social media posts
+--
+-- Columns:
+--   uuid: UUID (PRIMARY KEY) - Unique post identifier
+--   created_at: TIMESTAMP WITH TIME ZONE - Post creation time
+--   user_id: UUID (NOT NULL) - UUID of the user who created the post
+--   likes: UUID[] - Array of user UUIDs who liked the post (default: empty array)
+--   comments: UUID[] - Array of comment UUIDs (default: empty array)
+--   image_url: TEXT - URL to post image
+--   post_body_text: TEXT - Text content of the post
+--   location: TEXT - Location associated with the post
+--   tags: TEXT[] - Array of tags for the post (default: empty array) 

@@ -1,5 +1,5 @@
--- Create users table
-CREATE TABLE IF NOT EXISTS users (
+-- Create profiles table
+CREATE TABLE IF NOT EXISTS profiles (
   uuid UUID PRIMARY KEY,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   username TEXT UNIQUE NOT NULL,
@@ -26,16 +26,16 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Enable Row Level Security
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 -- Create policies
-CREATE POLICY "Users can view their own profile" ON users
+CREATE POLICY "Users can view their own profile" ON profiles
   FOR SELECT USING (auth.uid() = uuid);
 
-CREATE POLICY "Users can update their own profile" ON users
+CREATE POLICY "Users can update their own profile" ON profiles
   FOR UPDATE USING (auth.uid() = uuid);
 
-CREATE POLICY "Users can insert their own profile" ON users
+CREATE POLICY "Users can insert their own profile" ON profiles
   FOR INSERT WITH CHECK (auth.uid() = uuid);
 
 -- Create function to handle user creation
@@ -117,4 +117,25 @@ ALTER TABLE person ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all to read person" ON person FOR SELECT USING (true);
 CREATE POLICY "Users can update their own person record" ON person FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert their own person record" ON person FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own person record" ON person FOR DELETE USING (auth.uid() = user_id); 
+CREATE POLICY "Users can delete their own person record" ON person FOR DELETE USING (auth.uid() = user_id);
+
+-- Create posts table
+CREATE TABLE IF NOT EXISTS posts (
+  uuid UUID PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  user_id UUID NOT NULL,
+  likes UUID[] DEFAULT '{}',
+  comments UUID[] DEFAULT '{}',
+  image_url TEXT,
+  post_body_text TEXT,
+  location TEXT,
+  tags TEXT[] DEFAULT '{}'
+);
+
+-- Enable Row Level Security and policies for posts
+grant select, insert, update, delete on posts to authenticated;
+ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all to read posts" ON posts FOR SELECT USING (true);
+CREATE POLICY "Users can create their own posts" ON posts FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own posts" ON posts FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own posts" ON posts FOR DELETE USING (auth.uid() = user_id); 

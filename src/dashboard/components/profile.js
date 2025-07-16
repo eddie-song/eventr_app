@@ -6,6 +6,7 @@ import LoadingScreen from './LoadingScreen.js';
 import { usePageCache } from '../context/PageCacheContext.js';
 import { userService } from '../../services/userService';
 import { supabase } from '../../lib/supabaseClient';
+import { v4 as uuidv4 } from 'uuid';
 
 const EditProfileModal = ({ 
   showEditModal, 
@@ -469,78 +470,156 @@ const Profile = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+  const [userPosts, setUserPosts] = useState([]);
+  const [showPostMenu, setShowPostMenu] = useState(null); // post uuid or null
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [editPostData, setEditPostData] = useState(null); // for edit modal
+  const [deleteModal, setDeleteModal] = useState({ open: false, postUuid: null });
+  const [notification, setNotification] = useState({ open: false, message: '', type: '' });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ content: '', location: '', tags: '', imageUrl: '' });
   
   const { isPageLoaded, markPageAsLoaded } = usePageCache();
 
-  // Empty user posts array since user has no posts
-  const userPosts = [];
-
   // Empty user recommendations array since user has no recommendations
-  const userRecommendations = [];
+  const userRecommend = [];
 
   // Empty user listings array since user has no listings
   const userListings = [];
 
-  const PostCard = ({ post }) => (
-    <div className="profile-post-card">
-      <div className="post-header">
-        <div className="post-author">
-          <div className="author-avatar">{userProfile.avatar}</div>
-          <div className="author-info">
-            <div className="author-name">{userProfile.name}</div>
-            <div className="post-timestamp">{post.timestamp}</div>
+  const PostCard = ({ post }) => {
+    const isMenuOpen = showPostMenu === post.uuid;
+    return (
+      <div className="profile-post-card">
+        <div className="post-header">
+          <div className="post-author">
+            <div className="author-avatar">
+              {userProfile.avatar_url ? (
+                <img
+                  src={userProfile.avatar_url}
+                  alt="avatar"
+                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', display: 'block' }}
+                  onError={e => (e.target.style.display = 'none')}
+                />
+              ) : (
+                userProfile.avatar
+              )}
+            </div>
+            <div className="author-info">
+              <div className="author-name">{userProfile.name}</div>
+              <div className="post-timestamp">{post.timestamp}</div>
+            </div>
+          </div>
+          <div style={{ position: 'relative' }}>
+            <button className="post-menu" onClick={() => setShowPostMenu(isMenuOpen ? null : post.uuid)}>
+              ⋯
+            </button>
+            {isMenuOpen && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                background: 'white',
+                border: '1px solid #e1e5e9',
+                borderRadius: '8px',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                zIndex: 10,
+                minWidth: '160px',
+                padding: '4px 0'
+              }}>
+                <button
+                  style={{
+                    width: '100%',
+                    background: 'none',
+                    border: 'none',
+                    padding: '10px 16px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: '15px',
+                    color: '#1d1d1f',
+                    whiteSpace: 'nowrap'
+                  }}
+                  onClick={() => {
+                    openEditModal(post);
+                    setShowPostMenu(null);
+                  }}
+                >
+                  ✏️ Edit Post
+                </button>
+                <button
+                  style={{
+                    width: '100%',
+                    background: 'none',
+                    border: 'none',
+                    padding: '10px 16px',
+                    textAlign: 'left',
+                    cursor: isDeleting ? 'not-allowed' : 'pointer',
+                    fontSize: '15px',
+                    color: '#ff3b30',
+                    opacity: isDeleting ? 0.6 : 1,
+                    whiteSpace: 'nowrap'
+                  }}
+                  disabled={isDeleting}
+                  onClick={() => {
+                    setDeleteModal({ open: true, postUuid: post.uuid });
+                    setShowPostMenu(null);
+                  }}
+                >
+                  🗑️ Delete Post
+                </button>
+              </div>
+            )}
           </div>
         </div>
-        <button className="post-menu">⋯</button>
-      </div>
-      
-      <div className="post-content">
-        <p>{post.content}</p>
-        {post.image && (
-          <div className="post-image-container">
-            <img 
-              src={post.image} 
-              alt={`${post.location}`}
-              className="post-image"
-              onError={(e) => {
-                e.target.style.display = 'none';
-              }}
-            />
+        
+        <div className="post-content">
+          <p>{post.content}</p>
+          {post.image && (
+            <div className="post-image-container">
+              <img 
+                src={post.image} 
+                alt={`${post.location}`}
+                className="post-image"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
+            </div>
+          )}
+          <div className="post-location">
+            <span className="location-icon">📍</span>
+            <span className="location-name">{post.location}</span>
+            <span className="location-distance">{post.distance}</span>
           </div>
-        )}
-        <div className="post-location">
-          <span className="location-icon">📍</span>
-          <span className="location-name">{post.location}</span>
-          <span className="location-distance">{post.distance}</span>
+          <div className="post-tags">
+            {post.tags.map((tag, index) => (
+              <span key={index} className="tag">{tag}</span>
+            ))}
+          </div>
         </div>
-        <div className="post-tags">
-          {post.tags.map((tag, index) => (
-            <span key={index} className="tag">{tag}</span>
-          ))}
+        
+        <div className="post-actions">
+          <button className="action-btn">
+            <span>❤️</span>
+            <span className="action-count">{post.likes}</span>
+          </button>
+          <button className="action-btn">
+            <span>💬</span>
+            <span className="action-count">{post.comments}</span>
+          </button>
+          <button className="action-btn">
+            <span>📤</span>
+          </button>
+          <button className="action-btn">
+            <span>🔖</span>
+          </button>
+          <button className="action-btn">
+            <span>🗺️</span>
+          </button>
         </div>
       </div>
-      
-      <div className="post-actions">
-        <button className="action-btn">
-          <span>❤️</span>
-          <span className="action-count">{post.likes}</span>
-        </button>
-        <button className="action-btn">
-          <span>💬</span>
-          <span className="action-count">{post.comments}</span>
-        </button>
-        <button className="action-btn">
-          <span>📤</span>
-        </button>
-        <button className="action-btn">
-          <span>🔖</span>
-        </button>
-        <button className="action-btn">
-          <span>🗺️</span>
-        </button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const RecommendationCard = ({ rec }) => (
     <div className="profile-rec-card">
@@ -584,38 +663,55 @@ const Profile = () => {
   );
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchProfileAndPosts = async () => {
       setIsLoading(true);
       const { profile, profileNotFound, error } = await userService.getCurrentUserProfile();
       if (profileNotFound) {
-        // Redirect to onboarding or show a message
         navigate('/register/onboarding');
         return;
       }
       if (error) {
         setProfileError(error.message || 'Failed to load profile');
+        setIsLoading(false);
+        return;
+      }
+      // Set user profile info
+      const profileWithDefaults = {
+        name: profile.display_name || profile.username || 'User',
+        username: `@${profile.username || 'user'}`,
+        email: profile.email || '',
+        avatar: '👤',
+        avatar_url: profile.avatar_url || '',
+        bio: profile.bio || 'No bio yet.',
+        locations: profile.locations || [],
+        joinDate: profile.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Recently',
+        followers: profile.followers ? profile.followers.length : 0,
+        following: profile.following ? profile.following.length : 0,
+        posts: profile.posts ? profile.posts.length : 0,
+        recommend: 0,
+        listings: 0
+      };
+      setUserProfile(profileWithDefaults);
+
+      // Fetch posts if any
+      if (Array.isArray(profile.posts) && profile.posts.length > 0) {
+        const { data: postsData, error: postsError } = await supabase
+          .from('posts')
+          .select('*')
+          .in('uuid', profile.posts);
+        if (!postsError && postsData) {
+          // Sort posts by created_at descending
+          const sortedPosts = postsData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          setUserPosts(sortedPosts);
+        } else {
+          setUserPosts([]);
+        }
       } else {
-        // Set default values for null profile fields
-        const profileWithDefaults = {
-          name: profile.display_name || profile.username || 'User',
-          username: `@${profile.username || 'user'}`,
-          email: profile.email || '',
-          avatar: '👤',
-          avatar_url: profile.avatar_url || '',
-          bio: profile.bio || 'No bio yet.',
-          locations: profile.locations || [],
-          joinDate: profile.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Recently',
-          followers: profile.followers ? profile.followers.length : 0,
-          following: profile.following ? profile.following.length : 0,
-          posts: profile.posts ? profile.posts.length : 0,
-          recommendations: 0, // Default value
-          listings: 0 // Default value
-        };
-        setUserProfile(profileWithDefaults);
+        setUserPosts([]);
       }
       setIsLoading(false);
     };
-    fetchProfile();
+    fetchProfileAndPosts();
     // eslint-disable-next-line
   }, []);
 
@@ -692,6 +788,7 @@ const Profile = () => {
       }));
 
       setShowEditModal(false);
+      showNotification('Profile updated!', 'success');
     } catch (error) {
       console.error('Error updating profile:', error);
       alert('Failed to update profile. Please try again.');
@@ -700,8 +797,97 @@ const Profile = () => {
     }
   };
 
+  // Notification helper
+  const showNotification = (message, type = 'success') => {
+    setNotification({ open: true, message, type });
+    setTimeout(() => setNotification({ open: false, message: '', type: '' }), 2500);
+  };
 
+  // Edit post handler
+  const openEditModal = (post) => {
+    setEditForm({
+      content: post.post_body_text || post.content || '',
+      location: post.location || '',
+      tags: Array.isArray(post.tags) ? post.tags.join(', ') : (post.tags || ''),
+      imageUrl: post.image_url || post.image || ''
+    });
+    setEditPostData(post);
+    setIsEditing(true);
+  };
 
+  const handleEditPost = async (e) => {
+    e.preventDefault();
+    if (!editForm.content.trim() || !editPostData) return;
+    setIsEditing('saving');
+    try {
+      const tagsArray = editForm.tags ? editForm.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+      const { error: updateError } = await supabase
+        .from('posts')
+        .update({
+          post_body_text: editForm.content,
+          location: editForm.location,
+          tags: tagsArray,
+          image_url: editForm.imageUrl
+        })
+        .eq('uuid', editPostData.uuid);
+      if (updateError) throw updateError;
+      // Update UI
+      setUserPosts(prev => prev.map(post =>
+        post.uuid === editPostData.uuid
+          ? { ...post, post_body_text: editForm.content, location: editForm.location, tags: tagsArray, image_url: editForm.imageUrl }
+          : post
+      ));
+      setIsEditing(false);
+      setEditPostData(null);
+      showNotification('Post updated!', 'success');
+    } catch (err) {
+      setIsEditing(false);
+      setEditPostData(null);
+      showNotification('Failed to update post: ' + (err.message || err), 'error');
+      console.error('Edit post error:', err);
+    }
+  };
+
+  // Delete post handler (no confirm)
+  const handleDeletePost = async (postUuid) => {
+    setIsDeleting(true);
+    try {
+      // Delete from posts table
+      const { error: deleteError } = await supabase
+        .from('posts')
+        .delete()
+        .eq('uuid', postUuid);
+      if (deleteError) throw deleteError;
+      // Remove from user's posts array in profiles
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user.id;
+      const { data: userRecord, error: fetchUserError } = await supabase
+        .from('profiles')
+        .select('posts')
+        .eq('uuid', userId)
+        .single();
+      if (fetchUserError || !userRecord) throw fetchUserError || new Error('User not found in profiles table');
+      const updatedPosts = Array.isArray(userRecord.posts)
+        ? userRecord.posts.filter(uuid => uuid !== postUuid)
+        : [];
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ posts: updatedPosts })
+        .eq('uuid', userId);
+      if (updateError) throw updateError;
+      // Remove from UI
+      setUserPosts(prev => prev.filter(post => post.uuid !== postUuid));
+      setShowPostMenu(null);
+      setDeleteModal({ open: false, postUuid: null });
+      showNotification('Post deleted!', 'success');
+    } catch (err) {
+      setDeleteModal({ open: false, postUuid: null });
+      showNotification('Failed to delete post: ' + (err.message || err), 'error');
+      console.error('Delete post error:', err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
 
   const ListingCard = ({ listing }) => (
@@ -822,10 +1008,10 @@ const Profile = () => {
           Posts ({userProfile.posts})
         </button>
         <button 
-          className={`tab-btn ${activeTab === 'recommendations' ? 'active' : ''}`}
-          onClick={() => setActiveTab('recommendations')}
+          className={`tab-btn ${activeTab === 'recommend' ? 'active' : ''}`}
+          onClick={() => setActiveTab('recommend')}
         >
-          Recommendations ({userProfile.recommendations})
+          Recommendations ({userProfile.recommend})
         </button>
         <button 
           className={`tab-btn ${activeTab === 'listings' ? 'active' : ''}`}
@@ -840,7 +1026,17 @@ const Profile = () => {
           <div className="posts-grid" style={{ width: '100%' }}>
             {userPosts.length > 0 ? (
               userPosts.map(post => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.uuid} post={{
+                  ...post,
+                  content: post.post_body_text,
+                  image: post.image_url,
+                  tags: post.tags || [],
+                  timestamp: post.created_at ? new Date(post.created_at).toLocaleString() : '',
+                  location: post.location || '',
+                  likes: Array.isArray(post.likes) ? post.likes.length : 0,
+                  comments: Array.isArray(post.comments) ? post.comments.length : 0,
+                  distance: '', // You can add logic for distance if needed
+                }} />
               ))
             ) : (
               <div style={{ textAlign: 'center', padding: '2rem', color: '#666', width: '100%' }}>
@@ -850,15 +1046,15 @@ const Profile = () => {
           </div>
         )}
         
-        {activeTab === 'recommendations' && (
-          <div className="recommendations-grid" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            {userRecommendations.length > 0 ? (
-              userRecommendations.map(rec => (
+        {activeTab === 'recommend' && (
+          <div className="recommend-grid" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            {userRecommend.length > 0 ? (
+              userRecommend.map(rec => (
                 <RecommendationCard key={rec.id} rec={rec} />
               ))
             ) : (
               <div style={{ textAlign: 'center', padding: '2rem', color: '#666', width: '100%' }}>
-                No recommendations yet. Start recommending places and events!
+                No recommend yet. Start recommending places and events!
               </div>
             )}
           </div>
@@ -886,6 +1082,185 @@ const Profile = () => {
         handleSaveProfile={handleSaveProfile}
         isSaving={isSaving}
       />
+      {/* Notification */}
+      {notification.open && (
+        <div style={{
+          position: 'fixed',
+          top: 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: notification.type === 'error' ? '#ff3b30' : '#007AFF',
+          color: 'white',
+          padding: '12px 32px',
+          borderRadius: 12,
+          fontSize: 16,
+          zIndex: 2000,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+        }}>
+          {notification.message}
+        </div>
+      )}
+      {/* Delete Confirmation Modal */}
+      {deleteModal.open && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.4)',
+          zIndex: 3000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: '32px 32px 24px 32px',
+            minWidth: 320,
+            maxWidth: '90vw',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            textAlign: 'center',
+          }}>
+            <h2 style={{ margin: 0, marginBottom: 16 }}>Delete Post?</h2>
+            <p style={{ color: '#86868b', marginBottom: 32 }}>Are you sure you want to delete this post? This action cannot be undone.</p>
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+              <button
+                style={{
+                  background: '#f0f0f0',
+                  color: '#1d1d1f',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '10px 24px',
+                  fontSize: 16,
+                  cursor: 'pointer',
+                }}
+                onClick={() => setDeleteModal({ open: false, postUuid: null })}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                style={{
+                  background: '#ff3b30',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '10px 24px',
+                  fontSize: 16,
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                  opacity: isDeleting ? 0.7 : 1,
+                }}
+                onClick={() => handleDeletePost(deleteModal.postUuid)}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Edit Post Modal */}
+      {editPostData && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.4)',
+          zIndex: 3000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: '32px 32px 24px 32px',
+            minWidth: 340,
+            maxWidth: '96vw',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            textAlign: 'left',
+            width: 500,
+            maxHeight: '90vh',
+            overflowY: 'auto',
+          }}>
+            <h2 style={{ margin: 0, marginBottom: 16 }}>Edit Post</h2>
+            <form onSubmit={handleEditPost} className="create-post-form">
+              <div className="form-group">
+                <label htmlFor="edit-content">What's happening?</label>
+                <textarea
+                  id="edit-content"
+                  value={editForm.content}
+                  onChange={e => setEditForm(f => ({ ...f, content: e.target.value }))}
+                  placeholder="Share your experience, thoughts, or recommend..."
+                  rows={4}
+                  maxLength={500}
+                  required
+                />
+                <div className="char-count">{editForm.content.length}/500</div>
+              </div>
+              <div className="form-group">
+                <label htmlFor="edit-location">Location (optional)</label>
+                <input
+                  type="text"
+                  id="edit-location"
+                  value={editForm.location}
+                  onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))}
+                  placeholder="Where are you?"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="edit-tags">Tags (optional)</label>
+                <input
+                  type="text"
+                  id="edit-tags"
+                  value={editForm.tags}
+                  onChange={e => setEditForm(f => ({ ...f, tags: e.target.value }))}
+                  placeholder="Add tags separated by commas (e.g., #food, #datenight)"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="edit-imageUrl">Image URL (optional)</label>
+                <input
+                  type="url"
+                  id="edit-imageUrl"
+                  value={editForm.imageUrl}
+                  onChange={e => setEditForm(f => ({ ...f, imageUrl: e.target.value }))}
+                  placeholder="https://example.com/image.jpg"
+                />
+              </div>
+              {editForm.imageUrl && (
+                <div className="image-preview">
+                  <img src={editForm.imageUrl} alt="Preview" onError={e => (e.target.style.display = 'none')} />
+                </div>
+              )}
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  onClick={() => {
+                    setEditPostData(null);
+                    setIsEditing(false);
+                  }}
+                  disabled={isEditing === 'saving'}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="submit-btn"
+                  disabled={!editForm.content.trim() || isEditing === 'saving'}
+                >
+                  {isEditing === 'saving' ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

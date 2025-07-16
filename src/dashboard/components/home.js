@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import './home.css';
 import LoadingScreen from './LoadingScreen.js';
 import { usePageCache } from '../context/PageCacheContext.js';
+import { userService } from '../../services/userService';
+import { supabase } from '../../lib/supabaseClient';
+import { v4 as uuidv4 } from 'uuid';
 
 const Home = () => {
   const [activeSection, setActiveSection] = useState('all'); // 'all', 'friends', or 'following'
@@ -11,6 +14,13 @@ const Home = () => {
   const [selectedActivityType, setSelectedActivityType] = useState('all');
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showCreatePostModal, setShowCreatePostModal] = useState(false);
+  const [newPost, setNewPost] = useState({
+    content: '',
+    location: '',
+    tags: '',
+    imageUrl: ''
+  });
   
   const { isPageLoaded, markPageAsLoaded } = usePageCache();
 
@@ -200,6 +210,56 @@ const Home = () => {
     post.timestamp.includes('hours ago') || post.timestamp.includes('minutes ago')
   ).slice(0, 3);
 
+  // Handle creating a new post
+  const handleCreatePost = async (postData) => {
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('Could not get current user');
+      const userId = user.id;
+      const postUuid = uuidv4();
+      const now = new Date().toISOString();
+      const tagsArray = postData.tags ? postData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+
+      // Insert post into posts table
+      const { error: postError } = await supabase.from('posts').insert([
+        {
+          uuid: postUuid,
+          created_at: now,
+          user_id: userId,
+          likes: [],
+          comments: [],
+          image_url: postData.imageUrl || null,
+          post_body_text: postData.content,
+          location: postData.location || '',
+          tags: tagsArray
+        }
+      ]);
+      if (postError) throw postError;
+
+      // Fetch current user's posts array from profiles table
+      const { data: userRecord, error: fetchUserError } = await supabase
+        .from('profiles')
+        .select('posts')
+        .eq('uuid', userId)
+        .single();
+      if (fetchUserError || !userRecord) throw fetchUserError || new Error('User not found in profiles table');
+      const updatedPosts = Array.isArray(userRecord.posts) ? [...userRecord.posts, postUuid] : [postUuid];
+
+      // Update user's posts array in profiles table
+      const { error: userUpdateError } = await supabase
+        .from('profiles')
+        .update({ posts: updatedPosts })
+        .eq('uuid', userId);
+      if (userUpdateError) throw userUpdateError;
+
+      alert('Post created successfully!');
+    } catch (err) {
+      alert('Failed to create post: ' + (err.message || err));
+      console.error('Create post error:', err);
+    }
+  };
+
   // Handle scroll for back to top button
   const handleScroll = (e) => {
     const scrollTop = e.target.scrollTop;
@@ -307,7 +367,10 @@ const Home = () => {
       </button>
       {showQuickActions && (
         <div className="quick-actions-menu">
-          <button className="action-menu-item">
+          <button className="action-menu-item" onClick={() => {
+            setShowCreatePostModal(true);
+            setShowQuickActions(false);
+          }}>
             <span>📝</span>
             <span>Create Post</span>
           </button>
@@ -327,6 +390,127 @@ const Home = () => {
       )}
     </div>
   );
+
+  // Create Post Modal Component
+  const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
+    const [postData, setPostData] = useState({
+      content: '',
+      location: '',
+      tags: '',
+      imageUrl: ''
+    });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleInputChange = (field, value) => {
+      setPostData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    };
+
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      if (!postData.content.trim()) return;
+
+      setIsSubmitting(true);
+      
+      // Simulate API call
+      setTimeout(() => {
+        onSubmit(postData);
+        setPostData({ content: '', location: '', tags: '', imageUrl: '' });
+        setIsSubmitting(false);
+        onClose();
+      }, 1000);
+    };
+
+    const handleClose = () => {
+      setPostData({ content: '', location: '', tags: '', imageUrl: '' });
+      onClose();
+    };
+
+    if (!isOpen) return null;
+
+    return (
+      <div className="modal-overlay" onClick={handleClose}>
+        <div className="create-post-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <h2>Create Post</h2>
+            <button className="modal-close-btn" onClick={handleClose}>✕</button>
+          </div>
+          
+          <form onSubmit={handleSubmit} className="create-post-form">
+            <div className="form-group">
+              <label htmlFor="content">What's happening?</label>
+              <textarea
+                id="content"
+                value={postData.content}
+                onChange={(e) => handleInputChange('content', e.target.value)}
+                placeholder="Share your experience, thoughts, or recommend..."
+                rows={4}
+                maxLength={500}
+                required
+              />
+              <div className="char-count">
+                {postData.content.length}/500
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="location">Location (optional)</label>
+              <input
+                type="text"
+                id="location"
+                value={postData.location}
+                onChange={(e) => handleInputChange('location', e.target.value)}
+                placeholder="Where are you?"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="tags">Tags (optional)</label>
+              <input
+                type="text"
+                id="tags"
+                value={postData.tags}
+                onChange={(e) => handleInputChange('tags', e.target.value)}
+                placeholder="Add tags separated by commas (e.g., #food, #datenight)"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="imageUrl">Image URL (optional)</label>
+              <input
+                type="url"
+                id="imageUrl"
+                value={postData.imageUrl}
+                onChange={(e) => handleInputChange('imageUrl', e.target.value)}
+                placeholder="https://example.com/image.jpg"
+              />
+            </div>
+
+            {postData.imageUrl && (
+              <div className="image-preview">
+                <img src={postData.imageUrl} alt="Preview" onError={(e) => e.target.style.display = 'none'} />
+              </div>
+            )}
+
+            <div className="form-actions">
+              <button type="button" className="cancel-btn" onClick={handleClose}>
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                className="submit-btn" 
+                disabled={!postData.content.trim() || isSubmitting}
+              >
+                {isSubmitting ? 'Creating...' : 'Create Post'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
 
   // Today's Highlights Component
   const TodaysHighlights = () => (
@@ -546,6 +730,11 @@ const Home = () => {
           </button>
         )}
       </div>
+              <CreatePostModal
+          isOpen={showCreatePostModal}
+          onClose={() => setShowCreatePostModal(false)}
+          onSubmit={handleCreatePost}
+        />
     </div>
   );
 };
