@@ -599,10 +599,11 @@ const Profile = () => {
         const profileWithDefaults = {
           name: profile.display_name || profile.username || 'User',
           username: `@${profile.username || 'user'}`,
+          email: profile.email || '',
           avatar: '👤',
           avatar_url: profile.avatar_url || '',
           bio: profile.bio || 'No bio yet.',
-          location: profile.locations && profile.locations.length > 0 ? profile.locations[0] : 'Location not set',
+          locations: profile.locations || [],
           joinDate: profile.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Recently',
           followers: profile.followers ? profile.followers.length : 0,
           following: profile.following ? profile.following.length : 0,
@@ -777,7 +778,7 @@ const Profile = () => {
           <div className="profile-details">
             <div className="detail-item">
               <span className="detail-icon">📍</span>
-              <span>{userProfile.location}</span>
+              <span>{userProfile.locations[0] || 'Location not set'}</span>
             </div>
             <div className="detail-item">
               <span className="detail-icon">📅</span>

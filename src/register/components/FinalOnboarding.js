@@ -29,7 +29,7 @@ function FinalOnboarding({ nextStep }) {
         .insert([
           {
             uuid: user.id,
-            email: user.email, // Use email from current user
+            email: onboardingData.email || user.email, // Always set email
             username: onboardingData.username,
             display_name: onboardingData.displayName || onboardingData.username,
             phone: onboardingData.phone,
