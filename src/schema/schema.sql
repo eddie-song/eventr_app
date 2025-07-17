@@ -15,22 +15,8 @@
 --   display_name: TEXT - User's display name
 --   phone: TEXT - User's phone number
 --   bio: TEXT - User's biography/description
---   user_interests: TEXT[] - Array of user's interests
---   locations: TEXT[] - Array of user's preferred locations
 --   avatar_url: TEXT - URL to user's profile picture
 --   updated_at: TIMESTAMP WITH TIME ZONE - Last profile update time
---   posted_events: UUID[] - Array of events created by user
---   saved_events: UUID[] - Array of events saved by user
---   posted_locations: UUID[] - Array of locations created by user
---   saved_locations: UUID[] - Array of locations saved by user
---   posted_person: UUID[] - Array of person records created by user
---   saved_person: UUID[] - Array of person records saved by user
---   posts: UUID[] - Array of posts created by user
---   liked_posts: UUID[] - Array of posts liked by user
---   saved_posts: UUID[] - Array of posts saved by user
---   comments: UUID[] - Array of comments made by user
---   following: UUID[] - Array of users this user follows
---   followers: UUID[] - Array of users following this user
 
 -- ========================================
 -- INTERESTS TABLE
@@ -40,7 +26,6 @@
 -- Columns:
 --   uuid: UUID (PRIMARY KEY) - Unique interest identifier
 --   interest: TEXT (NOT NULL) - Name of the interest
---   popular_events: UUID[] - Array of popular events in this category
 
 -- ========================================
 -- EVENTS TABLE
@@ -50,9 +35,6 @@
 -- Columns:
 --   uuid: UUID (PRIMARY KEY) - Unique event identifier
 --   event: TEXT (NOT NULL) - Event name/description
---   tags: TEXT[] - Array of tags for the event
---   hosts: UUID[] - Array of user UUIDs hosting the event
---   attendees: UUID[] - Array of user UUIDs attending the event
 --   location: TEXT - Event location
 --   review_count: INTEGER - Number of reviews (default: 0)
 --   rating: NUMERIC(3,2) - Average rating (default: 0.00)
@@ -67,7 +49,6 @@
 --   location: TEXT (NOT NULL) - Location name/address
 --   longitude: NUMERIC(9,6) - Longitude coordinate
 --   latitude: NUMERIC(9,6) - Latitude coordinate
---   events: UUID[] - Array of events at this location
 --   review_count: INTEGER - Number of reviews (default: 0)
 --   rating: NUMERIC(3,2) - Average rating (default: 0.00)
 
@@ -92,9 +73,149 @@
 --   uuid: UUID (PRIMARY KEY) - Unique post identifier
 --   created_at: TIMESTAMP WITH TIME ZONE - Post creation time
 --   user_id: UUID (NOT NULL) - UUID of the user who created the post
---   likes: UUID[] - Array of user UUIDs who liked the post (default: empty array)
---   comments: UUID[] - Array of comment UUIDs (default: empty array)
+--   like_count: INTEGER - Number of likes on the post (default: 0)
+--   comment_count: INTEGER - Number of comments on the post (default: 0)
 --   image_url: TEXT - URL to post image
 --   post_body_text: TEXT - Text content of the post
 --   location: TEXT - Location associated with the post
---   tags: TEXT[] - Array of tags for the post (default: empty array) 
+
+-- ========================================
+-- COMMENTS TABLE
+-- ========================================
+-- Table for storing comments on posts
+--
+-- Columns:
+--   uuid: UUID (PRIMARY KEY) - Unique comment identifier
+--   created_at: TIMESTAMP WITH TIME ZONE - Comment creation time
+--   user_id: UUID (NOT NULL) - UUID of the user who created the comment
+--   post_id: UUID (NOT NULL) - UUID of the post this comment belongs to
+--   parent_comment_id: UUID - UUID of the parent comment (for replies, NULL for top-level comments)
+--   comment_text: TEXT (NOT NULL) - Text content of the comment
+--   like_count: INTEGER - Number of likes on the comment (default: 0)
+--   reply_count: INTEGER - Number of replies to this comment (default: 0)
+
+-- ========================================
+-- JUNCTION TABLES
+-- ========================================
+
+-- ========================================
+-- USER_INTERESTS TABLE
+-- ========================================
+-- Junction table for user interests
+--
+-- Columns:
+--   user_id: UUID (NOT NULL) - UUID of the user
+--   interest_id: UUID (NOT NULL) - UUID of the interest
+--   created_at: TIMESTAMP WITH TIME ZONE - When the interest was added
+--   PRIMARY KEY: (user_id, interest_id)
+
+-- ========================================
+-- USER_LOCATIONS TABLE
+-- ========================================
+-- Junction table for user preferred locations
+--
+-- Columns:
+--   user_id: UUID (NOT NULL) - UUID of the user
+--   location_name: TEXT (NOT NULL) - Name of the location
+--   created_at: TIMESTAMP WITH TIME ZONE - When the location was added
+--   PRIMARY KEY: (user_id, location_name)
+
+-- ========================================
+-- EVENT_TAGS TABLE
+-- ========================================
+-- Junction table for event tags
+--
+-- Columns:
+--   event_id: UUID (NOT NULL) - UUID of the event
+--   tag: TEXT (NOT NULL) - Tag name
+--   created_at: TIMESTAMP WITH TIME ZONE - When the tag was added
+--   PRIMARY KEY: (event_id, tag)
+
+-- ========================================
+-- EVENT_HOSTS TABLE
+-- ========================================
+-- Junction table for event hosts
+--
+-- Columns:
+--   event_id: UUID (NOT NULL) - UUID of the event
+--   user_id: UUID (NOT NULL) - UUID of the host
+--   created_at: TIMESTAMP WITH TIME ZONE - When the host was added
+--   PRIMARY KEY: (event_id, user_id)
+
+-- ========================================
+-- EVENT_ATTENDEES TABLE
+-- ========================================
+-- Junction table for event attendees
+--
+-- Columns:
+--   event_id: UUID (NOT NULL) - UUID of the event
+--   user_id: UUID (NOT NULL) - UUID of the attendee
+--   created_at: TIMESTAMP WITH TIME ZONE - When the user joined
+--   PRIMARY KEY: (event_id, user_id)
+
+-- ========================================
+-- LOCATION_EVENTS TABLE
+-- ========================================
+-- Junction table for events at locations
+--
+-- Columns:
+--   location_id: UUID (NOT NULL) - UUID of the location
+--   event_id: UUID (NOT NULL) - UUID of the event
+--   created_at: TIMESTAMP WITH TIME ZONE - When the event was added
+--   PRIMARY KEY: (location_id, event_id)
+
+-- ========================================
+-- POST_TAGS TABLE
+-- ========================================
+-- Junction table for post tags
+--
+-- Columns:
+--   post_id: UUID (NOT NULL) - UUID of the post
+--   tag: TEXT (NOT NULL) - Tag name
+--   created_at: TIMESTAMP WITH TIME ZONE - When the tag was added
+--   PRIMARY KEY: (post_id, tag)
+
+-- ========================================
+-- POST_LIKES TABLE
+-- ========================================
+-- Junction table for tracking which users liked which posts
+--
+-- Columns:
+--   post_id: UUID (NOT NULL) - UUID of the post that was liked
+--   user_id: UUID (NOT NULL) - UUID of the user who liked the post
+--   created_at: TIMESTAMP WITH TIME ZONE - When the like was created
+--   PRIMARY KEY: (post_id, user_id) - Ensures a user can only like a post once
+
+-- ========================================
+-- COMMENT_LIKES TABLE
+-- ========================================
+-- Junction table for tracking which users liked which comments
+--
+-- Columns:
+--   comment_id: UUID (NOT NULL) - UUID of the comment that was liked
+--   user_id: UUID (NOT NULL) - UUID of the user who liked the comment
+--   created_at: TIMESTAMP WITH TIME ZONE - When the like was created
+--   PRIMARY KEY: (comment_id, user_id) - Ensures a user can only like a comment once
+
+-- ========================================
+-- USER_FOLLOWS TABLE
+-- ========================================
+-- Junction table for user following relationships
+--
+-- Columns:
+--   follower_id: UUID (NOT NULL) - UUID of the user who is following
+--   following_id: UUID (NOT NULL) - UUID of the user being followed
+--   created_at: TIMESTAMP WITH TIME ZONE - When the follow relationship was created
+--   PRIMARY KEY: (follower_id, following_id) - Ensures unique follow relationships
+
+-- ========================================
+-- USER_SAVES TABLE
+-- ========================================
+-- Junction table for user saved items (events, locations, posts, etc.)
+--
+-- Columns:
+--   user_id: UUID (NOT NULL) - UUID of the user
+--   item_type: TEXT (NOT NULL) - Type of saved item ('event', 'location', 'post', 'person')
+--   item_id: UUID (NOT NULL) - UUID of the saved item
+--   created_at: TIMESTAMP WITH TIME ZONE - When the item was saved
+--   PRIMARY KEY: (user_id, item_type, item_id) - Ensures unique saves per user per item 

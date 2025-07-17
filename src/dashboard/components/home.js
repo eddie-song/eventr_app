@@ -3,8 +3,10 @@ import './home.css';
 import LoadingScreen from './LoadingScreen.js';
 import { usePageCache } from '../context/PageCacheContext.js';
 import { userService } from '../../services/userService';
+import { postService } from '../../services/postService';
 import { supabase } from '../../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
+import { likeService } from '../../services/likeService';
 
 const Home = () => {
   const [activeSection, setActiveSection] = useState('all'); // 'all', 'friends', or 'following'
@@ -21,8 +23,14 @@ const Home = () => {
     tags: '',
     imageUrl: ''
   });
+  const [notification, setNotification] = useState({ open: false, message: '', type: '' });
   
   const { isPageLoaded, markPageAsLoaded } = usePageCache();
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ open: true, message, type });
+    setTimeout(() => setNotification({ open: false, message: '', type: '' }), 2500);
+  };
 
   const stories = [
     { id: 1, author: 'Sarah Chen', avatar: '👩‍💻', isViewed: false },
@@ -213,49 +221,10 @@ const Home = () => {
   // Handle creating a new post
   const handleCreatePost = async (postData) => {
     try {
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw new Error('Could not get current user');
-      const userId = user.id;
-      const postUuid = uuidv4();
-      const now = new Date().toISOString();
-      const tagsArray = postData.tags ? postData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
-
-      // Insert post into posts table
-      const { error: postError } = await supabase.from('posts').insert([
-        {
-          uuid: postUuid,
-          created_at: now,
-          user_id: userId,
-          likes: [],
-          comments: [],
-          image_url: postData.imageUrl || null,
-          post_body_text: postData.content,
-          location: postData.location || '',
-          tags: tagsArray
-        }
-      ]);
-      if (postError) throw postError;
-
-      // Fetch current user's posts array from profiles table
-      const { data: userRecord, error: fetchUserError } = await supabase
-        .from('profiles')
-        .select('posts')
-        .eq('uuid', userId)
-        .single();
-      if (fetchUserError || !userRecord) throw fetchUserError || new Error('User not found in profiles table');
-      const updatedPosts = Array.isArray(userRecord.posts) ? [...userRecord.posts, postUuid] : [postUuid];
-
-      // Update user's posts array in profiles table
-      const { error: userUpdateError } = await supabase
-        .from('profiles')
-        .update({ posts: updatedPosts })
-        .eq('uuid', userId);
-      if (userUpdateError) throw userUpdateError;
-
-      alert('Post created successfully!');
+      const result = await postService.createPost(postData);
+      showNotification('Post created successfully!', 'success');
     } catch (err) {
-      alert('Failed to create post: ' + (err.message || err));
+      showNotification('Failed to create post: ' + (err.message || err), 'error');
       console.error('Create post error:', err);
     }
   };
@@ -297,66 +266,93 @@ const Home = () => {
     }
   }, [isPageLoaded, markPageAsLoaded]);
 
-  const PostCard = ({ post }) => (
-    <div className="post-card" onClick={() => setSelectedPost(post)}>
-      <div className="post-header">
-        <div className="post-author">
-          <div className="author-avatar">{post.avatar}</div>
-          <div className="author-info">
-            <div className="author-name">{post.author}</div>
-            <div className="post-timestamp">{post.timestamp}</div>
+  // Like state for real posts
+  const [likeStates, setLikeStates] = useState({}); // { [postUuid]: { liked: bool, likesCount: number } }
+
+  // Like handler
+  const handleLike = async (post) => {
+    const postUuid = post.uuid || post.id;
+    // Optimistically update UI
+    setLikeStates(prev => {
+      const prevState = prev[postUuid] || { liked: false, likesCount: post.likes || 0 };
+      const liked = !prevState.liked;
+      const likesCount = liked ? prevState.likesCount + 1 : Math.max(0, prevState.likesCount - 1);
+      return { ...prev, [postUuid]: { liked, likesCount } };
+    });
+    // Call backend for real posts
+    if (post.uuid) {
+      try {
+        const result = await likeService.likePost(post.uuid);
+        setLikeStates(prev => ({ ...prev, [postUuid]: { liked: result.liked, likesCount: result.likesCount } }));
+      } catch (e) {
+        // Revert UI on error
+        setLikeStates(prev => ({ ...prev, [postUuid]: { liked: !prev[postUuid].liked, likesCount: post.likes } }));
+      }
+    }
+  };
+
+  const PostCard = ({ post }) => {
+    const postUuid = post.uuid || post.id;
+    const likeState = likeStates[postUuid] || { liked: false, likesCount: post.likes || 0 };
+    return (
+      <div className="post-card" onClick={() => setSelectedPost(post)}>
+        <div className="post-header">
+          <div className="post-author">
+            <div className="author-avatar">{post.avatar}</div>
+            <div className="author-info">
+              <div className="author-name">{post.author}</div>
+              <div className="post-timestamp">{post.timestamp}</div>
+            </div>
+          </div>
+          <button className="post-menu">⋯</button>
+        </div>
+        <div className="post-content">
+          <p>{post.content}</p>
+          {post.image && (
+            <div className="post-image-container">
+              <img 
+                src={post.image} 
+                alt={`${post.location}`}
+                className="post-image"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
+            </div>
+          )}
+          <div className="post-location">
+            <span className="location-icon">📍</span>
+            <span className="location-name">{post.location}</span>
+            <span className="location-distance">{post.distance}</span>
+          </div>
+          <div className="post-tags">
+            {post.tags.map((tag, index) => (
+              <span key={index} className="tag">{tag}</span>
+            ))}
           </div>
         </div>
-        <button className="post-menu">⋯</button>
-      </div>
-      
-      <div className="post-content">
-        <p>{post.content}</p>
-        {post.image && (
-          <div className="post-image-container">
-            <img 
-              src={post.image} 
-              alt={`${post.location}`}
-              className="post-image"
-              onError={(e) => {
-                e.target.style.display = 'none';
-              }}
-            />
-          </div>
-        )}
-        <div className="post-location">
-          <span className="location-icon">📍</span>
-          <span className="location-name">{post.location}</span>
-          <span className="location-distance">{post.distance}</span>
-        </div>
-        <div className="post-tags">
-          {post.tags.map((tag, index) => (
-            <span key={index} className="tag">{tag}</span>
-          ))}
+        <div className="post-actions">
+          <button className={`action-btn${likeState.liked ? ' active' : ''}`} onClick={e => { e.stopPropagation(); handleLike(post); }}>
+            <span>❤️</span>
+            <span className="action-count">{likeState.likesCount}</span>
+          </button>
+          <button className="action-btn">
+            <span>💬</span>
+            <span className="action-count">{post.comments}</span>
+          </button>
+          <button className="action-btn">
+            <span>📤</span>
+          </button>
+          <button className="action-btn">
+            <span>🔖</span>
+          </button>
+          <button className="action-btn">
+            <span>🗺️</span>
+          </button>
         </div>
       </div>
-      
-      <div className="post-actions">
-        <button className="action-btn">
-          <span>❤️</span>
-          <span className="action-count">{post.likes}</span>
-        </button>
-        <button className="action-btn">
-          <span>💬</span>
-          <span className="action-count">{post.comments}</span>
-        </button>
-        <button className="action-btn">
-          <span>📤</span>
-        </button>
-        <button className="action-btn">
-          <span>🔖</span>
-        </button>
-        <button className="action-btn">
-          <span>🗺️</span>
-        </button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   // Quick Actions Component
   const QuickActions = () => (
@@ -414,13 +410,16 @@ const Home = () => {
 
       setIsSubmitting(true);
       
-      // Simulate API call
-      setTimeout(() => {
-        onSubmit(postData);
+      try {
+        await onSubmit(postData);
         setPostData({ content: '', location: '', tags: '', imageUrl: '' });
-        setIsSubmitting(false);
         onClose();
-      }, 1000);
+      } catch (error) {
+        // Error handling is done in handleCreatePost
+        console.error('Modal submit error:', error);
+      } finally {
+        setIsSubmitting(false);
+      }
     };
 
     const handleClose = () => {
@@ -641,6 +640,23 @@ const Home = () => {
 
   return (
     <div className="home-container">
+      {notification.open && (
+        <div style={{
+          position: 'fixed',
+          top: 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: notification.type === 'error' ? '#ff3b30' : '#007AFF',
+          color: 'white',
+          padding: '12px 32px',
+          borderRadius: 12,
+          fontSize: 16,
+          zIndex: 2000,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+        }}>
+          {notification.message}
+        </div>
+      )}
       <div className="home-feed">
         <div className="feed-header">
           <div className="header-left">

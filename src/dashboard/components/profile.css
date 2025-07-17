@@ -12,7 +12,6 @@
   margin-bottom: 24px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid #e1e5e9;
 }
 
 .profile-cover {
@@ -401,6 +400,9 @@
   font-size: 16px;
   color: #86868b;
   transition: all 0.2s ease;
+  min-width: 60px;
+  justify-content: center;
+  position: relative;
   
 }
 
@@ -409,9 +411,22 @@
   color: #1d1d1f;
 }
 
+.action-btn.active {
+  color: #ff3b30;
+  transform: scale(1.05);
+}
+
+.action-btn.active:hover {
+  background-color: #fff5f5;
+}
+
 .action-count {
   font-size: 14px;
   font-weight: 500;
+  min-width: 20px;
+  text-align: center;
+  transition: all 0.2s ease;
+  display: inline-block;
 }
 
 /* Recommend Grid */

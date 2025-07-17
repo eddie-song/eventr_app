@@ -9,7 +9,7 @@ import People from './components/people.js';
 import Social from './components/social.js';
 import Profile from './components/profile.js';
 import Plan from './components/plan.js';
-import CreateService from './components/CreateService';
+import CreateService from './components/create.js';
 import { PageCacheProvider } from './context/PageCacheContext.js';
 import { supabase } from '../lib/supabaseClient';
 
@@ -63,7 +63,8 @@ function Dashboard({ service }) {
       try {
         const { data: { user } } = await authService.getCurrentUser();
         if (!user) {
-          // User is not authenticated, redirect to login
+          // User is not authenticated, clear service selection and redirect to login
+          localStorage.removeItem('dashboard_selected_service');
           navigate('/login');
         } else {
           // User is authenticated, now check if profile exists
@@ -75,7 +76,8 @@ function Dashboard({ service }) {
           console.log('profile', profile);
           console.log('user', user);
           if (!profile) {
-            // Profile not found, redirect to onboarding
+            // Profile not found, clear service selection and redirect to onboarding
+            localStorage.removeItem('dashboard_selected_service');
             navigate('/onboarding');
             return;
           }
@@ -83,7 +85,8 @@ function Dashboard({ service }) {
         }
       } catch (error) {
         console.error('Auth check error:', error);
-        // If there's an error checking auth, redirect to login for safety
+        // If there's an error checking auth, clear service selection and redirect to login for safety
+        localStorage.removeItem('dashboard_selected_service');
         navigate('/login');
       }
     };

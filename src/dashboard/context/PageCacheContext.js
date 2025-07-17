@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const PageCacheContext = createContext();
 
@@ -13,6 +13,34 @@ export const usePageCache = () => {
 export const PageCacheProvider = ({ children }) => {
   const [loadedPages, setLoadedPages] = useState(new Set());
   const [pageData, setPageData] = useState({});
+
+  // Load cached data from localStorage on mount
+  useEffect(() => {
+    try {
+      const cachedLoadedPages = localStorage.getItem('eventr_loadedPages');
+      const cachedPageData = localStorage.getItem('eventr_pageData');
+      
+      if (cachedLoadedPages) {
+        setLoadedPages(new Set(JSON.parse(cachedLoadedPages)));
+      }
+      
+      if (cachedPageData) {
+        setPageData(JSON.parse(cachedPageData));
+      }
+    } catch (error) {
+      console.error('Error loading cached data:', error);
+    }
+  }, []);
+
+  // Save to localStorage whenever state changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('eventr_loadedPages', JSON.stringify(Array.from(loadedPages)));
+      localStorage.setItem('eventr_pageData', JSON.stringify(pageData));
+    } catch (error) {
+      console.error('Error saving cached data:', error);
+    }
+  }, [loadedPages, pageData]);
 
   const markPageAsLoaded = (pageName) => {
     setLoadedPages(prev => new Set(prev).add(pageName));
@@ -49,6 +77,9 @@ export const PageCacheProvider = ({ children }) => {
       // Clear all cache
       setLoadedPages(new Set());
       setPageData({});
+      // Clear localStorage
+      localStorage.removeItem('eventr_loadedPages');
+      localStorage.removeItem('eventr_pageData');
     }
   };
 

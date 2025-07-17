@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
-import './home.css'; // Reuse styles for form
+import { postService } from '../../services/postService';
+import './create.css';
 
 const TABS = [
   { key: 'posts', label: 'Posts' },
@@ -36,41 +38,7 @@ const CreateService = () => {
     if (!formData.content.trim()) return;
     setIsSubmitting(true);
     try {
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw new Error('Could not get current user');
-      const userId = user.id;
-      const postUuid = uuidv4();
-      const now = new Date().toISOString();
-      const tagsArray = formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
-      // Insert post
-      const { error: postError } = await supabase.from('posts').insert([
-        {
-          uuid: postUuid,
-          created_at: now,
-          user_id: userId,
-          likes: [],
-          comments: [],
-          image_url: formData.imageUrl || null,
-          post_body_text: formData.content,
-          location: formData.location || '',
-          tags: tagsArray
-        }
-      ]);
-      if (postError) throw postError;
-      // Update user's posts array in profiles
-      const { data: userRecord, error: fetchUserError } = await supabase
-        .from('profiles')
-        .select('posts')
-        .eq('uuid', userId)
-        .single();
-      if (fetchUserError || !userRecord) throw fetchUserError || new Error('User not found in profiles table');
-      const updatedPosts = Array.isArray(userRecord.posts) ? [...userRecord.posts, postUuid] : [postUuid];
-      const { error: userUpdateError } = await supabase
-        .from('profiles')
-        .update({ posts: updatedPosts })
-        .eq('uuid', userId);
-      if (userUpdateError) throw userUpdateError;
+      await postService.createPost(formData);
       setFormData({ content: '', location: '', tags: '', imageUrl: '' });
       showNotification('Post created successfully!', 'success');
     } catch (err) {

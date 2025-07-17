@@ -7,6 +7,8 @@ import { usePageCache } from '../context/PageCacheContext.js';
 import { userService } from '../../services/userService';
 import { supabase } from '../../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
+import { likeService } from '../../services/likeService';
+import { postService } from '../../services/postService';
 
 const EditProfileModal = ({ 
   showEditModal, 
@@ -478,8 +480,41 @@ const Profile = () => {
   const [notification, setNotification] = useState({ open: false, message: '', type: '' });
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ content: '', location: '', tags: '', imageUrl: '' });
-  
+  const [userLocations, setUserLocations] = useState([]); // Store user locations from junction table
+
   const { isPageLoaded, markPageAsLoaded } = usePageCache();
+
+  // Custom hook for like state management
+  const useLikeState = (postUuid, initialLikeCount = 0) => {
+    const [likeState, setLikeState] = React.useState({ 
+      liked: false, 
+      likesCount: initialLikeCount 
+    });
+    
+    const handleLike = React.useCallback(async () => {
+      // Optimistic update
+      setLikeState(prev => {
+        const liked = !prev.liked;
+        const likesCount = liked ? prev.likesCount + 1 : Math.max(0, prev.likesCount - 1);
+        return { liked, likesCount };
+      });
+      
+      try {
+        const result = await likeService.likePost(postUuid);
+        // Update with actual result from server
+        setLikeState({ liked: result.liked, likesCount: result.likesCount });
+      } catch (e) {
+        console.error('Like error:', e);
+        // Revert on error
+        setLikeState(prev => ({ 
+          liked: !prev.liked, 
+          likesCount: initialLikeCount 
+        }));
+      }
+    }, [postUuid, initialLikeCount]);
+    
+    return [likeState, handleLike];
+  };
 
   // Empty user recommendations array since user has no recommendations
   const userRecommend = [];
@@ -487,8 +522,22 @@ const Profile = () => {
   // Empty user listings array since user has no listings
   const userListings = [];
 
-  const PostCard = ({ post }) => {
+
+
+  const PostCard = React.memo(({ post }) => {
+    const postUuid = post.uuid;
     const isMenuOpen = showPostMenu === post.uuid;
+    const [likeState, handleLike] = useLikeState(postUuid, post.like_count || 0);
+    
+    const handleMenuClick = React.useCallback(() => {
+      setShowPostMenu(isMenuOpen ? null : post.uuid);
+    }, [isMenuOpen, post.uuid]);
+    
+    const handleLikeClick = React.useCallback((e) => {
+      e.stopPropagation();
+      handleLike();
+    }, [handleLike]);
+    
     return (
       <div className="profile-post-card">
         <div className="post-header">
@@ -502,16 +551,16 @@ const Profile = () => {
                   onError={e => (e.target.style.display = 'none')}
                 />
               ) : (
-                userProfile.avatar
+                '👤'
               )}
             </div>
             <div className="author-info">
-              <div className="author-name">{userProfile.name}</div>
+              <div className="author-name">{userProfile.display_name || userProfile.username || 'User'}</div>
               <div className="post-timestamp">{post.timestamp}</div>
             </div>
           </div>
           <div style={{ position: 'relative' }}>
-            <button className="post-menu" onClick={() => setShowPostMenu(isMenuOpen ? null : post.uuid)}>
+            <button className="post-menu" onClick={handleMenuClick}>
               ⋯
             </button>
             {isMenuOpen && (
@@ -599,13 +648,13 @@ const Profile = () => {
         </div>
         
         <div className="post-actions">
-          <button className="action-btn">
+          <button className={`action-btn${likeState.liked ? ' active' : ''}`} onClick={handleLikeClick}>
             <span>❤️</span>
-            <span className="action-count">{post.likes}</span>
+            <span className="action-count">{likeState.likesCount}</span>
           </button>
           <button className="action-btn">
             <span>💬</span>
-            <span className="action-count">{post.comments}</span>
+            <span className="action-count">{post.comments || 0}</span>
           </button>
           <button className="action-btn">
             <span>📤</span>
@@ -619,7 +668,7 @@ const Profile = () => {
         </div>
       </div>
     );
-  };
+  });
 
   const RecommendationCard = ({ rec }) => (
     <div className="profile-rec-card">
@@ -640,8 +689,8 @@ const Profile = () => {
           <span className="rec-distance">{rec.distance}</span>
         </div>
         <div className="rec-author">
-          <span className="author-avatar small">{userProfile.avatar}</span>
-          <span>{rec.author}</span>
+          <span className="author-avatar small">{userProfile.avatar_url ? '👤' : '👤'}</span>
+          <span>{userProfile.display_name || userProfile.username || 'User'}</span>
           <span>•</span>
           <span>{rec.timestamp}</span>
         </div>
@@ -662,58 +711,85 @@ const Profile = () => {
     </div>
   );
 
+  // Load user profile and posts
   useEffect(() => {
-    const fetchProfileAndPosts = async () => {
-      setIsLoading(true);
-      const { profile, profileNotFound, error } = await userService.getCurrentUserProfile();
-      if (profileNotFound) {
-        navigate('/register/onboarding');
-        return;
-      }
-      if (error) {
-        setProfileError(error.message || 'Failed to load profile');
-        setIsLoading(false);
-        return;
-      }
-      // Set user profile info
-      const profileWithDefaults = {
-        name: profile.display_name || profile.username || 'User',
-        username: `@${profile.username || 'user'}`,
-        email: profile.email || '',
-        avatar: '👤',
-        avatar_url: profile.avatar_url || '',
-        bio: profile.bio || 'No bio yet.',
-        locations: profile.locations || [],
-        joinDate: profile.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Recently',
-        followers: profile.followers ? profile.followers.length : 0,
-        following: profile.following ? profile.following.length : 0,
-        posts: profile.posts ? profile.posts.length : 0,
-        recommend: 0,
-        listings: 0
-      };
-      setUserProfile(profileWithDefaults);
-
-      // Fetch posts if any
-      if (Array.isArray(profile.posts) && profile.posts.length > 0) {
-        const { data: postsData, error: postsError } = await supabase
-          .from('posts')
-          .select('*')
-          .in('uuid', profile.posts);
-        if (!postsError && postsData) {
-          // Sort posts by created_at descending
-          const sortedPosts = postsData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-          setUserPosts(sortedPosts);
-        } else {
-          setUserPosts([]);
+    const loadProfile = async () => {
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+          setProfileError('User not authenticated');
+          setIsLoading(false);
+          return;
         }
-      } else {
-        setUserPosts([]);
+
+        // Get user profile
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('uuid', user.id)
+          .single();
+
+        if (profileError) {
+          setProfileError('Failed to load profile');
+          setIsLoading(false);
+          return;
+        }
+
+        setUserProfile({
+          ...profile,
+          posts: 0, // Will be updated below
+          followers: 0, // Will be updated below
+          following: 0 // Will be updated below
+        });
+
+        // Get user's posts count and posts
+        const postsWithTags = await postService.getUserPosts(user.id);
+        setUserPosts(postsWithTags || []);
+        setUserProfile(prev => ({ ...prev, posts: postsWithTags ? postsWithTags.length : 0 }));
+
+        // Get followers count
+        const { count: followersCount, error: followersError } = await supabase
+          .from('user_follows')
+          .select('*', { count: 'exact', head: true })
+          .eq('following_id', user.id);
+
+        if (!followersError) {
+          setUserProfile(prev => ({ ...prev, followers: followersCount || 0 }));
+        }
+
+        // Get following count
+        const { count: followingCount, error: followingError } = await supabase
+          .from('user_follows')
+          .select('*', { count: 'exact', head: true })
+          .eq('follower_id', user.id);
+
+        if (!followingError) {
+          setUserProfile(prev => ({ ...prev, following: followingCount || 0 }));
+        }
+
+        // Get user locations from junction table
+        const { data: locations, error: locationsError } = await supabase
+          .from('user_locations')
+          .select('location_name')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (!locationsError) {
+          setUserLocations(locations || []);
+        }
+
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error loading profile:', error);
+        setProfileError('Failed to load profile');
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
-    fetchProfileAndPosts();
-    // eslint-disable-next-line
+
+    loadProfile();
   }, []);
+
+
 
   // Show loading screen
   if (isLoading || !userProfile) {
@@ -730,6 +806,9 @@ const Profile = () => {
       if (error) {
         console.error('Logout error:', error);
       } else {
+        // Clear dashboard service selection from localStorage
+        localStorage.removeItem('dashboard_selected_service');
+        
         // Redirect to landing page after successful logout
         navigate('/');
       }
@@ -744,10 +823,10 @@ const Profile = () => {
     setEditFormData({
       username: userProfile.username?.replace('@', '') || '',
       email: userProfile.email || '',
-      display_name: userProfile.name,
+      display_name: userProfile.display_name || '',
       phone: userProfile.phone || '',
-      bio: userProfile.bio,
-      locations: userProfile.locations || [],
+      bio: userProfile.bio || '',
+      locations: userLocations.map(loc => loc.location_name) || [],
       avatar_url: userProfile.avatar_url || ''
     });
     setShowEditModal(true);
@@ -759,6 +838,7 @@ const Profile = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No authenticated user found');
 
+      // Update profile basic info
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -767,7 +847,6 @@ const Profile = () => {
           display_name: editFormData.display_name,
           phone: editFormData.phone,
           bio: editFormData.bio,
-          locations: editFormData.locations,
           avatar_url: editFormData.avatar_url,
           updated_at: new Date().toISOString()
         })
@@ -775,17 +854,43 @@ const Profile = () => {
 
       if (error) throw error;
 
+      // Handle locations - delete existing and insert new ones
+      // Delete existing locations first
+      const { error: deleteError } = await supabase
+        .from('user_locations')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (deleteError) throw deleteError;
+
+      // Insert new locations if any
+      if (editFormData.locations && editFormData.locations.length > 0) {
+        const locationRecords = editFormData.locations.map(location => ({
+          user_id: user.id,
+          location_name: location,
+          created_at: new Date().toISOString()
+        }));
+
+        const { error: insertError } = await supabase
+          .from('user_locations')
+          .insert(locationRecords);
+
+        if (insertError) throw insertError;
+      }
+
       // Update local state
       setUserProfile(prev => ({
         ...prev,
-        username: `@${editFormData.username}`,
+        username: editFormData.username,
         email: editFormData.email,
-        name: editFormData.display_name,
+        display_name: editFormData.display_name,
         bio: editFormData.bio,
         phone: editFormData.phone,
-        locations: editFormData.locations,
         avatar_url: editFormData.avatar_url
       }));
+
+      // Update local locations state
+      setUserLocations(editFormData.locations.map(location => ({ location_name: location })));
 
       setShowEditModal(false);
       showNotification('Profile updated!', 'success');
@@ -805,6 +910,7 @@ const Profile = () => {
 
   // Edit post handler
   const openEditModal = (post) => {
+    console.log('Opening edit modal for post:', post);
     setEditForm({
       content: post.post_body_text || post.content || '',
       location: post.location || '',
@@ -817,73 +923,56 @@ const Profile = () => {
 
   const handleEditPost = async (e) => {
     e.preventDefault();
-    if (!editForm.content.trim() || !editPostData) return;
-    setIsEditing('saving');
+    console.log('Handling edit post submission:', editPostData, editForm);
+    if (!editPostData) return;
+    
+    setIsSaving(true);
     try {
-      const tagsArray = editForm.tags ? editForm.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
-      const { error: updateError } = await supabase
-        .from('posts')
-        .update({
-          post_body_text: editForm.content,
-          location: editForm.location,
-          tags: tagsArray,
-          image_url: editForm.imageUrl
-        })
-        .eq('uuid', editPostData.uuid);
-      if (updateError) throw updateError;
-      // Update UI
-      setUserPosts(prev => prev.map(post =>
-        post.uuid === editPostData.uuid
-          ? { ...post, post_body_text: editForm.content, location: editForm.location, tags: tagsArray, image_url: editForm.imageUrl }
+      await postService.updatePost(editPostData.uuid, editForm);
+
+      // Update local state
+      setUserPosts(prev => prev.map(post => 
+        post.uuid === editPostData.uuid 
+          ? { 
+              ...post, 
+              post_body_text: editForm.content, 
+              location: editForm.location, 
+              image_url: editForm.imageUrl,
+              tags: editForm.tags ? editForm.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []
+            }
           : post
       ));
-      setIsEditing(false);
+
       setEditPostData(null);
-      showNotification('Post updated!', 'success');
-    } catch (err) {
+      setEditForm({ content: '', location: '', tags: '', imageUrl: '' });
       setIsEditing(false);
-      setEditPostData(null);
-      showNotification('Failed to update post: ' + (err.message || err), 'error');
-      console.error('Edit post error:', err);
+      setNotification({ open: true, message: 'Post updated successfully!', type: 'success' });
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } catch (error) {
+      console.error('Error updating post:', error);
+      setNotification({ open: true, message: 'Failed to update post', type: 'error' });
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // Delete post handler (no confirm)
   const handleDeletePost = async (postUuid) => {
     setIsDeleting(true);
     try {
-      // Delete from posts table
-      const { error: deleteError } = await supabase
-        .from('posts')
-        .delete()
-        .eq('uuid', postUuid);
-      if (deleteError) throw deleteError;
-      // Remove from user's posts array in profiles
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user.id;
-      const { data: userRecord, error: fetchUserError } = await supabase
-        .from('profiles')
-        .select('posts')
-        .eq('uuid', userId)
-        .single();
-      if (fetchUserError || !userRecord) throw fetchUserError || new Error('User not found in profiles table');
-      const updatedPosts = Array.isArray(userRecord.posts)
-        ? userRecord.posts.filter(uuid => uuid !== postUuid)
-        : [];
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ posts: updatedPosts })
-        .eq('uuid', userId);
-      if (updateError) throw updateError;
-      // Remove from UI
+      await postService.deletePost(postUuid);
+
+      // Update local state
       setUserPosts(prev => prev.filter(post => post.uuid !== postUuid));
-      setShowPostMenu(null);
+      setUserProfile(prev => ({ ...prev, posts: prev.posts - 1 }));
       setDeleteModal({ open: false, postUuid: null });
-      showNotification('Post deleted!', 'success');
-    } catch (err) {
-      setDeleteModal({ open: false, postUuid: null });
-      showNotification('Failed to delete post: ' + (err.message || err), 'error');
-      console.error('Delete post error:', err);
+      setNotification({ open: true, message: 'Post deleted successfully!', type: 'success' });
+
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      setNotification({ open: true, message: 'Failed to delete post', type: 'error' });
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
     } finally {
       setIsDeleting(false);
     }
@@ -957,31 +1046,31 @@ const Profile = () => {
         </div>
         <div className="profile-info">
           <div className="profile-name-section">
-            <h1 className="profile-name">{userProfile.name}</h1>
-            <span className="profile-username">{userProfile.username}</span>
+            <h1 className="profile-name">{userProfile.display_name || userProfile.username || 'User'}</h1>
+            <span className="profile-username">@{userProfile.username || 'user'}</span>
           </div>
-          <p className="profile-bio">{userProfile.bio}</p>
+          <p className="profile-bio">{userProfile.bio || 'No bio yet.'}</p>
           <div className="profile-details">
             <div className="detail-item">
               <span className="detail-icon">📍</span>
-              <span>{userProfile.locations[0] || 'Location not set'}</span>
+              <span>{userLocations.length > 0 ? userLocations[0].location_name : 'Location not set'}</span>
             </div>
             <div className="detail-item">
               <span className="detail-icon">📅</span>
-              <span>Joined {userProfile.joinDate}</span>
+              <span>Joined {userProfile.created_at ? new Date(userProfile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Recently'}</span>
             </div>
           </div>
           <div className="profile-stats">
             <div className="stat-item">
-              <span className="stat-number">{userProfile.posts}</span>
+              <span className="stat-number">{userProfile.posts || 0}</span>
               <span className="stat-label">Posts</span>
             </div>
             <div className="stat-item">
-              <span className="stat-number">{userProfile.followers}</span>
+              <span className="stat-number">{userProfile.followers || 0}</span>
               <span className="stat-label">Followers</span>
             </div>
             <div className="stat-item">
-              <span className="stat-number">{userProfile.following}</span>
+              <span className="stat-number">{userProfile.following || 0}</span>
               <span className="stat-label">Following</span>
             </div>
           </div>
@@ -1005,19 +1094,19 @@ const Profile = () => {
           className={`tab-btn ${activeTab === 'posts' ? 'active' : ''}`}
           onClick={() => setActiveTab('posts')}
         >
-          Posts ({userProfile.posts})
+          Posts ({userProfile.posts || 0})
         </button>
         <button 
           className={`tab-btn ${activeTab === 'recommend' ? 'active' : ''}`}
           onClick={() => setActiveTab('recommend')}
         >
-          Recommendations ({userProfile.recommend})
+          Recommendations (0)
         </button>
         <button 
           className={`tab-btn ${activeTab === 'listings' ? 'active' : ''}`}
           onClick={() => setActiveTab('listings')}
         >
-          Listings ({userProfile.listings})
+          Listings (0)
         </button>
       </div>
 
@@ -1033,8 +1122,8 @@ const Profile = () => {
                   tags: post.tags || [],
                   timestamp: post.created_at ? new Date(post.created_at).toLocaleString() : '',
                   location: post.location || '',
-                  likes: Array.isArray(post.likes) ? post.likes.length : 0,
-                  comments: Array.isArray(post.comments) ? post.comments.length : 0,
+                  likes: post.like_count || 0,
+                  comments: post.comment_count || 0,
                   distance: '', // You can add logic for distance if needed
                 }} />
               ))

@@ -34,27 +34,43 @@ function FinalOnboarding({ nextStep }) {
             display_name: onboardingData.displayName || onboardingData.username,
             phone: onboardingData.phone,
             bio: onboardingData.bio,
-            user_interests: onboardingData.interests || [],
-            locations: onboardingData.locations || [],
             avatar_url: onboardingData.avatar_url || null,
             created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            posted_events: [],
-            saved_events: [],
-            posted_locations: [],
-            saved_locations: [],
-            posted_person: [],
-            saved_person: [],
-            posts: [],
-            liked_posts: [],
-            saved_posts: [],
-            comments: [],
-            following: [],
-            followers: []
+            updated_at: new Date().toISOString()
           }
         ]);
 
       if (profileError) throw profileError;
+
+      // Insert user interests into user_interests junction table
+      if (onboardingData.interests && onboardingData.interests.length > 0) {
+        const interestRecords = onboardingData.interests.map(interest => ({
+          user_id: user.id,
+          interest_id: interest,
+          created_at: new Date().toISOString()
+        }));
+
+        const { error: interestsError } = await supabase
+          .from('user_interests')
+          .insert(interestRecords);
+
+        if (interestsError) throw interestsError;
+      }
+
+      // Insert user locations into user_locations junction table
+      if (onboardingData.locations && onboardingData.locations.length > 0) {
+        const locationRecords = onboardingData.locations.map(location => ({
+          user_id: user.id,
+          location_name: location,
+          created_at: new Date().toISOString()
+        }));
+
+        const { error: locationsError } = await supabase
+          .from('user_locations')
+          .insert(locationRecords);
+
+        if (locationsError) throw locationsError;
+      }
 
       // Clear onboarding data from context
       clear();
