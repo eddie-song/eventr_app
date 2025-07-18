@@ -139,5 +139,16 @@ export const likeService = {
       console.error('Get like count error:', error);
       return 0;
     }
-  }
+  },
+
+  async hasUserLikedPost(postId, userId) {
+    const { data, error } = await supabase
+      .from('post_likes')
+      .select('post_id')
+      .eq('post_id', postId)
+      .eq('user_id', userId)
+      .single();
+    if (error && error.code !== 'PGRST116') throw error; // PGRST116: No rows found
+    return !!data;
+  },
 }; 

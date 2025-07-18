@@ -1,0 +1,53 @@
+import { supabase } from '../lib/supabaseClient';
+import { v4 as uuidv4 } from 'uuid';
+
+export const commentService = {
+  // Get all comments for a post (flat, newest first)
+  async getCommentsForPost(postId) {
+    const { data, error } = await supabase
+      .from('comments')
+      .select('*')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+
+  // Add a comment to a post and increment comment_count
+  async addComment({ postId, userId, commentText, parentCommentId = null }) {
+    // Insert comment with generated uuid
+    const { data, error } = await supabase
+      .from('comments')
+      .insert([
+        {
+          uuid: uuidv4(),
+          post_id: postId,
+          user_id: userId,
+          comment_text: commentText,
+          parent_comment_id: parentCommentId,
+          created_at: new Date().toISOString(),
+        },
+      ])
+      .select()
+      .single();
+    if (error) throw error;
+    // Increment comment_count in posts table
+    const { error: countError } = await supabase.rpc('increment_post_comment_count', { postid: postId });
+    if (countError) {
+      // fallback: try manual update
+      await supabase.from('posts').update({ comment_count: supabase.raw('comment_count + 1') }).eq('uuid', postId);
+    }
+    return data;
+  },
+
+  // (Optional) Delete a comment
+  async deleteComment(commentId, userId) {
+    const { error } = await supabase
+      .from('comments')
+      .delete()
+      .eq('uuid', commentId)
+      .eq('user_id', userId);
+    if (error) throw error;
+    return true;
+  },
+}; 

@@ -295,63 +295,63 @@ const Home = () => {
     const postUuid = post.uuid || post.id;
     const likeState = likeStates[postUuid] || { liked: false, likesCount: post.likes || 0 };
     return (
-      <div className="post-card" onClick={() => setSelectedPost(post)}>
-        <div className="post-header">
-          <div className="post-author">
-            <div className="author-avatar">{post.avatar}</div>
-            <div className="author-info">
-              <div className="author-name">{post.author}</div>
-              <div className="post-timestamp">{post.timestamp}</div>
-            </div>
-          </div>
-          <button className="post-menu">⋯</button>
-        </div>
-        <div className="post-content">
-          <p>{post.content}</p>
-          {post.image && (
-            <div className="post-image-container">
-              <img 
-                src={post.image} 
-                alt={`${post.location}`}
-                className="post-image"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
-              />
-            </div>
-          )}
-          <div className="post-location">
-            <span className="location-icon">📍</span>
-            <span className="location-name">{post.location}</span>
-            <span className="location-distance">{post.distance}</span>
-          </div>
-          <div className="post-tags">
-            {post.tags.map((tag, index) => (
-              <span key={index} className="tag">{tag}</span>
-            ))}
+    <div className="post-card" onClick={() => setSelectedPost(post)}>
+      <div className="post-header">
+        <div className="post-author">
+          <div className="author-avatar">{post.avatar}</div>
+          <div className="author-info">
+            <div className="author-name">{post.author}</div>
+            <div className="post-timestamp">{post.timestamp}</div>
           </div>
         </div>
-        <div className="post-actions">
-          <button className={`action-btn${likeState.liked ? ' active' : ''}`} onClick={e => { e.stopPropagation(); handleLike(post); }}>
-            <span>❤️</span>
-            <span className="action-count">{likeState.likesCount}</span>
-          </button>
-          <button className="action-btn">
-            <span>💬</span>
-            <span className="action-count">{post.comments}</span>
-          </button>
-          <button className="action-btn">
-            <span>📤</span>
-          </button>
-          <button className="action-btn">
-            <span>🔖</span>
-          </button>
-          <button className="action-btn">
-            <span>🗺️</span>
-          </button>
+        <button className="post-menu">⋯</button>
+      </div>
+      <div className="post-content">
+        <p>{post.content}</p>
+        {post.image && (
+          <div className="post-image-container">
+            <img 
+              src={post.image} 
+              alt={`${post.location}`}
+              className="post-image"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+          </div>
+        )}
+        <div className="post-location">
+          <span className="location-icon">📍</span>
+          <span className="location-name">{post.location}</span>
+          <span className="location-distance">{post.distance}</span>
+        </div>
+        <div className="post-tags">
+          {post.tags.map((tag, index) => (
+            <span key={index} className="tag">{tag}</span>
+          ))}
         </div>
       </div>
-    );
+      <div className="post-actions">
+          <button className={`action-btn${likeState.liked ? ' active' : ''}`} onClick={e => { e.stopPropagation(); handleLike(post); }}>
+          <span>❤️</span>
+            <span className="action-count">{likeState.likesCount}</span>
+        </button>
+        <button className="action-btn">
+          <span>💬</span>
+          <span className="action-count">{post.comments}</span>
+        </button>
+        <button className="action-btn">
+          <span>📤</span>
+        </button>
+        <button className="action-btn">
+          <span>🔖</span>
+        </button>
+        <button className="action-btn">
+          <span>🗺️</span>
+        </button>
+      </div>
+    </div>
+  );
   };
 
   // Quick Actions Component

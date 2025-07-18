@@ -114,7 +114,7 @@ ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all to read posts" ON posts FOR SELECT USING (true);
 CREATE POLICY "Users can create their own posts" ON posts FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update their own posts" ON posts FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own posts" ON posts FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own posts" ON posts FOR DELETE USING (auth.uid() = user_id); 
 
 -- Create comments table
 CREATE TABLE IF NOT EXISTS comments (

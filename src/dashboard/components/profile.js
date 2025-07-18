@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 import { likeService } from '../../services/likeService';
 import { postService } from '../../services/postService';
+import { commentService } from '../../services/commentService';
 
 const EditProfileModal = ({ 
   showEditModal, 
@@ -410,6 +411,452 @@ const EditProfileModal = ({
   );
 };
 
+// Instagram-like Post Modal Component
+const PostModal = ({ post, onClose, userProfile, onCommentAdded }) => {
+  const [likeState, setLikeState] = React.useState({ 
+    liked: false, 
+    likesCount: post.like_count || 0 
+  });
+  const [commentText, setCommentText] = React.useState('');
+  const [showComments, setShowComments] = React.useState(true); // Show comments by default
+  const [comments, setComments] = React.useState([]);
+  const [commentsLoading, setCommentsLoading] = React.useState(false);
+  const [commentsError, setCommentsError] = React.useState(null);
+  const [addingComment, setAddingComment] = React.useState(false);
+
+  // On mount, check if the user has liked the post
+  React.useEffect(() => {
+    let isMounted = true;
+    async function checkLiked() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const liked = await likeService.hasUserLikedPost(post.uuid, user.id);
+        if (isMounted) {
+          setLikeState(prev => ({ ...prev, liked }));
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    checkLiked();
+    return () => { isMounted = false; };
+  }, [post.uuid]);
+
+  // Fetch comments when modal opens or post changes
+  React.useEffect(() => {
+    if (!showComments) return;
+    setCommentsLoading(true);
+    setCommentsError(null);
+    commentService.getCommentsForPost(post.uuid)
+      .then(setComments)
+      .catch(err => setCommentsError('Failed to load comments'))
+      .finally(() => setCommentsLoading(false));
+  }, [showComments, post.uuid]);
+
+  const handleLike = React.useCallback(async () => {
+    // Optimistic update
+    setLikeState(prev => {
+      const liked = !prev.liked;
+      const likesCount = liked ? prev.likesCount + 1 : Math.max(0, prev.likesCount - 1);
+      return { liked, likesCount };
+    });
+    
+    try {
+      const result = await likeService.likePost(post.uuid);
+      // Update with actual result from server
+      setLikeState({ liked: result.liked, likesCount: result.likesCount });
+    } catch (e) {
+      console.error('Like error:', e);
+      // Revert on error
+      setLikeState(prev => ({ 
+        liked: !prev.liked, 
+        likesCount: post.like_count || 0 
+      }));
+    }
+  }, [post.uuid, post.like_count]);
+
+  const handleSubmitComment = async (e) => {
+    e.preventDefault();
+    if (!commentText.trim()) return;
+    setAddingComment(true);
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      // Optimistically add comment
+      const newComment = {
+        uuid: Math.random().toString(36).slice(2),
+        user_id: user.id,
+        comment_text: commentText,
+        created_at: new Date().toISOString(),
+        post_id: post.uuid,
+        parent_comment_id: null,
+        like_count: 0,
+        reply_count: 0
+      };
+      setComments(prev => [newComment, ...prev]);
+      setCommentText('');
+      await commentService.addComment({
+        postId: post.uuid,
+        userId: user.id,
+        commentText,
+      });
+      // Refetch to get real data (with uuid, etc)
+      const fresh = await commentService.getCommentsForPost(post.uuid);
+      setComments(fresh);
+      // Notify parent to update comment count in UI
+      if (onCommentAdded) onCommentAdded(post.uuid);
+    } catch (err) {
+      setCommentsError('Failed to add comment');
+    } finally {
+      setAddingComment(false);
+    }
+  };
+
+  if (!post) return null;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.9)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 2000,
+      padding: '20px'
+    }}>
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        maxWidth: '900px',
+        width: '100%',
+        maxHeight: '90vh',
+        display: 'flex',
+        overflow: 'hidden',
+        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
+      }}>
+        {/* Left side - Image */}
+        <div style={{
+          flex: '1',
+          backgroundColor: '#000',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '400px'
+        }}>
+          {post.image ? (
+            <img 
+              src={post.image} 
+              alt="Post"
+              style={{
+                maxWidth: '100%',
+                maxHeight: '100%',
+                objectFit: 'contain'
+              }}
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+          ) : (
+            <div style={{
+              color: '#666',
+              fontSize: '18px',
+              textAlign: 'center'
+            }}>
+              No image
+            </div>
+          )}
+        </div>
+
+        {/* Right side - Content */}
+        <div style={{
+          flex: '1',
+          display: 'flex',
+          flexDirection: 'column',
+          maxWidth: '400px',
+          minWidth: '300px'
+        }}>
+          {/* Header */}
+          <div style={{
+            padding: '16px',
+            borderBottom: '1px solid #e1e5e9',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              backgroundColor: '#f0f0f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '16px'
+            }}>
+              {userProfile?.avatar_url ? (
+                <img
+                  src={userProfile.avatar_url}
+                  alt="avatar"
+                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                  onError={e => (e.target.style.display = 'none')}
+                />
+              ) : (
+                '👤'
+              )}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                {userProfile?.display_name || userProfile?.username || 'User'}
+              </div>
+              <div style={{ fontSize: '12px', color: '#86868b' }}>
+                {post.location || 'Unknown location'}
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '20px',
+                cursor: 'pointer',
+                padding: '4px',
+                color: '#86868b'
+              }}
+            >
+              ×
+            </button>
+          </div>
+
+          {/* Content */}
+          <div style={{
+            flex: 1,
+            overflow: 'auto',
+            padding: '16px'
+          }}>
+            {/* Post text */}
+            <div style={{ marginBottom: '16px' }}>
+              <p style={{
+                fontSize: '14px',
+                lineHeight: '1.4',
+                margin: '0 0 12px 0',
+                color: '#1d1d1f'
+              }}>
+                {post.content}
+              </p>
+              
+              {/* Tags */}
+              {post.tags && post.tags.length > 0 && (
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '6px',
+                  marginBottom: '12px'
+                }}>
+                  {post.tags.map((tag, index) => (
+                    <span key={index} style={{
+                      backgroundColor: '#E3F2FD',
+                      color: '#1976D2',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      fontWeight: '500'
+                    }}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Location */}
+              {post.location && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '12px',
+                  color: '#86868b',
+                  marginBottom: '12px'
+                }}>
+                  <span>📍</span>
+                  <span>{post.location}</span>
+                </div>
+              )}
+
+              {/* Timestamp */}
+              <div style={{
+                fontSize: '12px',
+                color: '#86868b',
+                marginBottom: '16px'
+              }}>
+                {post.timestamp}
+              </div>
+            </div>
+
+            {/* Comments section */}
+            <div style={{
+              borderTop: '1px solid #e1e5e9',
+              paddingTop: '16px',
+              minHeight: 120
+            }}>
+              <button
+                onClick={() => setShowComments(!showComments)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#86868b',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  marginBottom: '12px'
+                }}
+              >
+                {showComments ? 'Hide comments' : 'View comments'}
+              </button>
+              
+              {showComments && (
+                <div style={{ marginBottom: '16px', maxHeight: 200, overflowY: 'auto' }}>
+                  {commentsLoading && <div style={{ color: '#86868b', textAlign: 'center', padding: 12 }}>Loading comments...</div>}
+                  {commentsError && <div style={{ color: 'red', textAlign: 'center', padding: 12 }}>{commentsError}</div>}
+                  {!commentsLoading && !commentsError && comments.length === 0 && (
+                    <div style={{ fontSize: '14px', color: '#86868b', textAlign: 'center', padding: 20 }}>No comments yet. Be the first to comment!</div>
+                  )}
+                  {!commentsLoading && !commentsError && comments.length > 0 && (
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                      {comments.map(comment => (
+                        <li key={comment.uuid} style={{ marginBottom: 12, borderBottom: '1px solid #f0f0f0', paddingBottom: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontWeight: 600, fontSize: 13 }}>{comment.user_id === userProfile?.uuid ? (userProfile.display_name || userProfile.username || 'You') : 'User'}</span>
+                            <span style={{ color: '#86868b', fontSize: 11 }}>{new Date(comment.created_at).toLocaleString()}</span>
+                          </div>
+                          <div style={{ fontSize: 14 }}>{comment.comment_text}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div style={{
+            padding: '16px',
+            borderTop: '1px solid #e1e5e9'
+          }}>
+            {/* Action buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '16px',
+              marginBottom: '12px'
+            }}>
+              <button
+                onClick={handleLike}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: likeState.liked ? '#ff3b30' : '#86868b',
+                  transition: 'color 0.2s ease'
+                }}
+              >
+                {likeState.liked ? '❤️' : '🤍'}
+              </button>
+              <button
+                onClick={() => setShowComments(true)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#86868b'
+                }}
+              >
+                💬
+              </button>
+              <button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#86868b'
+                }}
+              >
+                📤
+              </button>
+              <button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#86868b'
+                }}
+              >
+                🔖
+              </button>
+            </div>
+
+            {/* Like count */}
+            <div style={{
+              fontSize: '14px',
+              fontWeight: '600',
+              marginBottom: '8px'
+            }}>
+              {likeState.likesCount} like{likeState.likesCount !== 1 ? 's' : ''}
+            </div>
+
+            {/* Comment input */}
+            <form onSubmit={handleSubmitComment} style={{
+              display: 'flex',
+              gap: '8px',
+              alignItems: 'center',
+              marginTop: 8
+            }}>
+              <input
+                type="text"
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="Add a comment..."
+                style={{
+                  flex: 1,
+                  border: 'none',
+                  outline: 'none',
+                  fontSize: '14px',
+                  padding: '8px 0',
+                  background: '#f8f9fa',
+                  borderRadius: 6
+                }}
+                disabled={addingComment}
+              />
+              <button
+                type="submit"
+                disabled={!commentText.trim() || addingComment}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: commentText.trim() ? '#007AFF' : '#c1c1c1',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: commentText.trim() && !addingComment ? 'pointer' : 'default'
+                }}
+              >
+                {addingComment ? 'Posting...' : 'Post'}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function ProfileAvatar({ avatarPath }) {
   const [signedUrl, setSignedUrl] = React.useState(null);
   React.useEffect(() => {
@@ -481,7 +928,8 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ content: '', location: '', tags: '', imageUrl: '' });
   const [userLocations, setUserLocations] = useState([]); // Store user locations from junction table
-
+  const [selectedPostModal, setSelectedPostModal] = useState(null); // for Instagram-like post modal
+  
   const { isPageLoaded, markPageAsLoaded } = usePageCache();
 
   // Custom hook for like state management
@@ -490,29 +938,55 @@ const Profile = () => {
       liked: false, 
       likesCount: initialLikeCount 
     });
-    
+
+    // On mount, check if the user has liked the post
+    React.useEffect(() => {
+      let isMounted = true;
+      async function checkLiked() {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+          const liked = await likeService.hasUserLikedPost(postUuid, user.id);
+          if (isMounted) {
+            setLikeState(prev => ({ ...prev, liked }));
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+      checkLiked();
+      return () => { isMounted = false; };
+    }, [postUuid]);
+
     const handleLike = React.useCallback(async () => {
-      // Optimistic update
+      // Optimistic update, but only if the current state matches the backend
+      let actualLiked = likeState.liked;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const backendLiked = await likeService.hasUserLikedPost(postUuid, user.id);
+        if (backendLiked !== actualLiked) {
+          setLikeState(prev => ({ ...prev, liked: backendLiked }));
+          actualLiked = backendLiked;
+        }
+      } catch (e) { /* ignore */ }
+      // Now toggle
       setLikeState(prev => {
         const liked = !prev.liked;
         const likesCount = liked ? prev.likesCount + 1 : Math.max(0, prev.likesCount - 1);
         return { liked, likesCount };
       });
-      
       try {
         const result = await likeService.likePost(postUuid);
-        // Update with actual result from server
         setLikeState({ liked: result.liked, likesCount: result.likesCount });
       } catch (e) {
-        console.error('Like error:', e);
-        // Revert on error
         setLikeState(prev => ({ 
           liked: !prev.liked, 
           likesCount: initialLikeCount 
         }));
       }
-    }, [postUuid, initialLikeCount]);
-    
+    }, [postUuid, initialLikeCount, likeState.liked]);
+
     return [likeState, handleLike];
   };
 
@@ -529,7 +1003,8 @@ const Profile = () => {
     const isMenuOpen = showPostMenu === post.uuid;
     const [likeState, handleLike] = useLikeState(postUuid, post.like_count || 0);
     
-    const handleMenuClick = React.useCallback(() => {
+    const handleMenuClick = React.useCallback((e) => {
+      e.stopPropagation();
       setShowPostMenu(isMenuOpen ? null : post.uuid);
     }, [isMenuOpen, post.uuid]);
     
@@ -537,9 +1012,13 @@ const Profile = () => {
       e.stopPropagation();
       handleLike();
     }, [handleLike]);
+
+    const handlePostClick = React.useCallback(() => {
+      setSelectedPostModal(post);
+    }, [post]);
     
     return (
-      <div className="profile-post-card">
+      <div className="profile-post-card" onClick={handlePostClick}>
         <div className="post-header">
           <div className="post-author">
             <div className="author-avatar">
@@ -588,7 +1067,8 @@ const Profile = () => {
                     color: '#1d1d1f',
                     whiteSpace: 'nowrap'
                   }}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     openEditModal(post);
                     setShowPostMenu(null);
                   }}
@@ -609,7 +1089,8 @@ const Profile = () => {
                     whiteSpace: 'nowrap'
                   }}
                   disabled={isDeleting}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setDeleteModal({ open: true, postUuid: post.uuid });
                     setShowPostMenu(null);
                   }}
@@ -719,8 +1200,8 @@ const Profile = () => {
         if (userError || !user) {
           setProfileError('User not authenticated');
           setIsLoading(false);
-          return;
-        }
+        return;
+      }
 
         // Get user profile
         const { data: profile, error: profileError } = await supabase
@@ -731,9 +1212,9 @@ const Profile = () => {
 
         if (profileError) {
           setProfileError('Failed to load profile');
-          setIsLoading(false);
-          return;
-        }
+        setIsLoading(false);
+        return;
+      }
 
         setUserProfile({
           ...profile,
@@ -776,9 +1257,9 @@ const Profile = () => {
 
         if (!locationsError) {
           setUserLocations(locations || []);
-        }
+      }
 
-        setIsLoading(false);
+      setIsLoading(false);
       } catch (error) {
         console.error('Error loading profile:', error);
         setProfileError('Failed to load profile');
@@ -931,8 +1412,8 @@ const Profile = () => {
       await postService.updatePost(editPostData.uuid, editForm);
 
       // Update local state
-      setUserPosts(prev => prev.map(post => 
-        post.uuid === editPostData.uuid 
+      setUserPosts(prev => prev.map(post =>
+        post.uuid === editPostData.uuid
           ? { 
               ...post, 
               post_body_text: editForm.content, 
@@ -1349,6 +1830,21 @@ const Profile = () => {
             </form>
           </div>
         </div>
+      )}
+      {/* Post Modal */}
+      {selectedPostModal && (
+        <PostModal
+          post={selectedPostModal}
+          onClose={() => setSelectedPostModal(null)}
+          userProfile={userProfile}
+          onCommentAdded={(postUuid) => {
+            setUserPosts(prev => prev.map(p =>
+              p.uuid === postUuid
+                ? { ...p, comment_count: (p.comment_count || 0) + 1 }
+                : p
+            ));
+          }}
+        />
       )}
     </div>
   );
