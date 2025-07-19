@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { likeService } from '../../services/likeService';
 import { postService } from '../../services/postService';
 import { commentService } from '../../services/commentService';
+import { eventService } from '../../services/eventService';
 
 const EditProfileModal = ({ 
   showEditModal, 
@@ -924,11 +925,22 @@ const Profile = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [editPostData, setEditPostData] = useState(null); // for edit modal
   const [deleteModal, setDeleteModal] = useState({ open: false, postUuid: null });
+  const [deleteEventModal, setDeleteEventModal] = useState({ open: false, eventUuid: null });
   const [notification, setNotification] = useState({ open: false, message: '', type: '' });
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ content: '', location: '', tags: '', imageUrl: '' });
   const [userLocations, setUserLocations] = useState([]); // Store user locations from junction table
   const [selectedPostModal, setSelectedPostModal] = useState(null); // for Instagram-like post modal
+  const [userEvents, setUserEvents] = useState([]); // Store user events
+  const [isDeletingEvent, setIsDeletingEvent] = useState(false);
+  const [showEditEventModal, setShowEditEventModal] = useState(false);
+  const [eventToEdit, setEventToEdit] = useState(null);
+  const [editEventFormData, setEditEventFormData] = useState({
+    title: '',
+    location: '',
+    tags: ''
+  });
+  const [isEditingEvent, setIsEditingEvent] = useState(false);
   
   const { isPageLoaded, markPageAsLoaded } = usePageCache();
 
@@ -993,8 +1005,8 @@ const Profile = () => {
   // Empty user recommendations array since user has no recommendations
   const userRecommend = [];
 
-  // Empty user listings array since user has no listings
-  const userListings = [];
+  // User events are now loaded from the database
+  // const userListings = []; // Removed since we're using userEvents now
 
 
 
@@ -1257,7 +1269,17 @@ const Profile = () => {
 
         if (!locationsError) {
           setUserLocations(locations || []);
-      }
+        }
+
+        // Get user events
+        try {
+          const userEventsData = await eventService.getUserEvents();
+          console.log('Loaded user events with tags:', userEventsData);
+          setUserEvents(userEventsData || []);
+        } catch (error) {
+          console.error('Error loading user events:', error);
+          setUserEvents([]);
+        }
 
       setIsLoading(false);
       } catch (error) {
@@ -1459,59 +1481,141 @@ const Profile = () => {
     }
   };
 
+  const handleDeleteEvent = async (eventUuid) => {
+    setIsDeletingEvent(true);
+    try {
+      await eventService.deleteEvent(eventUuid);
 
-  const ListingCard = ({ listing }) => (
-    <div className="profile-listing-card">
-      <div className="listing-image-container">
-        <img 
-          src={listing.image} 
-          alt={listing.title}
-          className="listing-image"
-          onError={(e) => {
-            e.target.style.display = 'none';
-          }}
-        />
-        <div className={`listing-status ${listing.status}`}>
-          {listing.status === 'active' ? 'Active' : 'Inactive'}
+      // Update local state
+      setUserEvents(prev => prev.filter(event => event.uuid !== eventUuid));
+      setDeleteEventModal({ open: false, eventUuid: null });
+      setNotification({ open: true, message: 'Event deleted successfully!', type: 'success' });
+
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      setNotification({ open: true, message: 'Failed to delete event', type: 'error' });
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } finally {
+      setIsDeletingEvent(false);
+    }
+  };
+
+  const openEditEventModal = (event) => {
+    console.log('Opening edit modal for event:', event);
+    setEventToEdit(event);
+    setEditEventFormData({
+      title: event.event || '',
+      location: event.location || '',
+      tags: event.tags ? event.tags.join(', ') : ''
+    });
+    setShowEditEventModal(true);
+  };
+
+  const handleEditEvent = async (e) => {
+    e.preventDefault();
+    if (!editEventFormData.title.trim()) return;
+    
+    setIsEditingEvent(true);
+    try {
+      await eventService.updateEvent(eventToEdit.uuid, editEventFormData);
+      
+      // Update the event in the local state
+      setUserEvents(prev => prev.map(event => 
+        event.uuid === eventToEdit.uuid 
+          ? { 
+              ...event, 
+              event: editEventFormData.title,
+              location: editEventFormData.location,
+              tags: editEventFormData.tags ? editEventFormData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []
+            }
+          : event
+      ));
+      
+      setShowEditEventModal(false);
+      setEventToEdit(null);
+      setEditEventFormData({ title: '', location: '', tags: '' });
+      setNotification({ open: true, message: 'Event updated successfully!', type: 'success' });
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } catch (error) {
+      console.error('Error updating event:', error);
+      setNotification({ open: true, message: 'Failed to update event', type: 'error' });
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } finally {
+      setIsEditingEvent(false);
+    }
+  };
+
+
+  const EventCard = ({ event }) => (
+    <div className="profile-event-card">
+      <div className="event-image-container">
+        <div className="event-placeholder">
+          <span className="event-icon">🎉</span>
+        </div>
+        <div className="event-status active">
+          Active
         </div>
       </div>
-      <div className="listing-content">
-        <div className="listing-header">
-          <h3 className="listing-title">{listing.title}</h3>
-          <span className="listing-rate">{listing.rate}</span>
+      <div className="event-content">
+        <div className="event-header">
+          <h3 className="event-title">{event.event}</h3>
+          <span className="event-rating">
+            ⭐ {event.rating || 0.0}
+          </span>
         </div>
-        <div className="listing-category">
-          <span className="category-badge">{listing.category}</span>
-          <span className="listing-distance">{listing.distance}</span>
+        <div className="event-category">
+          <span className="category-badge">Event</span>
+          <span className="event-review-count">
+            {event.review_count || 0} reviews
+          </span>
         </div>
-        <p className="listing-description">{listing.description}</p>
-        <div className="listing-details">
-          <div className="detail-item">
-            <span className="detail-label">📍</span>
-            <span>{listing.location}</span>
+        {event.location && (
+          <div className="event-details">
+            <div className="detail-item">
+              <span className="detail-label">📍</span>
+              <span>{event.location}</span>
+            </div>
           </div>
-          <div className="detail-item">
-            <span className="detail-label">🕒</span>
-            <span>{listing.availability}</span>
-          </div>
-        </div>
-        <div className="listing-stats">
+        )}
+        <div className="event-stats">
           <div className="stat-item">
-            <span className="stat-number">{listing.views}</span>
-            <span className="stat-label">Views</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-number">{listing.inquiries}</span>
-            <span className="stat-label">Inquiries</span>
+            <span className="stat-number">{event.attendeeCount || 0}</span>
+            <span className="stat-label">Attendees</span>
           </div>
           <div className="stat-item">
-            <span className="stat-label">Posted {listing.posted}</span>
+            <span className="stat-number">{event.review_count || 0}</span>
+            <span className="stat-label">Reviews</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">
+              Created {event.created_at ? new Date(event.created_at).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+              }) : 'Recently'}
+            </span>
           </div>
         </div>
-        <div className="listing-actions">
-          <button className="edit-btn">Edit</button>
-          <button className="pause-btn">Pause</button>
-          <button className="delete-btn">Delete</button>
+        <div className="event-actions">
+          <button 
+            className="edit-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              openEditEventModal(event);
+            }}
+          >
+            Edit
+          </button>
+          <button 
+            className="delete-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteEventModal({ open: true, eventUuid: event.uuid });
+            }}
+          >
+            Delete
+          </button>
         </div>
       </div>
     </div>
@@ -1566,6 +1670,7 @@ const Profile = () => {
             >
               {isLoggingOut ? 'Logging Out...' : 'Log Out'}
             </button>
+
           </div>
         </div>
       </div>
@@ -1587,7 +1692,7 @@ const Profile = () => {
           className={`tab-btn ${activeTab === 'listings' ? 'active' : ''}`}
           onClick={() => setActiveTab('listings')}
         >
-          Listings (0)
+          Listings ({userEvents.length})
         </button>
       </div>
 
@@ -1632,9 +1737,9 @@ const Profile = () => {
         
         {activeTab === 'listings' && (
           <div className="listings-grid" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            {userListings.length > 0 ? (
-              userListings.map(listing => (
-                <ListingCard key={listing.id} listing={listing} />
+            {userEvents.length > 0 ? (
+              userEvents.map(event => (
+                <EventCard key={event.uuid} event={event} />
               ))
             ) : (
               <div style={{ textAlign: 'center', padding: '2rem', color: '#666', width: '100%' }}>
@@ -1726,6 +1831,67 @@ const Profile = () => {
                 disabled={isDeleting}
               >
                 {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Delete Event Confirmation Modal */}
+      {deleteEventModal.open && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.4)',
+          zIndex: 3000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: '32px 32px 24px 32px',
+            minWidth: 320,
+            maxWidth: '90vw',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            textAlign: 'center',
+          }}>
+            <h2 style={{ margin: 0, marginBottom: 16 }}>Delete Event?</h2>
+            <p style={{ color: '#86868b', marginBottom: 32 }}>Are you sure you want to delete this event? This action cannot be undone.</p>
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+              <button
+                style={{
+                  background: '#f0f0f0',
+                  color: '#1d1d1f',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '10px 24px',
+                  fontSize: 16,
+                  cursor: 'pointer',
+                }}
+                onClick={() => setDeleteEventModal({ open: false, eventUuid: null })}
+                disabled={isDeletingEvent}
+              >
+                Cancel
+              </button>
+              <button
+                style={{
+                  background: '#ff3b30',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '10px 24px',
+                  fontSize: 16,
+                  cursor: isDeletingEvent ? 'not-allowed' : 'pointer',
+                  opacity: isDeletingEvent ? 0.7 : 1,
+                }}
+                onClick={() => handleDeleteEvent(deleteEventModal.eventUuid)}
+                disabled={isDeletingEvent}
+              >
+                {isDeletingEvent ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>
@@ -1845,6 +2011,91 @@ const Profile = () => {
             ));
           }}
         />
+      )}
+      {/* Edit Event Modal */}
+      {showEditEventModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.4)',
+          zIndex: 3000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: '32px 32px 24px 32px',
+            minWidth: 340,
+            maxWidth: '96vw',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            textAlign: 'left',
+            width: 500,
+            maxHeight: '90vh',
+            overflowY: 'auto',
+          }}>
+            <h2 style={{ margin: 0, marginBottom: 16 }}>Edit Event</h2>
+            <form onSubmit={handleEditEvent} className="create-post-form">
+              <div className="form-group">
+                <label htmlFor="edit-event-title">Event Title</label>
+                <input
+                  type="text"
+                  id="edit-event-title"
+                  value={editEventFormData.title}
+                  onChange={e => setEditEventFormData(f => ({ ...f, title: e.target.value }))}
+                  placeholder="What's your event called?"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="edit-event-location">Location</label>
+                <input
+                  type="text"
+                  id="edit-event-location"
+                  value={editEventFormData.location}
+                  onChange={e => setEditEventFormData(f => ({ ...f, location: e.target.value }))}
+                  placeholder="Where is the event happening?"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="edit-event-tags">Tags (optional)</label>
+                <input
+                  type="text"
+                  id="edit-event-tags"
+                  value={editEventFormData.tags}
+                  onChange={e => setEditEventFormData(f => ({ ...f, tags: e.target.value }))}
+                  placeholder="Add tags separated by commas (e.g., #party, #music, #networking)"
+                />
+              </div>
+
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  onClick={() => {
+                    setShowEditEventModal(false);
+                    setEventToEdit(null);
+                    setEditEventFormData({ title: '', location: '', tags: '' });
+                  }}
+                  disabled={isEditingEvent}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="submit-btn"
+                  disabled={!editEventFormData.title.trim() || isEditingEvent}
+                >
+                  {isEditingEvent ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

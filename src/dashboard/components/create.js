@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 import { postService } from '../../services/postService';
+import { eventService } from '../../services/eventService';
 import './create.css';
 
 const TABS = [
@@ -21,6 +22,11 @@ const CreateService = () => {
     tags: '',
     imageUrl: ''
   });
+  const [eventFormData, setEventFormData] = useState({
+    title: '',
+    location: '',
+    tags: ''
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState({ open: false, message: '', type: '' });
 
@@ -31,6 +37,10 @@ const CreateService = () => {
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleEventInputChange = (field, value) => {
+    setEventFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -44,6 +54,22 @@ const CreateService = () => {
     } catch (err) {
       showNotification('Failed to create post: ' + (err.message || err), 'error');
       console.error('Create post error:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEventSubmit = async (e) => {
+    e.preventDefault();
+    if (!eventFormData.title.trim()) return;
+    setIsSubmitting(true);
+    try {
+      await eventService.createEvent(eventFormData);
+      setEventFormData({ title: '', location: '', tags: '' });
+      showNotification('Event created successfully!', 'success');
+    } catch (err) {
+      showNotification('Failed to create event: ' + (err.message || err), 'error');
+      console.error('Create event error:', err);
     } finally {
       setIsSubmitting(false);
     }
@@ -203,7 +229,50 @@ const CreateService = () => {
             </form>
           </div>
         )}
-        {activeTab !== 'posts' && (
+        {activeTab === 'events' && (
+          <div style={{ maxWidth: 900, width: '100%', margin: '0 auto' }}>
+            <form onSubmit={handleEventSubmit} className="create-post-form">
+              <div className="form-group">
+                <label htmlFor="eventTitle">Event Title</label>
+                <input
+                  type="text"
+                  id="eventTitle"
+                  value={eventFormData.title}
+                  onChange={(e) => handleEventInputChange('title', e.target.value)}
+                  placeholder="What's your event called?"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="eventLocation">Location</label>
+                <input
+                  type="text"
+                  id="eventLocation"
+                  value={eventFormData.location}
+                  onChange={(e) => handleEventInputChange('location', e.target.value)}
+                  placeholder="Where is the event happening?"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="eventTags">Tags (optional)</label>
+                <input
+                  type="text"
+                  id="eventTags"
+                  value={eventFormData.tags}
+                  onChange={(e) => handleEventInputChange('tags', e.target.value)}
+                  placeholder="Add tags separated by commas (e.g., #party, #music, #networking)"
+                />
+              </div>
+
+              <div className="form-actions">
+                <button type="submit" className="submit-btn" disabled={!eventFormData.title.trim() || isSubmitting}>
+                  {isSubmitting ? 'Creating...' : 'Create Event'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+        {activeTab !== 'posts' && activeTab !== 'events' && (
           <div style={{ textAlign: 'center', color: '#86868b', padding: '2rem' }}>
             <p>Coming soon!</p>
           </div>

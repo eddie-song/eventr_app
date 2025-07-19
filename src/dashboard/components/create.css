@@ -94,6 +94,30 @@
   transform: none;
 }
 
+.cancel-btn {
+  background: #f0f0f0;
+  color: #1d1d1f;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background: #e0e0e0;
+  transform: translateY(-1px);
+}
+
+.cancel-btn:disabled {
+  background: #f0f0f0;
+  cursor: not-allowed;
+  transform: none;
+  opacity: 0.6;
+}
+
 @media (max-width: 768px) {
   .create-post-form {
     padding: 0 20px 20px 20px;
