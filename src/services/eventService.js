@@ -1,7 +1,8 @@
 import { supabase } from '../lib/supabaseClient';
+import { userService } from './userService';
 
 export const eventService = {
-  // Create a new event with tags and hosts
+  // Create a new event
   async createEvent(eventData) {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -10,7 +11,34 @@ export const eventService = {
       const userId = user.id;
       const eventUuid = crypto.randomUUID();
       const now = new Date().toISOString();
-      const tagsArray = eventData.tags ? eventData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+
+      // Parse tags
+      const tagsArray = eventData.tags ? 
+        eventData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+
+      // Get user's timezone for reference
+      let userProfile = null;
+      try {
+        userProfile = await userService.getUserProfile();
+      } catch (profileError) {
+        console.warn('Could not get user timezone, using UTC:', profileError);
+      }
+
+      const userTimezone = userProfile?.timezone || 'UTC';
+
+      // Store scheduled time as provided (datetime-local input is already in local time)
+      let scheduledTimeUTC = null;
+      if (eventData.scheduledTime) {
+        try {
+          // The datetime-local input provides time in user's local timezone
+          // Store it directly as a proper ISO string
+          const localDate = new Date(eventData.scheduledTime);
+          scheduledTimeUTC = localDate.toISOString();
+        } catch (error) {
+          console.error('Error processing scheduled time:', error);
+          scheduledTimeUTC = eventData.scheduledTime;
+        }
+      }
 
       // Insert event
       const { error: eventError } = await supabase
@@ -19,6 +47,9 @@ export const eventService = {
           uuid: eventUuid,
           event: eventData.title,
           location: eventData.location || null,
+          image_url: eventData.imageUrl || null,
+          scheduled_time: scheduledTimeUTC,
+          price: eventData.price ? parseFloat(eventData.price) : null,
           review_count: 0,
           rating: 0.00,
           created_at: now
@@ -198,12 +229,45 @@ export const eventService = {
     try {
       const tagsArray = eventData.tags ? eventData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
 
+      // Get current user's timezone
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('Could not get current user');
+      
+      const { data: userProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('timezone')
+        .eq('uuid', user.id)
+        .single();
+
+      if (profileError) {
+        console.warn('Could not get user timezone, using UTC:', profileError);
+      }
+
+      const userTimezone = userProfile?.timezone || 'UTC';
+
+      // Store scheduled time as provided (datetime-local input is already in local time)
+      let scheduledTimeUTC = null;
+      if (eventData.scheduledTime) {
+        try {
+          // The datetime-local input provides time in user's local timezone
+          // Store it directly as a proper ISO string
+          const localDate = new Date(eventData.scheduledTime);
+          scheduledTimeUTC = localDate.toISOString();
+        } catch (error) {
+          console.error('Error processing scheduled time:', error);
+          scheduledTimeUTC = eventData.scheduledTime;
+        }
+      }
+
       // Update event
       const { error: updateError } = await supabase
         .from('events')
         .update({
           event: eventData.title,
-          location: eventData.location
+          location: eventData.location,
+          image_url: eventData.imageUrl,
+          scheduled_time: scheduledTimeUTC,
+          price: eventData.price ? parseFloat(eventData.price) : null
         })
         .eq('uuid', eventId);
 

@@ -11,6 +11,9 @@ import { likeService } from '../../services/likeService';
 import { postService } from '../../services/postService';
 import { commentService } from '../../services/commentService';
 import { eventService } from '../../services/eventService';
+import { imageUploadService } from '../../services/imageUploadService';
+import EventImage from '../../components/EventImage';
+import { formatDateInTimezone, getUserTimezone, convertUTCToDatetimeLocal } from '../../utils/timezoneUtils';
 
 const EditProfileModal = ({ 
   showEditModal, 
@@ -205,6 +208,43 @@ const EditProfileModal = ({
               resize: 'vertical'
             }}
           />
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+            Timezone
+          </label>
+          <select
+            value={editFormData.timezone || 'UTC'}
+            onChange={(e) => setEditFormData(prev => ({ ...prev, timezone: e.target.value }))}
+            style={{
+              width: '100%',
+              padding: '12px',
+              border: '1px solid #ddd',
+              borderRadius: '8px',
+              fontSize: '16px'
+            }}
+          >
+            <option value="UTC">UTC (Coordinated Universal Time)</option>
+            <option value="America/New_York">Eastern Time (ET)</option>
+            <option value="America/Chicago">Central Time (CT)</option>
+            <option value="America/Denver">Mountain Time (MT)</option>
+            <option value="America/Los_Angeles">Pacific Time (PT)</option>
+            <option value="Europe/London">London (GMT/BST)</option>
+            <option value="Europe/Paris">Paris (CET/CEST)</option>
+            <option value="Europe/Berlin">Berlin (CET/CEST)</option>
+            <option value="Asia/Tokyo">Tokyo (JST)</option>
+            <option value="Asia/Shanghai">Shanghai (CST)</option>
+            <option value="Australia/Sydney">Sydney (AEST/AEDT)</option>
+            <option value="Pacific/Auckland">Auckland (NZST/NZDT)</option>
+          </select>
+          <p style={{ 
+            margin: '8px 0 0 0', 
+            fontSize: '12px', 
+            color: '#666' 
+          }}>
+            This affects how event times are displayed for you
+          </p>
         </div>
 
         <div style={{ marginBottom: '16px' }}>
@@ -858,6 +898,154 @@ const PostModal = ({ post, onClose, userProfile, onCommentAdded }) => {
   );
 };
 
+const EventModal = ({ event, onClose, userProfile }) => {
+  const [userTimezone, setUserTimezone] = useState('UTC');
+
+  // Get user's timezone on component mount
+  useEffect(() => {
+    const timezone = getUserTimezone();
+    setUserTimezone(timezone);
+  }, []);
+
+  if (!event) return null;
+
+  return (
+    <div className="event-modal-overlay" onClick={onClose}>
+      <div className="event-modal-container" onClick={e => e.stopPropagation()}>
+        {/* Header with close button */}
+        <div className="event-modal-header">
+          <button className="event-modal-close" onClick={onClose}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Hero section with event image and gradient */}
+        <div className="event-modal-hero">
+          <div className="event-modal-image">
+                    {event.image_url ? (
+          <EventImage 
+            imageUrl={event.image_url}
+            alt={event.event}
+            className="event-modal-hero-image"
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'flex';
+            }}
+          />
+        ) : null}
+            <div className="event-modal-placeholder" style={{ display: event.image_url ? 'none' : 'flex' }}>
+              <span className="event-modal-icon">🎉</span>
+            </div>
+            <div className="event-modal-gradient"></div>
+          </div>
+          
+          {/* Event title overlay */}
+          <div className="event-modal-title-section">
+            <h1 className="event-modal-title">{event.event}</h1>
+            {event.location && (
+              <div className="event-modal-location">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 7.61305 3.94821 5.32387 5.63604 3.63604C7.32387 1.94821 9.61305 1 12 1C14.3869 1 16.6761 1.94821 18.364 3.63604C20.0518 5.32387 21 7.61305 21 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M12 13C13.6569 13 15 11.6569 15 10C15 8.34315 13.6569 7 12 7C10.3431 7 9 8.34315 9 10C9 11.6569 10.3431 13 12 13Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span>{event.location}</span>
+              </div>
+            )}
+            {event.scheduled_time && (
+              <div className="event-modal-time">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M12 6V12L16 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span>{formatDateInTimezone(event.scheduled_time, userTimezone, { 
+                  weekday: 'long',
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                })}</span>
+              </div>
+            )}
+            {event.price !== null && (
+              <div className="event-modal-price">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 1V23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M17 5H9.5C8.57174 5 7.6815 5.36875 7.02513 6.02513C6.36875 6.6815 6 7.57174 6 8.5C6 9.42826 6.36875 10.3185 7.02513 10.9749C7.6815 11.6313 8.57174 12 9.5 12H14.5C15.4283 12 16.3185 12.3687 16.9749 13.0251C17.6313 13.6815 18 14.5717 18 15.5C18 16.4283 17.6313 17.3185 16.9749 17.9749C16.3185 18.6313 15.4283 19 14.5 19H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span>{event.price === 0 || isNaN(event.price) ? 'Free' : `$${parseFloat(event.price).toFixed(2)}`}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Content section */}
+        <div className="event-modal-content">
+          {/* Author info */}
+          <div className="event-modal-author">
+            <div className="event-modal-avatar">
+              <ProfileAvatar avatarPath={userProfile?.avatar_url} />
+            </div>
+            <div className="event-modal-author-info">
+              <div className="event-modal-author-name">
+                {userProfile?.display_name || userProfile?.username || 'User'}
+              </div>
+              <div className="event-modal-date">
+                {event.created_at ? new Date(event.created_at).toLocaleDateString('en-US', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                }) : 'Recently'}
+              </div>
+            </div>
+          </div>
+
+          {/* Tags */}
+                      {event.tags && event.tags.length > 0 && (
+              <div className="event-modal-tags">
+                {event.tags.map((tag, index) => (
+                  <span key={index} className="event-modal-tag">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+          {/* Stats grid */}
+          <div className="event-modal-stats">
+            <div className="event-modal-stat">
+              <div className="event-modal-stat-icon">👥</div>
+              <div className="event-modal-stat-content">
+                <div className="event-modal-stat-number">{event.attendeeCount || 0}</div>
+                <div className="event-modal-stat-label">Attendees</div>
+              </div>
+            </div>
+            <div className="event-modal-stat">
+              <div className="event-modal-stat-icon">⭐</div>
+              <div className="event-modal-stat-content">
+                <div className="event-modal-stat-number">{event.rating || 0.0}</div>
+                <div className="event-modal-stat-label">Rating</div>
+              </div>
+            </div>
+            <div className="event-modal-stat">
+              <div className="event-modal-stat-icon">💬</div>
+              <div className="event-modal-stat-content">
+                <div className="event-modal-stat-number">{event.review_count || 0}</div>
+                <div className="event-modal-stat-label">Reviews</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function ProfileAvatar({ avatarPath }) {
   const [signedUrl, setSignedUrl] = React.useState(null);
   React.useEffect(() => {
@@ -938,9 +1126,16 @@ const Profile = () => {
   const [editEventFormData, setEditEventFormData] = useState({
     title: '',
     location: '',
-    tags: ''
+    tags: '',
+    imageUrl: '',
+    price: '',
+    scheduledTime: ''
   });
+  const [selectedEventImageFile, setSelectedEventImageFile] = useState(null);
+  const [eventImagePreview, setEventImagePreview] = useState(null);
   const [isEditingEvent, setIsEditingEvent] = useState(false);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   
   const { isPageLoaded, markPageAsLoaded } = usePageCache();
 
@@ -1274,7 +1469,6 @@ const Profile = () => {
         // Get user events
         try {
           const userEventsData = await eventService.getUserEvents();
-          console.log('Loaded user events with tags:', userEventsData);
           setUserEvents(userEventsData || []);
         } catch (error) {
           console.error('Error loading user events:', error);
@@ -1351,6 +1545,7 @@ const Profile = () => {
           phone: editFormData.phone,
           bio: editFormData.bio,
           avatar_url: editFormData.avatar_url,
+          timezone: editFormData.timezone || 'UTC',
           updated_at: new Date().toISOString()
         })
         .eq('uuid', user.id);
@@ -1389,7 +1584,8 @@ const Profile = () => {
         display_name: editFormData.display_name,
         bio: editFormData.bio,
         phone: editFormData.phone,
-        avatar_url: editFormData.avatar_url
+        avatar_url: editFormData.avatar_url,
+        timezone: editFormData.timezone || 'UTC'
       }));
 
       // Update local locations state
@@ -1501,14 +1697,43 @@ const Profile = () => {
     }
   };
 
+  const handleEventImageFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      try {
+        imageUploadService.validateImageFile(file);
+        setSelectedEventImageFile(file);
+        
+        // Create preview
+        const reader = new FileReader();
+        reader.onload = (e) => setEventImagePreview(e.target.result);
+        reader.readAsDataURL(file);
+        
+        // Clear URL input when file is selected
+        setEditEventFormData(prev => ({ ...prev, imageUrl: '' }));
+      } catch (error) {
+        setNotification({ open: true, message: error.message, type: 'error' });
+        setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+        e.target.value = '';
+      }
+    }
+  };
+
   const openEditEventModal = (event) => {
-    console.log('Opening edit modal for event:', event);
+    // Get user's timezone for converting the scheduled time
+    const userTimezone = getUserTimezone();
+    
     setEventToEdit(event);
     setEditEventFormData({
       title: event.event || '',
       location: event.location || '',
-      tags: event.tags ? event.tags.join(', ') : ''
+      tags: event.tags ? event.tags.join(', ') : '',
+      imageUrl: event.image_url || '',
+      price: event.price ? event.price.toString() : '',
+      scheduledTime: event.scheduled_time ? convertUTCToDatetimeLocal(event.scheduled_time, userTimezone) : ''
     });
+    setSelectedEventImageFile(null);
+    setEventImagePreview(null);
     setShowEditEventModal(true);
   };
 
@@ -1518,7 +1743,19 @@ const Profile = () => {
     
     setIsEditingEvent(true);
     try {
-      await eventService.updateEvent(eventToEdit.uuid, editEventFormData);
+      let finalImageUrl = editEventFormData.imageUrl;
+      
+      // Upload image file if selected
+      if (selectedEventImageFile) {
+        const { publicUrl } = await imageUploadService.uploadEventImage(selectedEventImageFile);
+        finalImageUrl = publicUrl;
+      }
+      
+      // Update event with image URL
+      await eventService.updateEvent(eventToEdit.uuid, {
+        ...editEventFormData,
+        imageUrl: finalImageUrl
+      });
       
       // Update the event in the local state
       setUserEvents(prev => prev.map(event => 
@@ -1527,6 +1764,7 @@ const Profile = () => {
               ...event, 
               event: editEventFormData.title,
               location: editEventFormData.location,
+              image_url: finalImageUrl,
               tags: editEventFormData.tags ? editEventFormData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []
             }
           : event
@@ -1534,7 +1772,9 @@ const Profile = () => {
       
       setShowEditEventModal(false);
       setEventToEdit(null);
-      setEditEventFormData({ title: '', location: '', tags: '' });
+      setEditEventFormData({ title: '', location: '', tags: '', imageUrl: '', price: '', scheduledTime: '' });
+      setSelectedEventImageFile(null);
+      setEventImagePreview(null);
       setNotification({ open: true, message: 'Event updated successfully!', type: 'success' });
       setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
     } catch (error) {
@@ -1547,79 +1787,166 @@ const Profile = () => {
   };
 
 
-  const EventCard = ({ event }) => (
-    <div className="profile-event-card">
-      <div className="event-image-container">
-        <div className="event-placeholder">
-          <span className="event-icon">🎉</span>
-        </div>
-        <div className="event-status active">
-          Active
-        </div>
-      </div>
-      <div className="event-content">
-        <div className="event-header">
-          <h3 className="event-title">{event.event}</h3>
-          <span className="event-rating">
-            ⭐ {event.rating || 0.0}
-          </span>
-        </div>
-        <div className="event-category">
-          <span className="category-badge">Event</span>
-          <span className="event-review-count">
-            {event.review_count || 0} reviews
-          </span>
-        </div>
-        {event.location && (
-          <div className="event-details">
-            <div className="detail-item">
-              <span className="detail-label">📍</span>
-              <span>{event.location}</span>
+  const EventCard = ({ event }) => {
+    const [userTimezone, setUserTimezone] = useState('UTC');
+
+    // Get user's timezone on component mount
+    useEffect(() => {
+      const timezone = getUserTimezone();
+      setUserTimezone(timezone);
+    }, []);
+
+    const formatDate = (dateString) => {
+      if (!dateString) return null;
+      return formatDateInTimezone(dateString, userTimezone, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric'
+      });
+    };
+
+    const formatTime = (dateString) => {
+      if (!dateString) return null;
+      return formatDateInTimezone(dateString, userTimezone, {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+    };
+
+    return (
+      <div 
+        className="event-card" 
+        onClick={() => {
+          setSelectedEvent(event);
+          setShowEventModal(true);
+        }}
+        style={{ cursor: 'pointer' }}
+      >
+        <div className="event-image-container">
+          {event.image_url ? (
+            <EventImage 
+              imageUrl={event.image_url}
+              alt={event.event}
+              className="event-image"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+          ) : null}
+          <div className="event-placeholder" style={{ display: event.image_url ? 'none' : 'flex' }}>
+            <span className="event-icon">🎉</span>
+          </div>
+          
+          {/* Rating badge */}
+          <div className="event-rating">
+            <span className="rating-star">⭐</span>
+            <span className="rating-number">{event.rating || 0.0}</span>
+            <span className="rating-count">({event.review_count || 0})</span>
+          </div>
+          
+          {/* Date badge */}
+          <div className="event-date-badge">
+            <div className="event-date">
+              {event.scheduled_time ? formatDate(event.scheduled_time) : formatDate(event.created_at)}
+            </div>
+            <div className="event-time">
+              {event.scheduled_time ? formatTime(event.scheduled_time) : 'Created'}
             </div>
           </div>
-        )}
-        <div className="event-stats">
-          <div className="stat-item">
-            <span className="stat-number">{event.attendeeCount || 0}</span>
-            <span className="stat-label">Attendees</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-number">{event.review_count || 0}</span>
-            <span className="stat-label">Reviews</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">
-              Created {event.created_at ? new Date(event.created_at).toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'short', 
-                day: 'numeric' 
-              }) : 'Recently'}
+          
+          {/* Price badge */}
+          {event.price !== null && (
+            <div className="event-price">
+              <span className="price-text">
+                {event.price === 0 || isNaN(event.price) ? 'Free' : `$${parseFloat(event.price).toFixed(2)}`}
+              </span>
+            </div>
+          )}
+        </div>
+        
+        <div className="event-content">
+          <div className="event-header">
+            <h3 className="event-name">{event.event}</h3>
+            <span className="event-distance">
+              {event.attendeeCount || 0} attendees
             </span>
           </div>
-        </div>
-        <div className="event-actions">
-          <button 
-            className="edit-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              openEditEventModal(event);
-            }}
-          >
-            Edit
-          </button>
-          <button 
-            className="delete-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteEventModal({ open: true, eventUuid: event.uuid });
-            }}
-          >
-            Delete
-          </button>
+          
+          {event.location && (
+            <div className="event-location">
+              <span className="location-icon">📍</span>
+              <span className="location-name">{event.location}</span>
+            </div>
+          )}
+          
+          <p className="event-description">
+            {event.description || 'No description available for this event.'}
+          </p>
+          
+          <div className="event-footer">
+            <div className="event-tags">
+              {event.tags && event.tags.slice(0, 3).map((tag, index) => (
+                <span key={index} className="event-tag">{tag}</span>
+              ))}
+              {event.tags && event.tags.length > 3 && (
+                <span className="event-tag-more">+{event.tags.length - 3}</span>
+              )}
+            </div>
+            <div className="event-attendees">
+              <span className="attendees-icon">👥</span>
+              <span className="attendees-count">{event.attendeeCount || 0}</span>
+            </div>
+          </div>
+          
+          {/* Action buttons */}
+          <div className="event-actions" style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+            <button 
+              className="edit-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                openEditEventModal(event);
+              }}
+              style={{
+                background: '#007AFF',
+                color: 'white',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                flex: 1
+              }}
+            >
+              Edit
+            </button>
+            <button 
+              className="delete-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleteEventModal({ open: true, eventUuid: event.uuid });
+              }}
+              style={{
+                background: '#ff3b30',
+                color: 'white',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                flex: 1
+              }}
+            >
+              Delete
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="profile-container">
@@ -1736,13 +2063,13 @@ const Profile = () => {
         )}
         
         {activeTab === 'listings' && (
-          <div className="listings-grid" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div className="listings-grid">
             {userEvents.length > 0 ? (
               userEvents.map(event => (
                 <EventCard key={event.uuid} event={event} />
               ))
             ) : (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#666', width: '100%' }}>
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#666', gridColumn: '1 / -1' }}>
                 No listings yet. Start creating your own listings!
               </div>
             )}
@@ -2062,6 +2389,32 @@ const Profile = () => {
                 />
               </div>
               <div className="form-group">
+                <label htmlFor="edit-event-time">Event Time (optional)</label>
+                <input
+                  type="datetime-local"
+                  id="edit-event-time"
+                  value={editEventFormData.scheduledTime}
+                  onChange={e => setEditEventFormData(f => ({ ...f, scheduledTime: e.target.value }))}
+                  placeholder="When is the event happening?"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="edit-event-price">Price (optional)</label>
+                <div className="price-input-container">
+                  <span className="price-symbol">$</span>
+                  <input
+                    type="number"
+                    id="edit-event-price"
+                    value={editEventFormData.price}
+                    onChange={e => setEditEventFormData(f => ({ ...f, price: e.target.value }))}
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <div className="price-hint">Leave empty for free events</div>
+              </div>
+              <div className="form-group">
                 <label htmlFor="edit-event-tags">Tags (optional)</label>
                 <input
                   type="text"
@@ -2071,6 +2424,51 @@ const Profile = () => {
                   placeholder="Add tags separated by commas (e.g., #party, #music, #networking)"
                 />
               </div>
+              <div className="form-group">
+                <label htmlFor="edit-event-image">Event Image (optional)</label>
+                <div className="image-upload-container">
+                  <input
+                    type="file"
+                    id="edit-event-image"
+                    accept="image/*"
+                    onChange={handleEventImageFileChange}
+                    className="image-upload-input"
+                  />
+                  <label htmlFor="edit-event-image" className="image-upload-label">
+                    <div className="image-upload-content">
+                      <span className="image-upload-icon">📷</span>
+                      <span className="image-upload-text">Choose an image or drag here</span>
+                      <span className="image-upload-hint">Max 5MB • JPEG, PNG, WebP, GIF</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="edit-event-imageUrl">Or provide image URL (optional)</label>
+                <input
+                  type="url"
+                  id="edit-event-imageUrl"
+                  value={editEventFormData.imageUrl}
+                  onChange={e => {
+                    setEditEventFormData(f => ({ ...f, imageUrl: e.target.value }));
+                    // Clear file selection when URL is entered
+                    setSelectedEventImageFile(null);
+                    setEventImagePreview(null);
+                  }}
+                  placeholder="https://example.com/event-image.jpg"
+                />
+              </div>
+              
+              {(eventImagePreview || editEventFormData.imageUrl) && (
+                <div className="image-preview">
+                  <img 
+                    src={eventImagePreview || editEventFormData.imageUrl} 
+                    alt="Preview" 
+                    onError={(e) => e.target.style.display = 'none'} 
+                  />
+                </div>
+              )}
 
               <div className="form-actions">
                 <button
@@ -2079,7 +2477,7 @@ const Profile = () => {
                   onClick={() => {
                     setShowEditEventModal(false);
                     setEventToEdit(null);
-                    setEditEventFormData({ title: '', location: '', tags: '' });
+                    setEditEventFormData({ title: '', location: '', tags: '', imageUrl: '', price: '', scheduledTime: '' });
                   }}
                   disabled={isEditingEvent}
                 >
@@ -2096,6 +2494,17 @@ const Profile = () => {
             </form>
           </div>
         </div>
+      )}
+      {/* Event Modal */}
+      {showEventModal && selectedEvent && (
+        <EventModal
+          event={selectedEvent}
+          onClose={() => {
+            setShowEventModal(false);
+            setSelectedEvent(null);
+          }}
+          userProfile={userProfile}
+        />
       )}
     </div>
   );

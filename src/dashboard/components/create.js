@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 import { postService } from '../../services/postService';
 import { eventService } from '../../services/eventService';
+import { imageUploadService } from '../../services/imageUploadService';
 import './create.css';
 
 const TABS = [
@@ -25,8 +26,13 @@ const CreateService = () => {
   const [eventFormData, setEventFormData] = useState({
     title: '',
     location: '',
-    tags: ''
+    tags: '',
+    imageUrl: '',
+    price: '',
+    scheduledTime: ''
   });
+  const [selectedImageFile, setSelectedImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState({ open: false, message: '', type: '' });
 
@@ -59,13 +65,51 @@ const CreateService = () => {
     }
   };
 
+  const handleImageFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      try {
+        imageUploadService.validateImageFile(file);
+        setSelectedImageFile(file);
+        
+        // Create preview
+        const reader = new FileReader();
+        reader.onload = (e) => setImagePreview(e.target.result);
+        reader.readAsDataURL(file);
+        
+        // Clear URL input when file is selected
+        setEventFormData(prev => ({ ...prev, imageUrl: '' }));
+      } catch (error) {
+        showNotification(error.message, 'error');
+        e.target.value = '';
+      }
+    }
+  };
+
   const handleEventSubmit = async (e) => {
     e.preventDefault();
     if (!eventFormData.title.trim()) return;
     setIsSubmitting(true);
     try {
-      await eventService.createEvent(eventFormData);
-      setEventFormData({ title: '', location: '', tags: '' });
+      let finalImageUrl = eventFormData.imageUrl;
+      
+      // Upload image file if selected
+      if (selectedImageFile) {
+        const { publicUrl } = await imageUploadService.uploadEventImage(selectedImageFile);
+        finalImageUrl = publicUrl;
+      }
+      
+      // Create event with image URL
+      await eventService.createEvent({
+        ...eventFormData,
+        imageUrl: finalImageUrl
+      });
+      
+      // Reset form
+      setEventFormData({ title: '', location: '', tags: '', imageUrl: '', price: '', scheduledTime: '' });
+      setSelectedImageFile(null);
+      setImagePreview(null);
+      
       showNotification('Event created successfully!', 'success');
     } catch (err) {
       showNotification('Failed to create event: ' + (err.message || err), 'error');
@@ -254,6 +298,32 @@ const CreateService = () => {
                 />
               </div>
               <div className="form-group">
+                <label htmlFor="eventTime">Event Time (optional)</label>
+                <input
+                  type="datetime-local"
+                  id="eventTime"
+                  value={eventFormData.scheduledTime}
+                  onChange={(e) => handleEventInputChange('scheduledTime', e.target.value)}
+                  placeholder="When is the event happening?"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="eventPrice">Price (optional)</label>
+                <div className="price-input-container">
+                  <span className="price-symbol">$</span>
+                  <input
+                    type="number"
+                    id="eventPrice"
+                    value={eventFormData.price}
+                    onChange={(e) => handleEventInputChange('price', e.target.value)}
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <div className="price-hint">Leave empty for free events</div>
+              </div>
+              <div className="form-group">
                 <label htmlFor="eventTags">Tags (optional)</label>
                 <input
                   type="text"
@@ -263,6 +333,51 @@ const CreateService = () => {
                   placeholder="Add tags separated by commas (e.g., #party, #music, #networking)"
                 />
               </div>
+              <div className="form-group">
+                <label htmlFor="eventImage">Event Image (optional)</label>
+                <div className="image-upload-container">
+                  <input
+                    type="file"
+                    id="eventImage"
+                    accept="image/*"
+                    onChange={handleImageFileChange}
+                    className="image-upload-input"
+                  />
+                  <label htmlFor="eventImage" className="image-upload-label">
+                    <div className="image-upload-content">
+                      <span className="image-upload-icon">📷</span>
+                      <span className="image-upload-text">Choose an image or drag here</span>
+                      <span className="image-upload-hint">Max 5MB • JPEG, PNG, WebP, GIF</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="eventImageUrl">Or provide image URL (optional)</label>
+                <input
+                  type="url"
+                  id="eventImageUrl"
+                  value={eventFormData.imageUrl}
+                  onChange={(e) => {
+                    handleEventInputChange('imageUrl', e.target.value);
+                    // Clear file selection when URL is entered
+                    setSelectedImageFile(null);
+                    setImagePreview(null);
+                  }}
+                  placeholder="https://example.com/event-image.jpg"
+                />
+              </div>
+              
+              {(imagePreview || eventFormData.imageUrl) && (
+                <div className="image-preview">
+                  <img 
+                    src={imagePreview || eventFormData.imageUrl} 
+                    alt="Preview" 
+                    onError={(e) => e.target.style.display = 'none'} 
+                  />
+                </div>
+              )}
 
               <div className="form-actions">
                 <button type="submit" className="submit-btn" disabled={!eventFormData.title.trim() || isSubmitting}>
