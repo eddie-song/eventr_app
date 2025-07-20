@@ -73,8 +73,6 @@ function Dashboard({ service }) {
             .select('uuid')
             .eq('uuid', user.id)
             .single();
-          console.log('profile', profile);
-          console.log('user', user);
           if (!profile) {
             // Profile not found, clear service selection and redirect to onboarding
             localStorage.removeItem('dashboard_selected_service');

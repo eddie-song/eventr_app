@@ -26,10 +26,13 @@ const CreateService = () => {
   const [eventFormData, setEventFormData] = useState({
     title: '',
     location: '',
+    description: '',
     tags: '',
     imageUrl: '',
     price: '',
-    scheduledTime: ''
+    scheduledTime: '',
+    capacity: '',
+    eventType: 'general'
   });
   const [selectedImageFile, setSelectedImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -106,7 +109,17 @@ const CreateService = () => {
       });
       
       // Reset form
-      setEventFormData({ title: '', location: '', tags: '', imageUrl: '', price: '', scheduledTime: '' });
+      setEventFormData({ 
+        title: '', 
+        location: '', 
+        description: '', 
+        tags: '', 
+        imageUrl: '', 
+        price: '', 
+        scheduledTime: '', 
+        capacity: '', 
+        eventType: 'general' 
+      });
       setSelectedImageFile(null);
       setImagePreview(null);
       
@@ -298,6 +311,20 @@ const CreateService = () => {
                 />
               </div>
               <div className="form-group">
+                <label htmlFor="eventDescription">Description</label>
+                <textarea
+                  id="eventDescription"
+                  value={eventFormData.description}
+                  onChange={(e) => handleEventInputChange('description', e.target.value)}
+                  placeholder="Tell people about your event..."
+                  rows={4}
+                  maxLength={1000}
+                />
+                <div className="char-count">
+                  {eventFormData.description.length}/1000
+                </div>
+              </div>
+              <div className="form-group">
                 <label htmlFor="eventTime">Event Time (optional)</label>
                 <input
                   type="datetime-local"
@@ -322,6 +349,38 @@ const CreateService = () => {
                   />
                 </div>
                 <div className="price-hint">Leave empty for free events</div>
+              </div>
+              <div className="form-group">
+                <label htmlFor="eventCapacity">Capacity (optional)</label>
+                <input
+                  type="number"
+                  id="eventCapacity"
+                  value={eventFormData.capacity}
+                  onChange={(e) => handleEventInputChange('capacity', e.target.value)}
+                  placeholder="Maximum number of attendees"
+                  min="1"
+                />
+                <div className="capacity-hint">Leave empty for unlimited capacity</div>
+              </div>
+              <div className="form-group">
+                <label htmlFor="eventType">Event Type</label>
+                <select
+                  id="eventType"
+                  value={eventFormData.eventType}
+                  onChange={(e) => handleEventInputChange('eventType', e.target.value)}
+                >
+                  <option value="general">General</option>
+                  <option value="concert">Concert</option>
+                  <option value="workshop">Workshop</option>
+                  <option value="party">Party</option>
+                  <option value="meetup">Meetup</option>
+                  <option value="conference">Conference</option>
+                  <option value="sports">Sports</option>
+                  <option value="food">Food & Dining</option>
+                  <option value="art">Art & Culture</option>
+                  <option value="business">Business</option>
+                  <option value="other">Other</option>
+                </select>
               </div>
               <div className="form-group">
                 <label htmlFor="eventTags">Tags (optional)</label>

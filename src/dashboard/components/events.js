@@ -192,11 +192,17 @@ const Events = () => {
             </span>
           </div>
         )}
+        
+
       </div>
       <div className="event-content">
         <div className="event-header">
           <h3 className="event-name">{event.event}</h3>
-          <span className="event-distance">{event.attendeeCount || 0} attendees</span>
+          <div className="event-header-details">
+            <span className="event-type-badge">
+              {event.event_type ? event.event_type.charAt(0).toUpperCase() + event.event_type.slice(1) : 'General'}
+            </span>
+          </div>
         </div>
         {event.location && (
           <div className="event-location">
@@ -216,10 +222,15 @@ const Events = () => {
               <span className="event-tag-more">+{event.tags.length - 3}</span>
             )}
           </div>
-          <div className="event-attendees">
-            <span className="attendees-icon">👥</span>
-            <span className="attendees-count">{event.attendeeCount || 0}</span>
-          </div>
+          {/* Capacity badge */}
+          {event.capacity && (
+            <div className="event-capacity">
+              <span className="capacity-text">
+                <span className="attendees-icon">👥</span>
+                {event.attendeeCount || 0}/{event.capacity}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>

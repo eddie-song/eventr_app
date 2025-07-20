@@ -1052,14 +1052,11 @@ function ProfileAvatar({ avatarPath }) {
     let isMounted = true;
     async function fetchUrl() {
       if (!avatarPath || avatarPath.trim() === '') {
-        console.log('ProfileAvatar: No avatarPath provided');
         setSignedUrl(null);
         return;
       }
-      console.log('ProfileAvatar: avatarPath =', avatarPath);
       if (avatarPath.startsWith('http')) {
         setSignedUrl(avatarPath);
-        console.log('ProfileAvatar: Using direct URL');
         return;
       }
       const { data, error } = await supabase.storage
@@ -1068,10 +1065,8 @@ function ProfileAvatar({ avatarPath }) {
       if (isMounted) {
         if (error) {
           setSignedUrl(null);
-          console.log('ProfileAvatar: Error creating signed URL', error);
         } else {
           setSignedUrl(data.signedUrl);
-          console.log('ProfileAvatar: signedUrl =', data.signedUrl);
         }
       }
     }
@@ -1126,10 +1121,13 @@ const Profile = () => {
   const [editEventFormData, setEditEventFormData] = useState({
     title: '',
     location: '',
+    description: '',
     tags: '',
     imageUrl: '',
     price: '',
-    scheduledTime: ''
+    scheduledTime: '',
+    capacity: '',
+    eventType: 'general'
   });
   const [selectedEventImageFile, setSelectedEventImageFile] = useState(null);
   const [eventImagePreview, setEventImagePreview] = useState(null);
@@ -1727,10 +1725,13 @@ const Profile = () => {
     setEditEventFormData({
       title: event.event || '',
       location: event.location || '',
+      description: event.description || '',
       tags: event.tags ? event.tags.join(', ') : '',
       imageUrl: event.image_url || '',
       price: event.price ? event.price.toString() : '',
-      scheduledTime: event.scheduled_time ? convertUTCToDatetimeLocal(event.scheduled_time, userTimezone) : ''
+      scheduledTime: event.scheduled_time ? convertUTCToDatetimeLocal(event.scheduled_time, userTimezone) : '',
+      capacity: event.capacity ? event.capacity.toString() : '',
+      eventType: event.event_type || 'general'
     });
     setSelectedEventImageFile(null);
     setEventImagePreview(null);
@@ -1764,15 +1765,28 @@ const Profile = () => {
               ...event, 
               event: editEventFormData.title,
               location: editEventFormData.location,
+              description: editEventFormData.description,
               image_url: finalImageUrl,
-              tags: editEventFormData.tags ? editEventFormData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []
+              tags: editEventFormData.tags ? editEventFormData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
+              capacity: editEventFormData.capacity ? parseInt(editEventFormData.capacity) : null,
+              event_type: editEventFormData.eventType
             }
           : event
       ));
       
       setShowEditEventModal(false);
       setEventToEdit(null);
-      setEditEventFormData({ title: '', location: '', tags: '', imageUrl: '', price: '', scheduledTime: '' });
+      setEditEventFormData({ 
+        title: '', 
+        location: '', 
+        description: '', 
+        tags: '', 
+        imageUrl: '', 
+        price: '', 
+        scheduledTime: '', 
+        capacity: '', 
+        eventType: 'general' 
+      });
       setSelectedEventImageFile(null);
       setEventImagePreview(null);
       setNotification({ open: true, message: 'Event updated successfully!', type: 'success' });
@@ -1864,14 +1878,18 @@ const Profile = () => {
               </span>
             </div>
           )}
+          
+
         </div>
         
         <div className="event-content">
           <div className="event-header">
             <h3 className="event-name">{event.event}</h3>
-            <span className="event-distance">
-              {event.attendeeCount || 0} attendees
-            </span>
+            <div className="event-header-details">
+              <span className="event-type-badge">
+                {event.event_type ? event.event_type.charAt(0).toUpperCase() + event.event_type.slice(1) : 'General'}
+              </span>
+            </div>
           </div>
           
           {event.location && (
@@ -1894,10 +1912,15 @@ const Profile = () => {
                 <span className="event-tag-more">+{event.tags.length - 3}</span>
               )}
             </div>
-            <div className="event-attendees">
-              <span className="attendees-icon">👥</span>
-              <span className="attendees-count">{event.attendeeCount || 0}</span>
-            </div>
+            {/* Capacity badge */}
+            {event.capacity && (
+              <div className="event-capacity">
+                <span className="capacity-text">
+                  <span className="attendees-icon">👥</span>
+                  {event.attendeeCount || 0}/{event.capacity}
+                </span>
+              </div>
+            )}
           </div>
           
           {/* Action buttons */}
@@ -2389,6 +2412,20 @@ const Profile = () => {
                 />
               </div>
               <div className="form-group">
+                <label htmlFor="edit-event-description">Description</label>
+                <textarea
+                  id="edit-event-description"
+                  value={editEventFormData.description}
+                  onChange={e => setEditEventFormData(f => ({ ...f, description: e.target.value }))}
+                  placeholder="Tell people about your event..."
+                  rows={4}
+                  maxLength={1000}
+                />
+                <div className="char-count">
+                  {editEventFormData.description.length}/1000
+                </div>
+              </div>
+              <div className="form-group">
                 <label htmlFor="edit-event-time">Event Time (optional)</label>
                 <input
                   type="datetime-local"
@@ -2413,6 +2450,38 @@ const Profile = () => {
                   />
                 </div>
                 <div className="price-hint">Leave empty for free events</div>
+              </div>
+              <div className="form-group">
+                <label htmlFor="edit-event-capacity">Capacity (optional)</label>
+                <input
+                  type="number"
+                  id="edit-event-capacity"
+                  value={editEventFormData.capacity}
+                  onChange={e => setEditEventFormData(f => ({ ...f, capacity: e.target.value }))}
+                  placeholder="Maximum number of attendees"
+                  min="1"
+                />
+                <div className="capacity-hint">Leave empty for unlimited capacity</div>
+              </div>
+              <div className="form-group">
+                <label htmlFor="edit-event-type">Event Type</label>
+                <select
+                  id="edit-event-type"
+                  value={editEventFormData.eventType}
+                  onChange={e => setEditEventFormData(f => ({ ...f, eventType: e.target.value }))}
+                >
+                  <option value="general">General</option>
+                  <option value="concert">Concert</option>
+                  <option value="workshop">Workshop</option>
+                  <option value="party">Party</option>
+                  <option value="meetup">Meetup</option>
+                  <option value="conference">Conference</option>
+                  <option value="sports">Sports</option>
+                  <option value="food">Food & Dining</option>
+                  <option value="art">Art & Culture</option>
+                  <option value="business">Business</option>
+                  <option value="other">Other</option>
+                </select>
               </div>
               <div className="form-group">
                 <label htmlFor="edit-event-tags">Tags (optional)</label>
@@ -2477,7 +2546,17 @@ const Profile = () => {
                   onClick={() => {
                     setShowEditEventModal(false);
                     setEventToEdit(null);
-                    setEditEventFormData({ title: '', location: '', tags: '', imageUrl: '', price: '', scheduledTime: '' });
+                    setEditEventFormData({ 
+                      title: '', 
+                      location: '', 
+                      description: '', 
+                      tags: '', 
+                      imageUrl: '', 
+                      price: '', 
+                      scheduledTime: '', 
+                      capacity: '', 
+                      eventType: 'general' 
+                    });
                   }}
                   disabled={isEditingEvent}
                 >

@@ -799,6 +799,44 @@
   font-weight: 600;
 }
 
+.event-capacity {
+  background: #f0f0f0;
+  color: #1d1d1f;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.capacity-text {
+  color: #1d1d1f;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.capacity-text .attendees-icon {
+  font-size: 12px;
+}
+
+.event-header-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.event-type-badge {
+  background: #f0f0f0;
+  color: #1d1d1f;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
 .event-card .event-content {
   padding: 20px;
 }
@@ -862,7 +900,8 @@
 .event-footer {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 .event-card .event-tags {
@@ -870,6 +909,7 @@
   flex-wrap: wrap;
   gap: 6px;
   flex: 1;
+  align-items: flex-start;
 }
 
 .event-card .event-tag {

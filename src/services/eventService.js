@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { userService } from './userService';
+import { locationService } from './locationService';
 
 export const eventService = {
   // Create a new event
@@ -47,15 +48,30 @@ export const eventService = {
           uuid: eventUuid,
           event: eventData.title,
           location: eventData.location || null,
+          description: eventData.description || null,
           image_url: eventData.imageUrl || null,
           scheduled_time: scheduledTimeUTC,
           price: eventData.price ? parseFloat(eventData.price) : null,
+          capacity: eventData.capacity ? parseInt(eventData.capacity) : null,
+          event_type: eventData.eventType || 'general',
+          status: 'active',
           review_count: 0,
           rating: 0.00,
           created_at: now
         }]);
 
       if (eventError) throw eventError;
+
+      // Link event to location if provided
+      if (eventData.location) {
+        try {
+          const location = await locationService.getOrCreateLocation(eventData.location);
+          await locationService.linkEventToLocation(eventUuid, location.uuid);
+        } catch (locationError) {
+          console.warn('Could not link event to location:', locationError);
+          // Don't fail the event creation if location linking fails
+        }
+      }
 
       // Insert tags if provided
       if (tagsArray.length > 0) {
@@ -137,6 +153,22 @@ export const eventService = {
 
       if (attendeeError) throw attendeeError;
 
+      // Get location associations for all events
+      const { data: locationEvents, error: locationError } = await supabase
+        .from('location_events')
+        .select(`
+          event_id,
+          location:location_id (
+            uuid,
+            location,
+            longitude,
+            latitude
+          )
+        `)
+        .in('event_id', eventIds);
+
+      if (locationError) throw locationError;
+
       // Group tags by event_id
       const tagsByEvent = {};
       tags.forEach(tag => {
@@ -161,12 +193,22 @@ export const eventService = {
         attendeeCountByEvent[attendee.event_id] = (attendeeCountByEvent[attendee.event_id] || 0) + 1;
       });
 
-      // Combine events with their tags, hosts, and attendee counts
+      // Group locations by event_id
+      const locationsByEvent = {};
+      locationEvents.forEach(locationEvent => {
+        if (!locationsByEvent[locationEvent.event_id]) {
+          locationsByEvent[locationEvent.event_id] = [];
+        }
+        locationsByEvent[locationEvent.event_id].push(locationEvent.location);
+      });
+
+      // Combine events with their tags, hosts, attendee counts, and locations
       const eventsWithDetails = events.map(event => ({
         ...event,
         tags: tagsByEvent[event.uuid] || [],
         hosts: hostsByEvent[event.uuid] || [],
-        attendeeCount: attendeeCountByEvent[event.uuid] || 0
+        attendeeCount: attendeeCountByEvent[event.uuid] || 0,
+        locations: locationsByEvent[event.uuid] || []
       }));
 
       return eventsWithDetails;
@@ -212,11 +254,27 @@ export const eventService = {
 
       if (attendeeError) throw attendeeError;
 
+      // Get location associations
+      const { data: locationEvents, error: locationError } = await supabase
+        .from('location_events')
+        .select(`
+          location:location_id (
+            uuid,
+            location,
+            longitude,
+            latitude
+          )
+        `)
+        .eq('event_id', eventId);
+
+      if (locationError) throw locationError;
+
       return {
         ...event,
         tags: tags.map(tag => tag.tag),
         hosts: hosts.map(host => host.user_id),
-        attendeeCount: attendeeCount || 0
+        attendeeCount: attendeeCount || 0,
+        locations: locationEvents.map(le => le.location)
       };
     } catch (error) {
       console.error('Error fetching event:', error);
@@ -265,13 +323,34 @@ export const eventService = {
         .update({
           event: eventData.title,
           location: eventData.location,
+          description: eventData.description || null,
           image_url: eventData.imageUrl,
           scheduled_time: scheduledTimeUTC,
-          price: eventData.price ? parseFloat(eventData.price) : null
+          price: eventData.price ? parseFloat(eventData.price) : null,
+          capacity: eventData.capacity ? parseInt(eventData.capacity) : null,
+          event_type: eventData.eventType || 'general'
         })
         .eq('uuid', eventId);
 
       if (updateError) throw updateError;
+
+      // Update location association if location changed
+      if (eventData.location) {
+        try {
+          // Remove existing location associations
+          await supabase
+            .from('location_events')
+            .delete()
+            .eq('event_id', eventId);
+
+          // Create new location association
+          const location = await locationService.getOrCreateLocation(eventData.location);
+          await locationService.linkEventToLocation(eventId, location.uuid);
+        } catch (locationError) {
+          console.warn('Could not update event location association:', locationError);
+          // Don't fail the event update if location linking fails
+        }
+      }
 
       // Delete existing tags
       const { error: deleteTagsError } = await supabase
@@ -546,5 +625,42 @@ export const eventService = {
     }
   },
 
+  // Get events by location
+  async getEventsByLocation(locationId) {
+    try {
+      return await locationService.getLocationEvents(locationId);
+    } catch (error) {
+      console.error('Error getting events by location:', error);
+      throw error;
+    }
+  },
 
-}; 
+  // Search events by location name
+  async searchEventsByLocation(locationName) {
+    try {
+      // First find the location
+      const locations = await locationService.searchLocations(locationName);
+      
+      if (locations.length === 0) {
+        return [];
+      }
+
+      // Get events for all matching locations
+      const allEvents = [];
+      for (const location of locations) {
+        const events = await locationService.getLocationEvents(location.uuid);
+        allEvents.push(...events);
+      }
+
+      // Remove duplicates and return
+      const uniqueEvents = allEvents.filter((event, index, self) => 
+        index === self.findIndex(e => e.uuid === event.uuid)
+      );
+
+      return uniqueEvents;
+    } catch (error) {
+      console.error('Error searching events by location:', error);
+      throw error;
+    }
+  }
+};
