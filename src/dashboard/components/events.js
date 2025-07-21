@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import './events.css';
 import LoadingScreen from './LoadingScreen.js';
 import { usePageCache } from '../context/PageCacheContext.js';
+import { eventService } from '../../services/eventService';
+import EventImage from '../../components/eventImage';
+import { formatDateInTimezone, getUserTimezone, convertUTCToDatetimeLocal } from '../../utils/timezoneUtils';
 
 const Events = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -9,136 +12,25 @@ const Events = () => {
   const [isLoading, setIsLoading] = useState(true);
   
   const { isPageLoaded, markPageAsLoaded } = usePageCache();
-  const [events, setEvents] = useState([
-    {
-      id: 1,
-      name: 'Summer Music Festival',
-      category: 'music',
-      date: '2024-07-15',
-      time: '6:00 PM',
-      location: 'Central Park Amphitheater',
-      distance: '1.2 miles away',
-      image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop',
-      description: 'Annual summer music festival featuring local bands and food trucks. Free entry, bring your own blanket!',
-      price: 'Free',
-      attendees: 245,
-      rating: 4.7,
-      reviews: 18,
-      tags: ['Music', 'Outdoor', 'Free']
-    },
-    {
-      id: 2,
-      name: 'Tech Startup Meetup',
-      category: 'networking',
-      date: '2024-06-28',
-      time: '7:30 PM',
-      location: 'Innovation Hub',
-      distance: '0.8 miles away',
-      image: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=400&h=300&fit=crop',
-      description: 'Monthly networking event for tech entrepreneurs and developers. Pizza and drinks provided.',
-      price: '$15',
-      attendees: 89,
-      rating: 4.5,
-      reviews: 12,
-      tags: ['Networking', 'Tech', 'Startups']
-    },
-    {
-      id: 3,
-      name: 'Yoga in the Park',
-      category: 'wellness',
-      date: '2024-06-30',
-      time: '9:00 AM',
-      location: 'Riverside Park',
-      distance: '1.5 miles away',
-      image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&h=300&fit=crop',
-      description: 'Beginner-friendly yoga session in the beautiful park setting. Mats provided, all levels welcome.',
-      price: '$10',
-      attendees: 34,
-      rating: 4.8,
-      reviews: 25,
-      tags: ['Yoga', 'Wellness', 'Outdoor']
-    },
-    {
-      id: 4,
-      name: 'Art Gallery Opening',
-      category: 'culture',
-      date: '2024-07-02',
-      time: '6:00 PM',
-      location: 'Contemporary Arts Center',
-      distance: '1.7 miles away',
-      image: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=400&h=300&fit=crop',
-      description: 'Opening night for the new contemporary art exhibition. Wine and cheese reception included.',
-      price: '$25',
-      attendees: 156,
-      rating: 4.6,
-      reviews: 31,
-      tags: ['Art', 'Gallery', 'Wine']
-    },
-    {
-      id: 5,
-      name: 'Food Truck Festival',
-      category: 'food',
-      date: '2024-07-08',
-      time: '12:00 PM',
-      location: 'Downtown Plaza',
-      distance: '0.5 miles away',
-      image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=300&fit=crop',
-      description: 'Weekend food truck festival with over 20 trucks serving international cuisine. Live music and family activities.',
-      price: 'Free Entry',
-      attendees: 423,
-      rating: 4.9,
-      reviews: 67,
-      tags: ['Food', 'Festival', 'Family']
-    },
-    {
-      id: 6,
-      name: 'Book Club Meeting',
-      category: 'community',
-      date: '2024-06-25',
-      time: '7:00 PM',
-      location: 'Local Library',
-      distance: '2.1 miles away',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-      description: 'Monthly book club discussing "The Midnight Library" by Matt Haig. New members always welcome!',
-      price: 'Free',
-      attendees: 23,
-      rating: 4.4,
-      reviews: 9,
-      tags: ['Books', 'Discussion', 'Community']
-    },
-    {
-      id: 7,
-      name: 'Hiking Adventure',
-      category: 'outdoor',
-      date: '2024-07-06',
-      time: '8:00 AM',
-      location: 'Mountain Trail Park',
-      distance: '15.3 miles away',
-      image: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300&fit=crop',
-      description: 'Guided hiking tour through scenic mountain trails. Moderate difficulty, bring water and snacks.',
-      price: '$35',
-      attendees: 18,
-      rating: 4.7,
-      reviews: 14,
-      tags: ['Hiking', 'Nature', 'Guided']
-    },
-    {
-      id: 8,
-      name: 'Comedy Night',
-      category: 'entertainment',
-      date: '2024-06-29',
-      time: '8:30 PM',
-      location: 'Laugh Factory',
-      distance: '1.3 miles away',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-      description: 'Stand-up comedy night featuring local comedians. Two-drink minimum, 21+ only.',
-      price: '$20',
-      attendees: 67,
-      rating: 4.3,
-      reviews: 22,
-      tags: ['Comedy', 'Entertainment', '21+']
+  const [events, setEvents] = useState([]);
+
+  // Load events from database
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        const eventsData = await eventService.getAllEvents();
+        setEvents(eventsData);
+      } catch (error) {
+        console.error('Error loading events:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (isPageLoaded) {
+      loadEvents();
     }
-  ]);
+  }, [isPageLoaded]);
 
   // Recommended events based on user preferences
   const recommendedEvents = [
@@ -208,9 +100,10 @@ const Events = () => {
   ];
 
   const filteredEvents = events.filter(event => {
-    const matchesSearch = event.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         event.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || event.category === selectedCategory;
+    const matchesSearch = (event.event || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (event.location || '').toLowerCase().includes(searchQuery.toLowerCase());
+    // For now, we'll show all events since we don't have categories in the database yet
+    const matchesCategory = selectedCategory === 'all';
     return matchesSearch && matchesCategory;
   });
 
@@ -229,59 +122,115 @@ const Events = () => {
     }
   }, [isPageLoaded, markPageAsLoaded]);
 
+  const [userTimezone, setUserTimezone] = useState('UTC');
+
+  // Get user's timezone on component mount
+  useEffect(() => {
+    const timezone = getUserTimezone();
+    setUserTimezone(timezone);
+  }, []);
+
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric' 
+    if (!dateString) return null;
+    return formatDateInTimezone(dateString, userTimezone, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const formatTime = (dateString) => {
+    if (!dateString) return null;
+    return formatDateInTimezone(dateString, userTimezone, {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
     });
   };
 
   const EventCard = ({ event }) => (
     <div className="event-card">
       <div className="event-image-container">
-        <img 
-          src={event.image} 
-          alt={event.name}
-          className="event-image"
-          onError={(e) => {
-            e.target.style.display = 'none';
-          }}
-        />
+        {event.image_url ? (
+          <EventImage 
+            imageUrl={event.image_url}
+            alt={event.event}
+            className="event-image"
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+        ) : (
+          <div className="event-placeholder" style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            background: '#f0f0f0',
+            height: '100%',
+            fontSize: '48px'
+          }}>
+            🎉
+          </div>
+        )}
         <div className="event-date-badge">
-          <div className="event-date">{formatDate(event.date)}</div>
-          <div className="event-time">{event.time}</div>
+          <div className="event-date">
+            {event.scheduled_time ? formatDate(event.scheduled_time, userTimezone) : formatDate(event.created_at, userTimezone)}
+          </div>
+          <div className="event-time">
+            {event.scheduled_time ? formatTime(event.scheduled_time) : 'Created'}
+          </div>
         </div>
         <div className="event-rating">
           <span className="rating-star">⭐</span>
-          <span className="rating-number">{event.rating}</span>
-          <span className="rating-count">({event.reviews})</span>
+          <span className="rating-number">{event.rating || 0.0}</span>
+          <span className="rating-count">({event.review_count || 0})</span>
         </div>
-        <div className="event-price">
-          <span className="price-text">{event.price}</span>
-        </div>
+        {event.price !== null && (
+          <div className="event-price">
+            <span className="price-text">
+              {event.price === 0 || isNaN(event.price) ? 'Free' : `$${parseFloat(event.price).toFixed(2)}`}
+            </span>
+          </div>
+        )}
+        
+
       </div>
       <div className="event-content">
         <div className="event-header">
-          <h3 className="event-name">{event.name}</h3>
-          <span className="event-distance">{event.distance}</span>
+          <h3 className="event-name">{event.event}</h3>
+          <div className="event-header-details">
+            <span className="event-type-badge">
+              {event.event_type ? event.event_type.charAt(0).toUpperCase() + event.event_type.slice(1) : 'General'}
+            </span>
+          </div>
         </div>
-        <div className="event-location">
-          <span className="location-icon">📍</span>
-          <span className="location-name">{event.location}</span>
-        </div>
-        <p className="event-description">{event.description}</p>
+        {event.location && (
+          <div className="event-location">
+            <span className="location-icon">📍</span>
+            <span className="location-name">{event.location}</span>
+          </div>
+        )}
+        <p className="event-description">
+          {event.description || 'No description available for this event.'}
+        </p>
         <div className="event-footer">
           <div className="event-tags">
-            {event.tags.map((tag, index) => (
+            {event.tags && event.tags.slice(0, 3).map((tag, index) => (
               <span key={index} className="event-tag">{tag}</span>
             ))}
+            {event.tags && event.tags.length > 3 && (
+              <span className="event-tag-more">+{event.tags.length - 3}</span>
+            )}
           </div>
-          <div className="event-attendees">
-            <span className="attendees-icon">👥</span>
-            <span className="attendees-count">{event.attendees}</span>
-          </div>
+          {/* Capacity badge */}
+          {event.capacity && (
+            <div className="event-capacity">
+              <span className="capacity-text">
+                <span className="attendees-icon">👥</span>
+                {event.attendeeCount || 0}/{event.capacity}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>
