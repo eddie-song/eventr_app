@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { userService } from './userService';
+import { v4 as uuidv4 } from 'uuid';
 
 export const personService = {
   // Create a new person/service provider
@@ -9,7 +9,7 @@ export const personService = {
       if (userError || !user) throw new Error('Could not get current user');
       
       const userId = user.id;
-      const personUuid = crypto.randomUUID();
+      const personUuid = crypto?.randomUUID?.() ?? uuidv4();
       const now = new Date().toISOString();
 
       // Insert person
@@ -94,11 +94,21 @@ export const personService = {
   // Update a person
   async updatePerson(personId, personData) {
     try {
+      // Assign all relevant fields directly
+      const updateObj = {
+        service: personData.service,
+        description: personData.description,
+        location: personData.location,
+        contact_info: personData.contactInfo,
+        service_type: personData.serviceType,
+        hourly_rate: personData.hourlyRate ? parseFloat(personData.hourlyRate) : null,
+        status: personData.status
+      };
+      // Remove undefined fields
+      Object.keys(updateObj).forEach(key => updateObj[key] === undefined && delete updateObj[key]);
       const { error: updateError } = await supabase
         .from('person')
-        .update({
-          service: personData.service
-        })
+        .update(updateObj)
         .eq('uuid', personId);
 
       if (updateError) throw updateError;

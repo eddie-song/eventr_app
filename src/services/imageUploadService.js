@@ -21,9 +21,6 @@ export const imageUploadService = {
           console.error('Failed to create bucket:', createError);
           throw new Error('Storage bucket not available. Please contact support.');
         }
-        
-        // Set up RLS policies for the bucket
-        await this.setupBucketPolicies();
       }
     } catch (error) {
       console.error('Error ensuring bucket exists:', error);

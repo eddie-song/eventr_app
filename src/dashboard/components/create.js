@@ -165,7 +165,19 @@ const CreateService = () => {
 
   const handlePersonSubmit = async (e) => {
     e.preventDefault();
-    if (!personFormData.service.trim()) return;
+    // Validate required fields
+    if (!personFormData.service.trim()) {
+      showNotification('Service name is required.', 'error');
+      return;
+    }
+    if (!personFormData.location.trim()) {
+      showNotification('Service area/location is required.', 'error');
+      return;
+    }
+    if (!personFormData.contactInfo.trim()) {
+      showNotification('Contact information is required.', 'error');
+      return;
+    }
     setIsSubmitting(true);
     try {
       await personService.createPerson(personFormData);

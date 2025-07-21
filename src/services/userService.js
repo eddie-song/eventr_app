@@ -55,18 +55,52 @@ export const userService = {
       if (userError) throw userError;
       if (!user) throw new Error('No authenticated user found');
 
+      // Input validation
+      const updateObj = {};
+      if ('username' in profileData && typeof profileData.username === 'string' && profileData.username.trim()) {
+        updateObj.username = profileData.username.trim();
+      }
+      if ('email' in profileData && typeof profileData.email === 'string' && profileData.email.trim()) {
+        // Simple email regex
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(profileData.email.trim())) {
+          throw new Error('Invalid email format');
+        }
+        updateObj.email = profileData.email.trim();
+      }
+      if ('display_name' in profileData && typeof profileData.display_name === 'string') {
+        updateObj.display_name = profileData.display_name.trim();
+      }
+      if ('phone' in profileData && typeof profileData.phone === 'string' && profileData.phone.trim()) {
+        // Simple phone regex (international and US)
+        const phoneRegex = /^[+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]*$/;
+        if (!phoneRegex.test(profileData.phone.trim())) {
+          throw new Error('Invalid phone number format');
+        }
+        updateObj.phone = profileData.phone.trim();
+      }
+      if ('bio' in profileData && typeof profileData.bio === 'string') {
+        if (profileData.bio.length > 500) {
+          throw new Error('Bio must be 500 characters or less');
+        }
+        updateObj.bio = profileData.bio;
+      }
+      if ('avatar_url' in profileData && typeof profileData.avatar_url === 'string') {
+        updateObj.avatar_url = profileData.avatar_url;
+      }
+      if ('timezone' in profileData && typeof profileData.timezone === 'string') {
+        updateObj.timezone = profileData.timezone;
+      }
+      updateObj.updated_at = new Date().toISOString();
+
+      if (Object.keys(updateObj).length === 1 && updateObj.updated_at) {
+        // No valid fields to update
+        throw new Error('No valid profile fields to update');
+      }
+
       const { data, error } = await supabase
         .from('profiles')
-        .update({
-          username: profileData.username,
-          email: profileData.email,
-          display_name: profileData.display_name,
-          phone: profileData.phone,
-          bio: profileData.bio,
-          avatar_url: profileData.avatar_url,
-          timezone: profileData.timezone || 'UTC',
-          updated_at: new Date().toISOString()
-        })
+        .update(updateObj)
         .eq('uuid', user.id)
         .select()
         .single();

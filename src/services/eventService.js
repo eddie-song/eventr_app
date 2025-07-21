@@ -18,7 +18,7 @@ export const eventService = {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('Could not get current user');
-      
+
       const userId = user.id;
       const eventUuid = crypto.randomUUID();
       const now = new Date().toISOString();
@@ -108,15 +108,10 @@ export const eventService = {
 
       // Link event to location if provided
       if (eventData.location) {
-        try {
-          const location = await locationService.getOrCreateLocation(eventData.location);
-          await locationService.linkEventToLocation(eventUuid, location.uuid);
-          inserted.locationLinked = true;
-          inserted.location = location;
-        } catch (locationError) {
-          // Optionally: throw locationError to trigger rollback
-          throw locationError;
-        }
+        const location = await locationService.getOrCreateLocation(eventData.location);
+        await locationService.linkEventToLocation(eventUuid, location.uuid);
+        inserted.locationLinked = true;
+        inserted.location = location;
       }
 
       // Insert tags if provided
@@ -355,12 +350,23 @@ export const eventService = {
   // Update an event with tags
   async updateEvent(eventId, eventData) {
     try {
-      const tagsArray = eventData.tags ? eventData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+      // Comprehensive input validation for tags
+      let tagsArray = [];
+      if (typeof eventData.tags === 'string') {
+        tagsArray = eventData.tags
+          .split(',')
+          .map(tag => tag.trim())
+          .filter(tag => tag && /^[\w#\- ]{1,32}$/.test(tag)); // Only allow word chars, #, -, space, max 32 chars
+      } else if (Array.isArray(eventData.tags)) {
+        tagsArray = eventData.tags
+          .map(tag => (typeof tag === 'string' ? tag.trim() : ''))
+          .filter(tag => tag && /^[\w#\- ]{1,32}$/.test(tag));
+      }
 
       // Get current user's timezone
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('Could not get current user');
-      
+
       const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
         .select('timezone')
@@ -514,7 +520,7 @@ export const eventService = {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('Could not get current user');
-      
+
       const userId = user.id;
 
       // Check if user is already an attendee
@@ -524,7 +530,7 @@ export const eventService = {
         .eq('event_id', eventId)
         .eq('user_id', userId)
         .single();
-      
+
       if (checkError && checkError.code !== 'PGRST116') throw checkError;
 
       if (existingAttendee) {
@@ -554,7 +560,7 @@ export const eventService = {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('Could not get current user');
-      
+
       const userId = user.id;
 
       // Remove user from attendees
@@ -578,7 +584,7 @@ export const eventService = {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) return false;
-      
+
       const userId = user.id;
 
       const { data: attendee, error: checkError } = await supabase
@@ -587,7 +593,7 @@ export const eventService = {
         .eq('event_id', eventId)
         .eq('user_id', userId)
         .single();
-      
+
       if (checkError && checkError.code === 'PGRST116') {
         return false; // No attendee record found
       }
@@ -605,7 +611,7 @@ export const eventService = {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('Could not get current user');
-      
+
       const userId = user.id;
 
       // Get events where user is a host
@@ -620,7 +626,7 @@ export const eventService = {
       if (hostedError) throw hostedError;
 
       const events = hostedEvents.map(item => item.events);
-      
+
       // Get tags for all events
       const eventIds = events.map(event => event.uuid);
       const { data: tags, error: tagsError } = await supabase
@@ -672,7 +678,7 @@ export const eventService = {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('Could not get current user');
-      
+
       const userId = user.id;
 
       // Get events where user is an attendee
@@ -708,7 +714,7 @@ export const eventService = {
     try {
       // First find the location
       const locations = await locationService.searchLocations(locationName);
-      
+
       if (locations.length === 0) {
         return [];
       }
@@ -721,7 +727,7 @@ export const eventService = {
       }
 
       // Remove duplicates and return
-      const uniqueEvents = allEvents.filter((event, index, self) => 
+      const uniqueEvents = allEvents.filter((event, index, self) =>
         index === self.findIndex(e => e.uuid === event.uuid)
       );
 
