@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabaseClient';
-import { v4 as uuidv4 } from 'uuid';
 import { postService } from '../../services/postService';
 import { eventService } from '../../services/eventService';
+import { personService } from '../../services/personService';
 import { imageUploadService } from '../../services/imageUploadService';
 import './create.css';
 
@@ -34,6 +32,14 @@ const CreateService = () => {
     capacity: '',
     eventType: 'general'
   });
+  const [personFormData, setPersonFormData] = useState({
+    service: '',
+    description: '',
+    location: '',
+    contactInfo: '',
+    serviceType: 'general',
+    hourlyRate: ''
+  });
   const [selectedImageFile, setSelectedImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,6 +58,10 @@ const CreateService = () => {
     setEventFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handlePersonInputChange = (field, value) => {
+    setPersonFormData(prev => ({ ...prev, [field]: value }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.content.trim()) return;
@@ -67,6 +77,15 @@ const CreateService = () => {
       setIsSubmitting(false);
     }
   };
+
+  // Cleanup for imagePreview blob URLs
+  React.useEffect(() => {
+    return () => {
+      if (imagePreview && typeof imagePreview === 'string' && imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
 
   const handleImageFileChange = (e) => {
     const file = e.target.files[0];
@@ -91,7 +110,19 @@ const CreateService = () => {
 
   const handleEventSubmit = async (e) => {
     e.preventDefault();
-    if (!eventFormData.title.trim()) return;
+    // Validate required fields
+    if (!eventFormData.title.trim()) {
+      showNotification('Event title is required.', 'error');
+      return;
+    }
+    if (!eventFormData.location.trim()) {
+      showNotification('Event location is required.', 'error');
+      return;
+    }
+    if (!eventFormData.scheduledTime || isNaN(Date.parse(eventFormData.scheduledTime))) {
+      showNotification('Event scheduled time is required and must be a valid date/time.', 'error');
+      return;
+    }
     setIsSubmitting(true);
     try {
       let finalImageUrl = eventFormData.imageUrl;
@@ -127,6 +158,29 @@ const CreateService = () => {
     } catch (err) {
       showNotification('Failed to create event: ' + (err.message || err), 'error');
       console.error('Create event error:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePersonSubmit = async (e) => {
+    e.preventDefault();
+    if (!personFormData.service.trim()) return;
+    setIsSubmitting(true);
+    try {
+      await personService.createPerson(personFormData);
+      setPersonFormData({ 
+        service: '', 
+        description: '', 
+        location: '', 
+        contactInfo: '', 
+        serviceType: 'general', 
+        hourlyRate: '' 
+      });
+      showNotification('Service created successfully!', 'success');
+    } catch (err) {
+      showNotification('Failed to create service: ' + (err.message || err), 'error');
+      console.error('Create person error:', err);
     } finally {
       setIsSubmitting(false);
     }
@@ -446,7 +500,99 @@ const CreateService = () => {
             </form>
           </div>
         )}
-        {activeTab !== 'posts' && activeTab !== 'events' && (
+        {activeTab === 'people' && (
+          <div style={{ maxWidth: 900, width: '100%', margin: '0 auto' }}>
+            <form onSubmit={handlePersonSubmit} className="create-post-form">
+              <div className="form-group">
+                <label htmlFor="personService">Service Name</label>
+                <input
+                  type="text"
+                  id="personService"
+                  value={personFormData.service}
+                  onChange={(e) => handlePersonInputChange('service', e.target.value)}
+                  placeholder="What service do you provide?"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="personDescription">Service Description</label>
+                <textarea
+                  id="personDescription"
+                  value={personFormData.description}
+                  onChange={(e) => handlePersonInputChange('description', e.target.value)}
+                  placeholder="Describe your service in detail..."
+                  rows={4}
+                  maxLength={1000}
+                />
+                <div className="char-count">
+                  {personFormData.description.length}/1000
+                </div>
+              </div>
+              <div className="form-group">
+                <label htmlFor="personLocation">Service Area</label>
+                <input
+                  type="text"
+                  id="personLocation"
+                  value={personFormData.location}
+                  onChange={(e) => handlePersonInputChange('location', e.target.value)}
+                  placeholder="Where do you provide your service?"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="personContact">Contact Information</label>
+                <input
+                  type="text"
+                  id="personContact"
+                  value={personFormData.contactInfo}
+                  onChange={(e) => handlePersonInputChange('contactInfo', e.target.value)}
+                  placeholder="Email, phone, or preferred contact method"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="personServiceType">Service Type</label>
+                <select
+                  id="personServiceType"
+                  value={personFormData.serviceType}
+                  onChange={(e) => handlePersonInputChange('serviceType', e.target.value)}
+                >
+                  <option value="general">General</option>
+                  <option value="professional">Professional</option>
+                  <option value="creative">Creative</option>
+                  <option value="technical">Technical</option>
+                  <option value="healthcare">Healthcare</option>
+                  <option value="education">Education</option>
+                  <option value="consulting">Consulting</option>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="transportation">Transportation</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="personHourlyRate">Hourly Rate (optional)</label>
+                <div className="price-input-container">
+                  <span className="price-symbol">$</span>
+                  <input
+                    type="number"
+                    id="personHourlyRate"
+                    value={personFormData.hourlyRate}
+                    onChange={(e) => handlePersonInputChange('hourlyRate', e.target.value)}
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <div className="price-hint">Leave empty for negotiable rates</div>
+              </div>
+
+              <div className="form-actions">
+                <button type="submit" className="submit-btn" disabled={!personFormData.service.trim() || isSubmitting}>
+                  {isSubmitting ? 'Creating...' : 'Create Service'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+        {activeTab !== 'posts' && activeTab !== 'events' && activeTab !== 'people' && (
           <div style={{ textAlign: 'center', color: '#86868b', padding: '2rem' }}>
             <p>Coming soon!</p>
           </div>

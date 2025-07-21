@@ -80,6 +80,20 @@ export const locationService = {
     try {
       const now = new Date().toISOString();
 
+      // Check for existing link to prevent duplicates
+      const { data: existing, error: findError } = await supabase
+        .from('location_events')
+        .select('event_id, location_id')
+        .eq('event_id', eventId)
+        .eq('location_id', locationId)
+        .single();
+      if (!findError && existing) {
+        // Link already exists
+        return { success: true };
+      }
+      // If error is not 'no rows found', throw
+      if (findError && findError.code !== 'PGRST116') throw findError;
+
       const { error } = await supabase
         .from('location_events')
         .insert([{

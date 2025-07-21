@@ -330,6 +330,14 @@
   color: #ff3b30;
 }
 
+/* Focus state for accessibility */
+.post-modal-action-btn:focus {
+  outline: 2px solid #007AFF;
+  outline-offset: 2px;
+  color: #007AFF;
+  background-color: #f0f8ff;
+}
+
 .post-modal-comment-form {
   display: flex;
   gap: 8px;
@@ -559,6 +567,14 @@
 
 .action-btn.active:hover {
   background-color: #fff5f5;
+}
+
+/* Focus state for accessibility */
+.action-btn:focus {
+  outline: 2px solid #007AFF;
+  outline-offset: 2px;
+  color: #007AFF;
+  background-color: #f0f8ff;
 }
 
 .action-count {

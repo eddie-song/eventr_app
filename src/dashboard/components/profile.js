@@ -12,16 +12,16 @@ import { postService } from '../../services/postService';
 import { commentService } from '../../services/commentService';
 import { eventService } from '../../services/eventService';
 import { imageUploadService } from '../../services/imageUploadService';
-import EventImage from '../../components/EventImage';
+import EventImage from '../../components/eventImage';
 import { formatDateInTimezone, getUserTimezone, convertUTCToDatetimeLocal } from '../../utils/timezoneUtils';
 
-const EditProfileModal = ({ 
-  showEditModal, 
-  setShowEditModal, 
-  editFormData, 
-  setEditFormData, 
-  handleSaveProfile, 
-  isSaving 
+const EditProfileModal = ({
+  showEditModal,
+  setShowEditModal,
+  editFormData,
+  setEditFormData,
+  handleSaveProfile,
+  isSaving
 }) => {
   const [uploading, setUploading] = React.useState(false);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = React.useState(null);
@@ -63,9 +63,9 @@ const EditProfileModal = ({
         .upload(fileName, file);
       if (error) throw error;
       // Store only the file path
-      setEditFormData(prev => ({ 
-        ...prev, 
-        avatar_url: fileName 
+      setEditFormData(prev => ({
+        ...prev,
+        avatar_url: fileName
       }));
     } catch (error) {
       console.error('Error uploading avatar:', error);
@@ -75,7 +75,7 @@ const EditProfileModal = ({
     }
   };
   if (!showEditModal) return null;
-  
+
   return (
     <div style={{
       position: 'fixed',
@@ -238,10 +238,10 @@ const EditProfileModal = ({
             <option value="Australia/Sydney">Sydney (AEST/AEDT)</option>
             <option value="Pacific/Auckland">Auckland (NZST/NZDT)</option>
           </select>
-          <p style={{ 
-            margin: '8px 0 0 0', 
-            fontSize: '12px', 
-            color: '#666' 
+          <p style={{
+            margin: '8px 0 0 0',
+            fontSize: '12px',
+            color: '#666'
           }}>
             This affects how event times are displayed for you
           </p>
@@ -270,10 +270,10 @@ const EditProfileModal = ({
               }}
             />
           </div>
-          <div style={{ 
-            border: '2px dashed #ddd', 
-            borderRadius: '8px', 
-            padding: '20px', 
+          <div style={{
+            border: '2px dashed #ddd',
+            borderRadius: '8px',
+            padding: '20px',
             textAlign: 'center',
             backgroundColor: '#f9f9f9'
           }}>
@@ -290,7 +290,7 @@ const EditProfileModal = ({
               id="avatar-upload"
               disabled={uploading}
             />
-            <label 
+            <label
               htmlFor="avatar-upload"
               style={{
                 cursor: uploading ? 'not-allowed' : 'pointer',
@@ -302,21 +302,21 @@ const EditProfileModal = ({
             >
               {uploading ? '⏳ Uploading...' : '📁 Upload Image from Computer'}
             </label>
-            <p style={{ 
-              margin: '8px 0 0 0', 
-              fontSize: '14px', 
-              color: '#666' 
+            <p style={{
+              margin: '8px 0 0 0',
+              fontSize: '14px',
+              color: '#666'
             }}>
               Click to select an image file (JPG, PNG, GIF)
             </p>
           </div>
           {avatarPreviewUrl && (
-            <div style={{ 
-              marginTop: '12px', 
-              textAlign: 'center' 
+            <div style={{
+              marginTop: '12px',
+              textAlign: 'center'
             }}>
-              <img 
-                src={avatarPreviewUrl} 
+              <img
+                src={avatarPreviewUrl}
                 alt="Avatar preview"
                 style={{
                   width: '80px',
@@ -329,10 +329,10 @@ const EditProfileModal = ({
                   e.target.style.display = 'none';
                 }}
               />
-              <p style={{ 
-                margin: '8px 0 0 0', 
-                fontSize: '12px', 
-                color: '#666' 
+              <p style={{
+                margin: '8px 0 0 0',
+                fontSize: '12px',
+                color: '#666'
               }}>
                 Preview
               </p>
@@ -374,7 +374,7 @@ const EditProfileModal = ({
           {editFormData.locations && editFormData.locations.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {editFormData.locations.map((location, index) => (
-                <span 
+                <span
                   key={index}
                   style={{
                     background: '#28a745',
@@ -454,9 +454,9 @@ const EditProfileModal = ({
 
 // Instagram-like Post Modal Component
 const PostModal = ({ post, onClose, userProfile, onCommentAdded }) => {
-  const [likeState, setLikeState] = React.useState({ 
-    liked: false, 
-    likesCount: post.like_count || 0 
+  const [likeState, setLikeState] = React.useState({
+    liked: false,
+    likesCount: post.like_count || 0
   });
   const [commentText, setCommentText] = React.useState('');
   const [showComments, setShowComments] = React.useState(true); // Show comments by default
@@ -502,7 +502,7 @@ const PostModal = ({ post, onClose, userProfile, onCommentAdded }) => {
       const likesCount = liked ? prev.likesCount + 1 : Math.max(0, prev.likesCount - 1);
       return { liked, likesCount };
     });
-    
+
     try {
       const result = await likeService.likePost(post.uuid);
       // Update with actual result from server
@@ -510,9 +510,9 @@ const PostModal = ({ post, onClose, userProfile, onCommentAdded }) => {
     } catch (e) {
       console.error('Like error:', e);
       // Revert on error
-      setLikeState(prev => ({ 
-        liked: !prev.liked, 
-        likesCount: post.like_count || 0 
+      setLikeState(prev => ({
+        liked: !prev.liked,
+        likesCount: post.like_count || 0
       }));
     }
   }, [post.uuid, post.like_count]);
@@ -591,8 +591,8 @@ const PostModal = ({ post, onClose, userProfile, onCommentAdded }) => {
           minHeight: '400px'
         }}>
           {post.image ? (
-            <img 
-              src={post.image} 
+            <img
+              src={post.image}
               alt="Post"
               style={{
                 maxWidth: '100%',
@@ -690,7 +690,7 @@ const PostModal = ({ post, onClose, userProfile, onCommentAdded }) => {
               }}>
                 {post.content}
               </p>
-              
+
               {/* Tags */}
               {post.tags && post.tags.length > 0 && (
                 <div style={{
@@ -758,7 +758,7 @@ const PostModal = ({ post, onClose, userProfile, onCommentAdded }) => {
               >
                 {showComments ? 'Hide comments' : 'View comments'}
               </button>
-              
+
               {showComments && (
                 <div style={{ marginBottom: '16px', maxHeight: 200, overflowY: 'auto' }}>
                   {commentsLoading && <div style={{ color: '#86868b', textAlign: 'center', padding: 12 }}>Loading comments...</div>}
@@ -916,7 +916,7 @@ const EventModal = ({ event, onClose, userProfile }) => {
         <div className="event-modal-header">
           <button className="event-modal-close" onClick={onClose}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
         </div>
@@ -924,31 +924,31 @@ const EventModal = ({ event, onClose, userProfile }) => {
         {/* Hero section with event image and gradient */}
         <div className="event-modal-hero">
           <div className="event-modal-image">
-                    {event.image_url ? (
-          <EventImage 
-            imageUrl={event.image_url}
-            alt={event.event}
-            className="event-modal-hero-image"
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'flex';
-            }}
-          />
-        ) : null}
+            {event.image_url ? (
+              <EventImage
+                imageUrl={event.image_url}
+                alt={event.event}
+                className="event-modal-hero-image"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+            ) : null}
             <div className="event-modal-placeholder" style={{ display: event.image_url ? 'none' : 'flex' }}>
               <span className="event-modal-icon">🎉</span>
             </div>
             <div className="event-modal-gradient"></div>
           </div>
-          
+
           {/* Event title overlay */}
           <div className="event-modal-title-section">
             <h1 className="event-modal-title">{event.event}</h1>
             {event.location && (
               <div className="event-modal-location">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 7.61305 3.94821 5.32387 5.63604 3.63604C7.32387 1.94821 9.61305 1 12 1C14.3869 1 16.6761 1.94821 18.364 3.63604C20.0518 5.32387 21 7.61305 21 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M12 13C13.6569 13 15 11.6569 15 10C15 8.34315 13.6569 7 12 7C10.3431 7 9 8.34315 9 10C9 11.6569 10.3431 13 12 13Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 7.61305 3.94821 5.32387 5.63604 3.63604C7.32387 1.94821 9.61305 1 12 1C14.3869 1 16.6761 1.94821 18.364 3.63604C20.0518 5.32387 21 7.61305 21 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M12 13C13.6569 13 15 11.6569 15 10C15 8.34315 13.6569 7 12 7C10.3431 7 9 8.34315 9 10C9 11.6569 10.3431 13 12 13Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <span>{event.location}</span>
               </div>
@@ -956,13 +956,13 @@ const EventModal = ({ event, onClose, userProfile }) => {
             {event.scheduled_time && (
               <div className="event-modal-time">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M12 6V12L16 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M12 6V12L16 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                <span>{formatDateInTimezone(event.scheduled_time, userTimezone, { 
+                <span>{formatDateInTimezone(event.scheduled_time, userTimezone, {
                   weekday: 'long',
-                  year: 'numeric', 
-                  month: 'long', 
+                  year: 'numeric',
+                  month: 'long',
                   day: 'numeric',
                   hour: 'numeric',
                   minute: '2-digit',
@@ -973,8 +973,8 @@ const EventModal = ({ event, onClose, userProfile }) => {
             {event.price !== null && (
               <div className="event-modal-price">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 1V23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M17 5H9.5C8.57174 5 7.6815 5.36875 7.02513 6.02513C6.36875 6.6815 6 7.57174 6 8.5C6 9.42826 6.36875 10.3185 7.02513 10.9749C7.6815 11.6313 8.57174 12 9.5 12H14.5C15.4283 12 16.3185 12.3687 16.9749 13.0251C17.6313 13.6815 18 14.5717 18 15.5C18 16.4283 17.6313 17.3185 16.9749 17.9749C16.3185 18.6313 15.4283 19 14.5 19H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M12 1V23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M17 5H9.5C8.57174 5 7.6815 5.36875 7.02513 6.02513C6.36875 6.6815 6 7.57174 6 8.5C6 9.42826 6.36875 10.3185 7.02513 10.9749C7.6815 11.6313 8.57174 12 9.5 12H14.5C15.4283 12 16.3185 12.3687 16.9749 13.0251C17.6313 13.6815 18 14.5717 18 15.5C18 16.4283 17.6313 17.3185 16.9749 17.9749C16.3185 18.6313 15.4283 19 14.5 19H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <span>{event.price === 0 || isNaN(event.price) ? 'Free' : `$${parseFloat(event.price).toFixed(2)}`}</span>
               </div>
@@ -994,9 +994,9 @@ const EventModal = ({ event, onClose, userProfile }) => {
                 {userProfile?.display_name || userProfile?.username || 'User'}
               </div>
               <div className="event-modal-date">
-                {event.created_at ? new Date(event.created_at).toLocaleDateString('en-US', { 
-                  year: 'numeric', 
-                  month: 'long', 
+                {event.created_at ? new Date(event.created_at).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
                   day: 'numeric',
                   hour: '2-digit',
                   minute: '2-digit'
@@ -1006,15 +1006,15 @@ const EventModal = ({ event, onClose, userProfile }) => {
           </div>
 
           {/* Tags */}
-                      {event.tags && event.tags.length > 0 && (
-              <div className="event-modal-tags">
-                {event.tags.map((tag, index) => (
-                  <span key={index} className="event-modal-tag">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
+          {event.tags && event.tags.length > 0 && (
+            <div className="event-modal-tags">
+              {event.tags.map((tag, index) => (
+                <span key={index} className="event-modal-tag">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* Stats grid */}
           <div className="event-modal-stats">
@@ -1075,20 +1075,20 @@ function ProfileAvatar({ avatarPath }) {
   }, [avatarPath]);
   if (!signedUrl) return <span role="img" aria-label="avatar">👤</span>;
   return (
-    <img 
-      src={signedUrl} 
-      alt="avatar" 
-      style={{ 
-        width: '100%', 
-        height: '100%', 
-        borderRadius: '50%', 
-        objectFit: 'cover', 
+    <img
+      src={signedUrl}
+      alt="avatar"
+      style={{
+        width: '100%',
+        height: '100%',
+        borderRadius: '50%',
+        objectFit: 'cover',
         display: 'block',
         border: 'none',
         background: 'none',
         minWidth: 0,
         minHeight: 0
-      }} 
+      }}
     />
   );
 }
@@ -1134,14 +1134,14 @@ const Profile = () => {
   const [isEditingEvent, setIsEditingEvent] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
-  
+
   const { isPageLoaded, markPageAsLoaded } = usePageCache();
 
   // Custom hook for like state management
   const useLikeState = (postUuid, initialLikeCount = 0) => {
-    const [likeState, setLikeState] = React.useState({ 
-      liked: false, 
-      likesCount: initialLikeCount 
+    const [likeState, setLikeState] = React.useState({
+      liked: false,
+      likesCount: initialLikeCount
     });
 
     // On mount, check if the user has liked the post
@@ -1164,18 +1164,7 @@ const Profile = () => {
     }, [postUuid]);
 
     const handleLike = React.useCallback(async () => {
-      // Optimistic update, but only if the current state matches the backend
-      let actualLiked = likeState.liked;
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const backendLiked = await likeService.hasUserLikedPost(postUuid, user.id);
-        if (backendLiked !== actualLiked) {
-          setLikeState(prev => ({ ...prev, liked: backendLiked }));
-          actualLiked = backendLiked;
-        }
-      } catch (e) { /* ignore */ }
-      // Now toggle
+      // Optimistic update
       setLikeState(prev => {
         const liked = !prev.liked;
         const likesCount = liked ? prev.likesCount + 1 : Math.max(0, prev.likesCount - 1);
@@ -1185,12 +1174,12 @@ const Profile = () => {
         const result = await likeService.likePost(postUuid);
         setLikeState({ liked: result.liked, likesCount: result.likesCount });
       } catch (e) {
-        setLikeState(prev => ({ 
-          liked: !prev.liked, 
-          likesCount: initialLikeCount 
+        setLikeState(prev => ({
+          liked: !prev.liked,
+          likesCount: initialLikeCount
         }));
       }
-    }, [postUuid, initialLikeCount, likeState.liked]);
+    }, [postUuid, initialLikeCount]);
 
     return [likeState, handleLike];
   };
@@ -1207,12 +1196,12 @@ const Profile = () => {
     const postUuid = post.uuid;
     const isMenuOpen = showPostMenu === post.uuid;
     const [likeState, handleLike] = useLikeState(postUuid, post.like_count || 0);
-    
+
     const handleMenuClick = React.useCallback((e) => {
       e.stopPropagation();
       setShowPostMenu(isMenuOpen ? null : post.uuid);
     }, [isMenuOpen, post.uuid]);
-    
+
     const handleLikeClick = React.useCallback((e) => {
       e.stopPropagation();
       handleLike();
@@ -1221,7 +1210,7 @@ const Profile = () => {
     const handlePostClick = React.useCallback(() => {
       setSelectedPostModal(post);
     }, [post]);
-    
+
     return (
       <div className="profile-post-card" onClick={handlePostClick}>
         <div className="post-header">
@@ -1306,13 +1295,13 @@ const Profile = () => {
             )}
           </div>
         </div>
-        
+
         <div className="post-content">
           <p>{post.content}</p>
           {post.image && (
             <div className="post-image-container">
-              <img 
-                src={post.image} 
+              <img
+                src={post.image}
                 alt={`${post.location}`}
                 className="post-image"
                 onError={(e) => {
@@ -1332,7 +1321,7 @@ const Profile = () => {
             ))}
           </div>
         </div>
-        
+
         <div className="post-actions">
           <button className={`action-btn${likeState.liked ? ' active' : ''}`} onClick={handleLikeClick}>
             <span>❤️</span>
@@ -1359,8 +1348,8 @@ const Profile = () => {
   const RecommendationCard = ({ rec }) => (
     <div className="profile-rec-card">
       <div className="rec-image-container">
-        <img 
-          src={rec.image} 
+        <img
+          src={rec.image}
           alt={rec.title}
           className="rec-image"
           onError={(e) => {
@@ -1405,8 +1394,8 @@ const Profile = () => {
         if (userError || !user) {
           setProfileError('User not authenticated');
           setIsLoading(false);
-        return;
-      }
+          return;
+        }
 
         // Get user profile
         const { data: profile, error: profileError } = await supabase
@@ -1417,9 +1406,9 @@ const Profile = () => {
 
         if (profileError) {
           setProfileError('Failed to load profile');
-        setIsLoading(false);
-        return;
-      }
+          setIsLoading(false);
+          return;
+        }
 
         setUserProfile({
           ...profile,
@@ -1473,7 +1462,7 @@ const Profile = () => {
           setUserEvents([]);
         }
 
-      setIsLoading(false);
+        setIsLoading(false);
       } catch (error) {
         console.error('Error loading profile:', error);
         setProfileError('Failed to load profile');
@@ -1503,7 +1492,7 @@ const Profile = () => {
       } else {
         // Clear dashboard service selection from localStorage
         localStorage.removeItem('dashboard_selected_service');
-        
+
         // Redirect to landing page after successful logout
         navigate('/');
       }
@@ -1550,27 +1539,32 @@ const Profile = () => {
 
       if (error) throw error;
 
-      // Handle locations - delete existing and insert new ones
-      // Delete existing locations first
-      const { error: deleteError } = await supabase
-        .from('user_locations')
-        .delete()
-        .eq('user_id', user.id);
+      // Get current locations from state
+      const currentLocations = userLocations.map(l => l.location_name);
+      const newLocations = editFormData.locations || [];
+      const toDelete = currentLocations.filter(loc => !newLocations.includes(loc));
+      const toInsert = newLocations.filter(loc => !currentLocations.includes(loc));
 
-      if (deleteError) throw deleteError;
+      // Delete removed locations
+      if (toDelete.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('user_locations')
+          .delete()
+          .eq('user_id', user.id)
+          .in('location_name', toDelete);
+        if (deleteError) throw deleteError;
+      }
 
-      // Insert new locations if any
-      if (editFormData.locations && editFormData.locations.length > 0) {
-        const locationRecords = editFormData.locations.map(location => ({
+      // Insert new locations
+      if (toInsert.length > 0) {
+        const locationRecords = toInsert.map(location => ({
           user_id: user.id,
           location_name: location,
           created_at: new Date().toISOString()
         }));
-
         const { error: insertError } = await supabase
           .from('user_locations')
           .insert(locationRecords);
-
         if (insertError) throw insertError;
       }
 
@@ -1587,7 +1581,7 @@ const Profile = () => {
       }));
 
       // Update local locations state
-      setUserLocations(editFormData.locations.map(location => ({ location_name: location })));
+      setUserLocations(newLocations.map(location => ({ location_name: location })));
 
       setShowEditModal(false);
       showNotification('Profile updated!', 'success');
@@ -1622,7 +1616,7 @@ const Profile = () => {
     e.preventDefault();
     console.log('Handling edit post submission:', editPostData, editForm);
     if (!editPostData) return;
-    
+
     setIsSaving(true);
     try {
       await postService.updatePost(editPostData.uuid, editForm);
@@ -1630,13 +1624,13 @@ const Profile = () => {
       // Update local state
       setUserPosts(prev => prev.map(post =>
         post.uuid === editPostData.uuid
-          ? { 
-              ...post, 
-              post_body_text: editForm.content, 
-              location: editForm.location, 
-              image_url: editForm.imageUrl,
-              tags: editForm.tags ? editForm.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []
-            }
+          ? {
+            ...post,
+            post_body_text: editForm.content,
+            location: editForm.location,
+            image_url: editForm.imageUrl,
+            tags: editForm.tags ? editForm.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []
+          }
           : post
       ));
 
@@ -1701,12 +1695,12 @@ const Profile = () => {
       try {
         imageUploadService.validateImageFile(file);
         setSelectedEventImageFile(file);
-        
+
         // Create preview
         const reader = new FileReader();
         reader.onload = (e) => setEventImagePreview(e.target.result);
         reader.readAsDataURL(file);
-        
+
         // Clear URL input when file is selected
         setEditEventFormData(prev => ({ ...prev, imageUrl: '' }));
       } catch (error) {
@@ -1720,7 +1714,7 @@ const Profile = () => {
   const openEditEventModal = (event) => {
     // Get user's timezone for converting the scheduled time
     const userTimezone = getUserTimezone();
-    
+
     setEventToEdit(event);
     setEditEventFormData({
       title: event.event || '',
@@ -1741,51 +1735,51 @@ const Profile = () => {
   const handleEditEvent = async (e) => {
     e.preventDefault();
     if (!editEventFormData.title.trim()) return;
-    
+
     setIsEditingEvent(true);
     try {
       let finalImageUrl = editEventFormData.imageUrl;
-      
+
       // Upload image file if selected
       if (selectedEventImageFile) {
         const { publicUrl } = await imageUploadService.uploadEventImage(selectedEventImageFile);
         finalImageUrl = publicUrl;
       }
-      
+
       // Update event with image URL
       await eventService.updateEvent(eventToEdit.uuid, {
         ...editEventFormData,
         imageUrl: finalImageUrl
       });
-      
+
       // Update the event in the local state
-      setUserEvents(prev => prev.map(event => 
-        event.uuid === eventToEdit.uuid 
-          ? { 
-              ...event, 
-              event: editEventFormData.title,
-              location: editEventFormData.location,
-              description: editEventFormData.description,
-              image_url: finalImageUrl,
-              tags: editEventFormData.tags ? editEventFormData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
-              capacity: editEventFormData.capacity ? parseInt(editEventFormData.capacity) : null,
-              event_type: editEventFormData.eventType
-            }
+      setUserEvents(prev => prev.map(event =>
+        event.uuid === eventToEdit.uuid
+          ? {
+            ...event,
+            event: editEventFormData.title,
+            location: editEventFormData.location,
+            description: editEventFormData.description,
+            image_url: finalImageUrl,
+            tags: editEventFormData.tags ? editEventFormData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
+            capacity: editEventFormData.capacity ? parseInt(editEventFormData.capacity) : null,
+            event_type: editEventFormData.eventType
+          }
           : event
       ));
-      
+
       setShowEditEventModal(false);
       setEventToEdit(null);
-      setEditEventFormData({ 
-        title: '', 
-        location: '', 
-        description: '', 
-        tags: '', 
-        imageUrl: '', 
-        price: '', 
-        scheduledTime: '', 
-        capacity: '', 
-        eventType: 'general' 
+      setEditEventFormData({
+        title: '',
+        location: '',
+        description: '',
+        tags: '',
+        imageUrl: '',
+        price: '',
+        scheduledTime: '',
+        capacity: '',
+        eventType: 'general'
       });
       setSelectedEventImageFile(null);
       setEventImagePreview(null);
@@ -1829,8 +1823,8 @@ const Profile = () => {
     };
 
     return (
-      <div 
-        className="event-card" 
+      <div
+        className="event-card"
         onClick={() => {
           setSelectedEvent(event);
           setShowEventModal(true);
@@ -1839,7 +1833,7 @@ const Profile = () => {
       >
         <div className="event-image-container">
           {event.image_url ? (
-            <EventImage 
+            <EventImage
               imageUrl={event.image_url}
               alt={event.event}
               className="event-image"
@@ -1852,14 +1846,14 @@ const Profile = () => {
           <div className="event-placeholder" style={{ display: event.image_url ? 'none' : 'flex' }}>
             <span className="event-icon">🎉</span>
           </div>
-          
+
           {/* Rating badge */}
           <div className="event-rating">
             <span className="rating-star">⭐</span>
             <span className="rating-number">{event.rating || 0.0}</span>
             <span className="rating-count">({event.review_count || 0})</span>
           </div>
-          
+
           {/* Date badge */}
           <div className="event-date-badge">
             <div className="event-date">
@@ -1869,7 +1863,7 @@ const Profile = () => {
               {event.scheduled_time ? formatTime(event.scheduled_time) : 'Created'}
             </div>
           </div>
-          
+
           {/* Price badge */}
           {event.price !== null && (
             <div className="event-price">
@@ -1878,10 +1872,10 @@ const Profile = () => {
               </span>
             </div>
           )}
-          
+
 
         </div>
-        
+
         <div className="event-content">
           <div className="event-header">
             <h3 className="event-name">{event.event}</h3>
@@ -1891,18 +1885,18 @@ const Profile = () => {
               </span>
             </div>
           </div>
-          
+
           {event.location && (
             <div className="event-location">
               <span className="location-icon">📍</span>
               <span className="location-name">{event.location}</span>
             </div>
           )}
-          
+
           <p className="event-description">
             {event.description || 'No description available for this event.'}
           </p>
-          
+
           <div className="event-footer">
             <div className="event-tags">
               {event.tags && event.tags.slice(0, 3).map((tag, index) => (
@@ -1922,10 +1916,10 @@ const Profile = () => {
               </div>
             )}
           </div>
-          
+
           {/* Action buttons */}
           <div className="event-actions" style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-            <button 
+            <button
               className="edit-btn"
               onClick={(e) => {
                 e.stopPropagation();
@@ -1945,7 +1939,7 @@ const Profile = () => {
             >
               Edit
             </button>
-            <button 
+            <button
               className="delete-btn"
               onClick={(e) => {
                 e.stopPropagation();
@@ -2012,7 +2006,7 @@ const Profile = () => {
           <div className="profile-actions">
             <button className="edit-profile-btn" onClick={handleEditProfile}>Edit Profile</button>
             <button className="settings-btn">⚙️</button>
-            <button 
+            <button
               className="logout-btn"
               onClick={handleLogout}
               disabled={isLoggingOut}
@@ -2026,19 +2020,19 @@ const Profile = () => {
       </div>
 
       <div className="profile-tabs">
-        <button 
+        <button
           className={`tab-btn ${activeTab === 'posts' ? 'active' : ''}`}
           onClick={() => setActiveTab('posts')}
         >
           Posts ({userProfile.posts || 0})
         </button>
-        <button 
+        <button
           className={`tab-btn ${activeTab === 'recommend' ? 'active' : ''}`}
           onClick={() => setActiveTab('recommend')}
         >
           Recommendations (0)
         </button>
-        <button 
+        <button
           className={`tab-btn ${activeTab === 'listings' ? 'active' : ''}`}
           onClick={() => setActiveTab('listings')}
         >
@@ -2070,7 +2064,7 @@ const Profile = () => {
             )}
           </div>
         )}
-        
+
         {activeTab === 'recommend' && (
           <div className="recommend-grid" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             {userRecommend.length > 0 ? (
@@ -2084,7 +2078,7 @@ const Profile = () => {
             )}
           </div>
         )}
-        
+
         {activeTab === 'listings' && (
           <div className="listings-grid">
             {userEvents.length > 0 ? (
@@ -2099,7 +2093,7 @@ const Profile = () => {
           </div>
         )}
       </div>
-      <EditProfileModal 
+      <EditProfileModal
         showEditModal={showEditModal}
         setShowEditModal={setShowEditModal}
         editFormData={editFormData}
@@ -2512,7 +2506,7 @@ const Profile = () => {
                   </label>
                 </div>
               </div>
-              
+
               <div className="form-group">
                 <label htmlFor="edit-event-imageUrl">Or provide image URL (optional)</label>
                 <input
@@ -2528,13 +2522,13 @@ const Profile = () => {
                   placeholder="https://example.com/event-image.jpg"
                 />
               </div>
-              
+
               {(eventImagePreview || editEventFormData.imageUrl) && (
                 <div className="image-preview">
-                  <img 
-                    src={eventImagePreview || editEventFormData.imageUrl} 
-                    alt="Preview" 
-                    onError={(e) => e.target.style.display = 'none'} 
+                  <img
+                    src={eventImagePreview || editEventFormData.imageUrl}
+                    alt="Preview"
+                    onError={(e) => e.target.style.display = 'none'}
                   />
                 </div>
               )}
@@ -2546,16 +2540,16 @@ const Profile = () => {
                   onClick={() => {
                     setShowEditEventModal(false);
                     setEventToEdit(null);
-                    setEditEventFormData({ 
-                      title: '', 
-                      location: '', 
-                      description: '', 
-                      tags: '', 
-                      imageUrl: '', 
-                      price: '', 
-                      scheduledTime: '', 
-                      capacity: '', 
-                      eventType: 'general' 
+                    setEditEventFormData({
+                      title: '',
+                      location: '',
+                      description: '',
+                      tags: '',
+                      imageUrl: '',
+                      price: '',
+                      scheduledTime: '',
+                      capacity: '',
+                      eventType: 'general'
                     });
                   }}
                   disabled={isEditingEvent}

@@ -7,16 +7,21 @@ const EventImage = ({ imageUrl, alt, className, onError, ...props }) => {
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
     const loadImage = async () => {
       if (!imageUrl) {
-        setDisplayUrl(null);
-        setIsLoading(false);
+        if (isMounted) {
+          setDisplayUrl(null);
+          setIsLoading(false);
+        }
         return;
       }
 
       try {
-        setIsLoading(true);
-        setHasError(false);
+        if (isMounted) {
+          setIsLoading(true);
+          setHasError(false);
+        }
 
         // Check if this is a Supabase storage URL (contains our bucket name)
         if (imageUrl.includes('event-images')) {
@@ -26,26 +31,31 @@ const EventImage = ({ imageUrl, alt, className, onError, ...props }) => {
           
           // If it's a signed URL, use it directly
           if (imageUrl.includes('?token=')) {
-            setDisplayUrl(imageUrl);
+            if (isMounted) setDisplayUrl(imageUrl);
           } else {
             // Get a new signed URL
             const signedUrl = await imageUploadService.getSignedUrl(fileName);
-            setDisplayUrl(signedUrl);
+            if (isMounted) setDisplayUrl(signedUrl);
           }
         } else {
           // External URL, use as is
-          setDisplayUrl(imageUrl);
+          if (isMounted) setDisplayUrl(imageUrl);
         }
       } catch (error) {
         console.error('Error loading image:', error);
-        setHasError(true);
-        if (onError) onError(error);
+        if (isMounted) {
+          setHasError(true);
+          if (onError) onError(error);
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       }
     };
 
     loadImage();
+    return () => {
+      isMounted = false;
+    };
   }, [imageUrl, onError]);
 
   if (isLoading) {

@@ -3,7 +3,7 @@ import './events.css';
 import LoadingScreen from './LoadingScreen.js';
 import { usePageCache } from '../context/PageCacheContext.js';
 import { eventService } from '../../services/eventService';
-import EventImage from '../../components/EventImage';
+import EventImage from '../../components/eventImage';
 import { formatDateInTimezone, getUserTimezone, convertUTCToDatetimeLocal } from '../../utils/timezoneUtils';
 
 const Events = () => {
@@ -174,7 +174,7 @@ const Events = () => {
         )}
         <div className="event-date-badge">
           <div className="event-date">
-            {event.scheduled_time ? formatDate(event.scheduled_time) : formatDate(event.created_at)}
+            {event.scheduled_time ? formatDate(event.scheduled_time, userTimezone) : formatDate(event.created_at, userTimezone)}
           </div>
           <div className="event-time">
             {event.scheduled_time ? formatTime(event.scheduled_time) : 'Created'}

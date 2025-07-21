@@ -53,7 +53,7 @@ CREATE POLICY "Allow authenticated users to create events" ON events
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
 CREATE POLICY "Allow event creators to update their events" ON events 
-  FOR UPDATE USING (auth.role() = 'authenticated');
+  FOR UPDATE USING (auth.uid() = created_by);
 
 CREATE POLICY "Allow event creators to delete their events" ON events 
-  FOR DELETE USING (auth.role() = 'authenticated'); 
+  FOR DELETE USING (auth.uid() = created_by); 

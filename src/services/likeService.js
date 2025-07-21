@@ -16,7 +16,7 @@ export const likeService = {
         .eq('post_id', postUuid)
         .eq('user_id', userId)
         .single();
-      
+
       if (checkError && checkError.code !== 'PGRST116') throw checkError;
 
       if (existingLike) {
@@ -26,32 +26,11 @@ export const likeService = {
           .delete()
           .eq('post_id', postUuid)
           .eq('user_id', userId);
-        
+
         if (deleteError) throw deleteError;
 
-        // Get updated like count
-        const { count: newLikeCount, error: countError } = await supabase
-          .from('post_likes')
-          .select('*', { count: 'exact', head: true })
-          .eq('post_id', postUuid);
-        
-        if (countError) throw countError;
-
-        // Update post's like_count if the column exists
-        try {
-          const { error: updateError } = await supabase
-            .from('posts')
-            .update({ like_count: newLikeCount })
-            .eq('uuid', postUuid);
-          
-          if (updateError) {
-            console.warn('Could not update like_count column:', updateError);
-            // Continue without updating like_count if column doesn't exist
-          }
-        } catch (error) {
-          console.warn('like_count column may not exist:', error);
-          // Continue without updating like_count if column doesn't exist
-        }
+        // Get updated like count and update post
+        const newLikeCount = await this.updateLikeCount(postUuid);
 
         return { liked: false, likesCount: newLikeCount };
       } else {
@@ -61,34 +40,12 @@ export const likeService = {
           .insert([{
             post_id: postUuid,
             user_id: userId,
-            created_at: new Date().toISOString()
           }]);
-        
+
         if (insertError) throw insertError;
 
-        // Get updated like count
-        const { count: newLikeCount, error: countError } = await supabase
-          .from('post_likes')
-          .select('*', { count: 'exact', head: true })
-          .eq('post_id', postUuid);
-        
-        if (countError) throw countError;
-
-        // Update post's like_count if the column exists
-        try {
-          const { error: updateError } = await supabase
-            .from('posts')
-            .update({ like_count: newLikeCount })
-            .eq('uuid', postUuid);
-          
-          if (updateError) {
-            console.warn('Could not update like_count column:', updateError);
-            // Continue without updating like_count if column doesn't exist
-          }
-        } catch (error) {
-          console.warn('like_count column may not exist:', error);
-          // Continue without updating like_count if column doesn't exist
-        }
+        // Get updated like count and update post
+        const newLikeCount = await this.updateLikeCount(postUuid);
 
         return { liked: true, likesCount: newLikeCount };
       }
@@ -96,6 +53,28 @@ export const likeService = {
       console.error('Like post error:', error);
       throw error;
     }
+  },
+
+  // Helper function to update like count
+  async updateLikeCount(postUuid) {
+    const { count: newLikeCount, error: countError } = await supabase
+      .from('post_likes')
+      .select('*', { count: 'exact', head: true })
+      .eq('post_id', postUuid);
+    
+    if (countError) throw countError;
+
+    // Update post's like_count if the column exists
+    const { error: updateError } = await supabase
+      .from('posts')
+      .update({ like_count: newLikeCount })
+      .eq('uuid', postUuid);
+    
+    if (updateError) {
+      console.warn('Could not update like_count column:', updateError);
+    }
+
+    return newLikeCount;
   },
 
   // Check if current user has liked a post
@@ -111,7 +90,7 @@ export const likeService = {
         .eq('post_id', postUuid)
         .eq('user_id', userId)
         .single();
-      
+
       if (checkError && checkError.code === 'PGRST116') {
         return false; // No like record found
       }
@@ -131,7 +110,7 @@ export const likeService = {
         .from('post_likes')
         .select('*', { count: 'exact', head: true })
         .eq('post_id', postUuid);
-      
+
       if (countError) return 0;
 
       return count || 0;

@@ -1,10 +1,20 @@
 import { supabase } from '../lib/supabaseClient';
 import { userService } from './userService';
 import { locationService } from './locationService';
+import { convertLocalToUTC } from '../utils/timezoneUtils';
 
 export const eventService = {
   // Create a new event
   async createEvent(eventData) {
+    // Manual rollback mechanism for atomicity
+    const inserted = {
+      eventUuid: null,
+      tags: false,
+      host: false,
+      attendee: false,
+      locationLinked: false,
+      location: null,
+    };
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('Could not get current user');
@@ -13,9 +23,44 @@ export const eventService = {
       const eventUuid = crypto.randomUUID();
       const now = new Date().toISOString();
 
-      // Parse tags
-      const tagsArray = eventData.tags ? 
-        eventData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+      // Input validation for eventData
+      if (typeof eventData.title !== 'string' || !eventData.title.trim()) {
+        throw new Error('Event title is required and must be a non-empty string.');
+      }
+      if (eventData.location && typeof eventData.location !== 'string') {
+        throw new Error('Event location must be a string.');
+      }
+      if (eventData.description && typeof eventData.description !== 'string') {
+        throw new Error('Event description must be a string.');
+      }
+      if (eventData.imageUrl && typeof eventData.imageUrl !== 'string') {
+        throw new Error('Event imageUrl must be a string.');
+      }
+      if (eventData.price && isNaN(parseFloat(eventData.price))) {
+        throw new Error('Event price must be a valid number.');
+      }
+      if (eventData.capacity && isNaN(parseInt(eventData.capacity))) {
+        throw new Error('Event capacity must be a valid integer.');
+      }
+      if (eventData.eventType && typeof eventData.eventType !== 'string') {
+        throw new Error('Event type must be a string.');
+      }
+      if (eventData.scheduledTime && isNaN(Date.parse(eventData.scheduledTime))) {
+        throw new Error('Event scheduledTime must be a valid date string.');
+      }
+
+      // Parse and validate tags
+      let tagsArray = [];
+      if (typeof eventData.tags === 'string') {
+        tagsArray = eventData.tags
+          .split(',')
+          .map(tag => tag.trim())
+          .filter(tag => tag && /^[\w#\- ]{1,32}$/.test(tag)); // Only allow word chars, #, -, space, max 32 chars
+      } else if (Array.isArray(eventData.tags)) {
+        tagsArray = eventData.tags
+          .map(tag => (typeof tag === 'string' ? tag.trim() : ''))
+          .filter(tag => tag && /^[\w#\- ]{1,32}$/.test(tag));
+      }
 
       // Get user's timezone for reference
       let userProfile = null;
@@ -31,10 +76,8 @@ export const eventService = {
       let scheduledTimeUTC = null;
       if (eventData.scheduledTime) {
         try {
-          // The datetime-local input provides time in user's local timezone
-          // Store it directly as a proper ISO string
-          const localDate = new Date(eventData.scheduledTime);
-          scheduledTimeUTC = localDate.toISOString();
+          // Use timezone utility to convert local datetime input to UTC
+          scheduledTimeUTC = convertLocalToUTC(eventData.scheduledTime, userTimezone);
         } catch (error) {
           console.error('Error processing scheduled time:', error);
           scheduledTimeUTC = eventData.scheduledTime;
@@ -61,21 +104,29 @@ export const eventService = {
         }]);
 
       if (eventError) throw eventError;
+      inserted.eventUuid = eventUuid;
 
       // Link event to location if provided
       if (eventData.location) {
         try {
           const location = await locationService.getOrCreateLocation(eventData.location);
           await locationService.linkEventToLocation(eventUuid, location.uuid);
+          inserted.locationLinked = true;
+          inserted.location = location;
         } catch (locationError) {
-          console.warn('Could not link event to location:', locationError);
-          // Don't fail the event creation if location linking fails
+          // Optionally: throw locationError to trigger rollback
+          throw locationError;
         }
       }
 
       // Insert tags if provided
       if (tagsArray.length > 0) {
-        const tagRecords = tagsArray.map(tag => ({
+        // Validate each tag again before insert (defensive)
+        const validTags = tagsArray.filter(tag => tag && /^[\w#\- ]{1,32}$/.test(tag));
+        if (validTags.length !== tagsArray.length) {
+          throw new Error('One or more tags are invalid. Tags must be 1-32 chars, only letters, numbers, #, -, and spaces.');
+        }
+        const tagRecords = validTags.map(tag => ({
           event_id: eventUuid,
           tag: tag,
           created_at: now
@@ -86,6 +137,7 @@ export const eventService = {
           .insert(tagRecords);
 
         if (tagsError) throw tagsError;
+        inserted.tags = true;
       }
 
       // Add the creator as a host
@@ -98,6 +150,7 @@ export const eventService = {
         }]);
 
       if (hostError) throw hostError;
+      inserted.host = true;
 
       // Add the creator as an attendee
       const { error: attendeeError } = await supabase
@@ -109,10 +162,27 @@ export const eventService = {
         }]);
 
       if (attendeeError) throw attendeeError;
+      inserted.attendee = true;
 
       return { eventId: eventUuid };
     } catch (error) {
-      console.error('Error creating event:', error);
+      // Rollback in reverse order
+      if (inserted.attendee) {
+        await supabase.from('event_attendees').delete().eq('event_id', inserted.eventUuid);
+      }
+      if (inserted.host) {
+        await supabase.from('event_hosts').delete().eq('event_id', inserted.eventUuid);
+      }
+      if (inserted.tags) {
+        await supabase.from('event_tags').delete().eq('event_id', inserted.eventUuid);
+      }
+      if (inserted.locationLinked && inserted.location) {
+        await supabase.from('location_events').delete().eq('event_id', inserted.eventUuid).eq('location_id', inserted.location.uuid);
+      }
+      if (inserted.eventUuid) {
+        await supabase.from('events').delete().eq('uuid', inserted.eventUuid);
+      }
+      console.error('Error creating event, rolled back:', error);
       throw error;
     }
   },
@@ -307,10 +377,8 @@ export const eventService = {
       let scheduledTimeUTC = null;
       if (eventData.scheduledTime) {
         try {
-          // The datetime-local input provides time in user's local timezone
-          // Store it directly as a proper ISO string
-          const localDate = new Date(eventData.scheduledTime);
-          scheduledTimeUTC = localDate.toISOString();
+          // Use timezone utility to convert local datetime input to UTC
+          scheduledTimeUTC = convertLocalToUTC(eventData.scheduledTime, userTimezone);
         } catch (error) {
           console.error('Error processing scheduled time:', error);
           scheduledTimeUTC = eventData.scheduledTime;

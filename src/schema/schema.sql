@@ -80,6 +80,64 @@
 --   location: TEXT - Location associated with the post
 
 -- ========================================
+-- TRIGGERS FOR LIKE AND COMMENT COUNTS
+-- ========================================
+
+-- Trigger function to increment like_count on posts
+CREATE OR REPLACE FUNCTION increment_post_like_count()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE posts SET like_count = like_count + 1 WHERE uuid = NEW.post_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger function to decrement like_count on posts
+CREATE OR REPLACE FUNCTION decrement_post_like_count()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE posts SET like_count = GREATEST(like_count - 1, 0) WHERE uuid = OLD.post_id;
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger function to increment comment_count on posts
+CREATE OR REPLACE FUNCTION increment_post_comment_count()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE posts SET comment_count = comment_count + 1 WHERE uuid = NEW.post_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger function to decrement comment_count on posts
+CREATE OR REPLACE FUNCTION decrement_post_comment_count()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE posts SET comment_count = GREATEST(comment_count - 1, 0) WHERE uuid = OLD.post_id;
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create triggers for post_likes
+CREATE TRIGGER post_likes_after_insert
+AFTER INSERT ON post_likes
+FOR EACH ROW EXECUTE FUNCTION increment_post_like_count();
+
+CREATE TRIGGER post_likes_after_delete
+AFTER DELETE ON post_likes
+FOR EACH ROW EXECUTE FUNCTION decrement_post_like_count();
+
+-- Create triggers for comments
+CREATE TRIGGER comments_after_insert
+AFTER INSERT ON comments
+FOR EACH ROW EXECUTE FUNCTION increment_post_comment_count();
+
+CREATE TRIGGER comments_after_delete
+AFTER DELETE ON comments
+FOR EACH ROW EXECUTE FUNCTION decrement_post_comment_count();
+
+-- ========================================
 -- COMMENTS TABLE
 -- ========================================
 -- Table for storing comments on posts

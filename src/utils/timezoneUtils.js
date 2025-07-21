@@ -2,6 +2,8 @@
  * Timezone utility functions for handling event scheduling
  */
 
+import { DateTime } from 'luxon';
+
 /**
  * Convert UTC time to user's local timezone
  * @param {string} utcTime - ISO string in UTC
@@ -10,18 +12,32 @@
  */
 export const convertUTCToLocal = (utcTime, userTimezone = 'UTC') => {
   if (!utcTime) return null;
-  
   try {
     const utcDate = new Date(utcTime);
-    
-    // If userTimezone is UTC, return as is
     if (userTimezone === 'UTC') {
       return utcDate;
     }
-    
-    // Convert to user's timezone
-    const localDate = new Date(utcDate.toLocaleString('en-US', { timeZone: userTimezone }));
-    return localDate;
+    // Use Intl.DateTimeFormat to get the correct parts in the user's timezone
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: userTimezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    const parts = formatter.formatToParts(utcDate);
+    const get = (type) => parts.find(p => p.type === type)?.value;
+    const year = get('year');
+    const month = get('month');
+    const day = get('day');
+    const hour = get('hour');
+    const minute = get('minute');
+    const second = get('second');
+    // Construct a new Date object in local time
+    return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`);
   } catch (error) {
     console.error('Error converting UTC to local time:', error);
     return new Date(utcTime); // Fallback to original time
@@ -36,18 +52,16 @@ export const convertUTCToLocal = (utcTime, userTimezone = 'UTC') => {
  */
 export const convertLocalToUTC = (localTime, userTimezone = 'UTC') => {
   if (!localTime) return null;
-  
   try {
-    const localDate = new Date(localTime);
-    
-    // If userTimezone is UTC, return as is
-    if (userTimezone === 'UTC') {
-      return localDate.toISOString();
+    // Use Luxon to parse the local time in the user's timezone and convert to UTC
+    // Try parsing as ISO first
+    let dt = DateTime.fromISO(localTime, { zone: userTimezone });
+    if (!dt.isValid) {
+      // Fallback: try parsing as 'yyyy-MM-ddTHH:mm' (datetime-local input format)
+      dt = DateTime.fromFormat(localTime, 'yyyy-MM-dd\THH:mm', { zone: userTimezone });
     }
-    
-    // Convert to UTC
-    const utcDate = new Date(localDate.getTime() - (localDate.getTimezoneOffset() * 60000));
-    return utcDate.toISOString();
+    if (!dt.isValid) throw new Error('Invalid date format');
+    return dt.toUTC().toISO();
   } catch (error) {
     console.error('Error converting local to UTC:', error);
     return localTime; // Fallback to original time
@@ -65,14 +79,12 @@ export const formatDateInTimezone = (utcTime, userTimezone = 'UTC', options = {}
   if (!utcTime) return null;
   
   try {
-    const localDate = convertUTCToLocal(utcTime, userTimezone);
-    if (!localDate) return null;
-    
+    // Create a Date object from utcTime and let toLocaleString handle the timezone
+    const date = new Date(utcTime);
     const defaultOptions = {
       timeZone: userTimezone
     };
-    
-    return localDate.toLocaleString('en-US', { ...defaultOptions, ...options });
+    return date.toLocaleString('en-US', { ...defaultOptions, ...options });
   } catch (error) {
     console.error('Error formatting date in timezone:', error);
     return new Date(utcTime).toLocaleString('en-US'); // Fallback
@@ -123,16 +135,14 @@ export const convertUTCToDatetimeLocal = (utcTime, userTimezone = 'UTC') => {
   if (!utcTime) return '';
   
   try {
-    const localDate = convertUTCToLocal(utcTime, userTimezone);
-    if (!localDate) return '';
-    
-    // Format as YYYY-MM-DDTHH:MM for datetime-local input
-    const year = localDate.getFullYear();
-    const month = String(localDate.getMonth() + 1).padStart(2, '0');
-    const day = String(localDate.getDate()).padStart(2, '0');
-    const hours = String(localDate.getHours()).padStart(2, '0');
-    const minutes = String(localDate.getMinutes()).padStart(2, '0');
-    
+    // Create a Date object from the UTC string; browser will interpret as local time
+    const date = new Date(utcTime);
+    // Extract local components
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   } catch (error) {
     console.error('Error converting UTC to datetime-local:', error);

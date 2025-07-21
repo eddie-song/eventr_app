@@ -25,7 +25,7 @@ export const commentService = {
           user_id: userId,
           comment_text: commentText,
           parent_comment_id: parentCommentId,
-          created_at: new Date().toISOString(),
+          // created_at removed, DB default will be used
         },
       ])
       .select()
@@ -34,8 +34,18 @@ export const commentService = {
     // Increment comment_count in posts table
     const { error: countError } = await supabase.rpc('increment_post_comment_count', { postid: postId });
     if (countError) {
-      // fallback: try manual update
-      await supabase.from('posts').update({ comment_count: supabase.raw('comment_count + 1') }).eq('uuid', postId);
+      // fallback: fetch current count and update manually
+      const { data: post, error: fetchError } = await supabase
+        .from('posts')
+        .select('comment_count')
+        .eq('uuid', postId)
+        .single();
+      if (!fetchError && post) {
+        await supabase
+          .from('posts')
+          .update({ comment_count: (post.comment_count || 0) + 1 })
+          .eq('uuid', postId);
+      }
     }
     return data;
   },

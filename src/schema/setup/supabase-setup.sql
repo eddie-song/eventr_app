@@ -120,9 +120,9 @@ CREATE POLICY "Users can delete their own posts" ON posts FOR DELETE USING (auth
 CREATE TABLE IF NOT EXISTS comments (
   uuid UUID PRIMARY KEY,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  user_id UUID NOT NULL,
-  post_id UUID NOT NULL,
-  parent_comment_id UUID,
+  user_id UUID NOT NULL REFERENCES profiles(uuid) ON DELETE CASCADE,
+  post_id UUID NOT NULL REFERENCES posts(uuid) ON DELETE CASCADE,
+  parent_comment_id UUID REFERENCES comments(uuid) ON DELETE CASCADE,
   comment_text TEXT NOT NULL,
   like_count INTEGER DEFAULT 0,
   reply_count INTEGER DEFAULT 0
@@ -226,11 +226,10 @@ CREATE TABLE IF NOT EXISTS post_tags (
   PRIMARY KEY (post_id, tag)
 );
 
--- Enable RLS for post_tags
-grant select, insert, update, delete on post_tags to authenticated;
-ALTER TABLE post_tags ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all to read post tags" ON post_tags FOR SELECT USING (true);
-CREATE POLICY "Users can manage their own post tags" ON post_tags FOR ALL USING (auth.uid() = (SELECT user_id FROM posts WHERE uuid = post_id));
+-- Indexes for post_tags
+CREATE INDEX IF NOT EXISTS idx_post_tags_tag ON post_tags(tag);
+CREATE INDEX IF NOT EXISTS idx_post_tags_post_id ON post_tags(post_id);
+CREATE INDEX IF NOT EXISTS idx_post_tags_created_at ON post_tags(created_at);
 
 -- Post likes junction table
 CREATE TABLE IF NOT EXISTS post_likes (
@@ -240,12 +239,10 @@ CREATE TABLE IF NOT EXISTS post_likes (
   PRIMARY KEY (post_id, user_id)
 );
 
--- Enable Row Level Security and policies for post_likes
-grant select, insert, update, delete on post_likes to authenticated;
-ALTER TABLE post_likes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all to read post_likes" ON post_likes FOR SELECT USING (true);
-CREATE POLICY "Users can create their own likes" ON post_likes FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own likes" ON post_likes FOR DELETE USING (auth.uid() = user_id);
+-- Indexes for post_likes
+CREATE INDEX IF NOT EXISTS idx_post_likes_user_id ON post_likes(user_id);
+CREATE INDEX IF NOT EXISTS idx_post_likes_post_id ON post_likes(post_id);
+CREATE INDEX IF NOT EXISTS idx_post_likes_created_at ON post_likes(created_at);
 
 -- Comment likes junction table
 CREATE TABLE IF NOT EXISTS comment_likes (
@@ -255,11 +252,10 @@ CREATE TABLE IF NOT EXISTS comment_likes (
   PRIMARY KEY (comment_id, user_id)
 );
 
--- Enable RLS for comment_likes
-grant select, insert, update, delete on comment_likes to authenticated;
-ALTER TABLE comment_likes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all to read comment likes" ON comment_likes FOR SELECT USING (true);
-CREATE POLICY "Users can manage their own comment likes" ON comment_likes FOR ALL USING (auth.uid() = user_id);
+-- Indexes for comment_likes
+CREATE INDEX IF NOT EXISTS idx_comment_likes_user_id ON comment_likes(user_id);
+CREATE INDEX IF NOT EXISTS idx_comment_likes_comment_id ON comment_likes(comment_id);
+CREATE INDEX IF NOT EXISTS idx_comment_likes_created_at ON comment_likes(created_at);
 
 -- User follows junction table
 CREATE TABLE IF NOT EXISTS user_follows (
@@ -269,11 +265,10 @@ CREATE TABLE IF NOT EXISTS user_follows (
   PRIMARY KEY (follower_id, following_id)
 );
 
--- Enable RLS for user_follows
-grant select, insert, update, delete on user_follows to authenticated;
-ALTER TABLE user_follows ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all to read follow relationships" ON user_follows FOR SELECT USING (true);
-CREATE POLICY "Users can manage their own follow relationships" ON user_follows FOR ALL USING (auth.uid() = follower_id);
+-- Indexes for user_follows
+CREATE INDEX IF NOT EXISTS idx_user_follows_follower_id ON user_follows(follower_id);
+CREATE INDEX IF NOT EXISTS idx_user_follows_following_id ON user_follows(following_id);
+CREATE INDEX IF NOT EXISTS idx_user_follows_created_at ON user_follows(created_at);
 
 -- User saves junction table
 CREATE TABLE IF NOT EXISTS user_saves (
@@ -288,3 +283,21 @@ CREATE TABLE IF NOT EXISTS user_saves (
 grant select, insert, update, delete on user_saves to authenticated;
 ALTER TABLE user_saves ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can manage their own saves" ON user_saves FOR ALL USING (auth.uid() = user_id); 
+
+-- Add indexes for posts and comments main tables
+CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts(user_id);
+CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at);
+CREATE INDEX IF NOT EXISTS idx_posts_location ON posts(location);
+
+CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
+CREATE INDEX IF NOT EXISTS idx_comments_user_id ON comments(user_id);
+CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at);
+CREATE INDEX IF NOT EXISTS idx_comments_parent_comment_id ON comments(parent_comment_id); 
+
+-- RPC function to increment comment_count on posts
+CREATE OR REPLACE FUNCTION increment_post_comment_count(postid UUID)
+RETURNS void AS $$
+BEGIN
+  UPDATE posts SET comment_count = comment_count + 1 WHERE uuid = postid;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER; 

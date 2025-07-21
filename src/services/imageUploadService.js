@@ -9,7 +9,7 @@ export const imageUploadService = {
         .from('event-images')
         .list('', { limit: 1 });
       
-      if (error && error.message.includes('not found')) {
+      if (error && error?.message?.includes('not found')) {
         // Bucket doesn't exist, create it
         const { error: createError } = await supabase.storage.createBucket('event-images', {
           public: false, // private bucket
@@ -54,7 +54,7 @@ export const imageUploadService = {
 
       if (error) {
         // Check if it's an RLS policy error
-        if (error.message && error.message.includes('row-level security policy')) {
+        if (error?.message && error?.message.includes('row-level security policy')) {
           throw new Error(`
             Storage access denied. Please set up RLS policies for the event-images bucket.
             

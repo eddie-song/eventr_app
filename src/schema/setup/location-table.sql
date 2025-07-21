@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS location (
   latitude NUMERIC(9,6),
   review_count INTEGER DEFAULT 0,
   rating NUMERIC(3,2) DEFAULT 0.00,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_by UUID
 );
 
 -- Add unique constraint on location name
@@ -29,9 +30,15 @@ CREATE POLICY "Allow authenticated users to create locations" ON location
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
 -- Policy to allow location creators to update their locations
+DROP POLICY IF EXISTS "Allow location creators to update locations" ON location;
 CREATE POLICY "Allow location creators to update locations" ON location
-  FOR UPDATE USING (auth.role() = 'authenticated');
+  FOR UPDATE USING (
+    (auth.uid() = created_by) OR (EXISTS (SELECT 1 FROM profiles WHERE uuid = auth.uid() AND 'administrator' = ANY(roles)))
+  );
 
 -- Policy to allow location creators to delete their locations
+DROP POLICY IF EXISTS "Allow location creators to delete locations" ON location;
 CREATE POLICY "Allow location creators to delete locations" ON location
-  FOR DELETE USING (auth.role() = 'authenticated'); 
+  FOR DELETE USING (
+    (auth.uid() = created_by) OR (EXISTS (SELECT 1 FROM profiles WHERE uuid = auth.uid() AND 'administrator' = ANY(roles)))
+  ); 

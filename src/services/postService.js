@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { v4 as uuidv4 } from 'uuid';
 
 export const postService = {
   // Get posts with tags for a user
@@ -15,6 +16,11 @@ export const postService = {
 
       // Get tags for all posts
       const postIds = posts.map(post => post.uuid);
+
+      if (postIds.length === 0) {
+        return posts;
+      }
+
       const { data: tags, error: tagsError } = await supabase
         .from('post_tags')
         .select('post_id, tag')
@@ -79,9 +85,9 @@ export const postService = {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('Could not get current user');
-      
+
       const userId = user.id;
-      const postUuid = crypto.randomUUID();
+      const postUuid = crypto.randomUUID() ?? uuidv4();
       const now = new Date().toISOString();
       const tagsArray = postData.tags ? postData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
 
@@ -171,29 +177,12 @@ export const postService = {
   // Delete a post and its related data
   async deletePost(postId) {
     try {
-      // Delete tags first
-      const { error: tagsError } = await supabase
-        .from('post_tags')
-        .delete()
-        .eq('post_id', postId);
-
-      if (tagsError) throw tagsError;
-
-      // Delete likes
-      const { error: likesError } = await supabase
-        .from('post_likes')
-        .delete()
-        .eq('post_id', postId);
-
-      if (likesError) throw likesError;
-
-      // Delete the post
-      const { error: deleteError } = await supabase
+      const { error } = await supabase
         .from('posts')
         .delete()
         .eq('uuid', postId);
 
-      if (deleteError) throw deleteError;
+      if (error) throw error;
 
       return { success: true };
     } catch (error) {
