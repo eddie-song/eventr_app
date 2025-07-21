@@ -23,12 +23,30 @@ const EventImage = ({ imageUrl, alt, className, onError, ...props }) => {
           setHasError(false);
         }
 
-        // Check if this is a Supabase storage URL (contains our bucket name)
-        if (imageUrl.includes('event-images')) {
-          // Extract filename from the URL
-          const urlParts = imageUrl.split('/');
-          const fileName = urlParts[urlParts.length - 1];
-          
+        // Robustly parse the URL
+        let fileName = null;
+        let isSupabaseEventImage = false;
+        try {
+          const urlObj = new URL(imageUrl, window.location.origin);
+          // Check if the pathname contains the expected bucket path
+          // Example: /storage/v1/object/public/event-images/userid/filename.jpg
+          const pathMatch = urlObj.pathname.match(/event-images\/(.+)$/);
+          if (pathMatch) {
+            fileName = pathMatch[1].split('?')[0]; // Remove any query params
+            isSupabaseEventImage = true;
+          }
+        } catch (e) {
+          // Not a valid URL, fallback to old logic
+          if (typeof imageUrl === 'string' && imageUrl.includes('event-images/')) {
+            const match = imageUrl.match(/event-images\/(.+?)(\?|$)/);
+            if (match) {
+              fileName = match[1];
+              isSupabaseEventImage = true;
+            }
+          }
+        }
+
+        if (isSupabaseEventImage && fileName) {
           // If it's a signed URL, use it directly
           if (imageUrl.includes('?token=')) {
             if (isMounted) setDisplayUrl(imageUrl);
@@ -53,10 +71,12 @@ const EventImage = ({ imageUrl, alt, className, onError, ...props }) => {
     };
 
     loadImage();
+    // Note: onError is intentionally not included in the dependency array.
+    // If you use a custom onError, memoize it in the parent to avoid unnecessary effect runs.
     return () => {
       isMounted = false;
     };
-  }, [imageUrl, onError]);
+  }, [imageUrl]);
 
   if (isLoading) {
     return (
