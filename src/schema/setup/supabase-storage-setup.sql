@@ -30,3 +30,15 @@ FOR DELETE USING (
 -- Policy to allow public read access to avatars
 CREATE POLICY "Public read access to avatars" ON storage.objects
 FOR SELECT USING (bucket_id = 'avatars'); 
+
+-- Create a storage bucket for recommendation images
+insert into storage.buckets (id, name, public) values ('recommendations', 'recommendations', true)
+  on conflict (id) do nothing;
+
+-- Grant authenticated users permissions on the recommendations bucket
+-- (Supabase UI may be used for fine-grained policies, but this is a basic setup)
+-- You may want to further restrict write/delete to only the user's own files
+-- For now, allow all authenticated users to upload, update, and delete
+
+-- Policy: Allow authenticated users to upload, update, and delete their own files
+-- (You may want to add RLS policies in the Supabase dashboard for more control) 

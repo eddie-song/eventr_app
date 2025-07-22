@@ -3,6 +3,7 @@ import { postService } from '../../services/postService';
 import { eventService } from '../../services/eventService';
 import { personService } from '../../services/personService';
 import { imageUploadService } from '../../services/imageUploadService';
+import { recommendService } from '../../services/recommendService';
 import './create.css';
 
 const TABS = [
@@ -40,8 +41,19 @@ const CreateService = () => {
     serviceType: 'general',
     hourlyRate: ''
   });
+  const [recommendFormData, setRecommendFormData] = useState({
+    title: '',
+    description: '',
+    location: '',
+    type: 'place',
+    imageUrl: '',
+    rating: '',
+    tags: ''
+  });
   const [selectedImageFile, setSelectedImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [selectedRecommendImageFile, setSelectedRecommendImageFile] = useState(null);
+  const [recommendImagePreview, setRecommendImagePreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState({ open: false, message: '', type: '' });
 
@@ -60,6 +72,10 @@ const CreateService = () => {
 
   const handlePersonInputChange = (field, value) => {
     setPersonFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleRecommendInputChange = (field, value) => {
+    setRecommendFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -193,6 +209,60 @@ const CreateService = () => {
     } catch (err) {
       showNotification('Failed to create service: ' + (err.message || err), 'error');
       console.error('Create person error:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRecommendImageFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      try {
+        imageUploadService.validateImageFile(file);
+        setSelectedRecommendImageFile(file);
+        const reader = new FileReader();
+        reader.onload = (e) => setRecommendImagePreview(e.target.result);
+        reader.readAsDataURL(file);
+        setRecommendFormData(prev => ({ ...prev, imageUrl: '' }));
+      } catch (error) {
+        showNotification(error.message, 'error');
+        e.target.value = '';
+      }
+    }
+  };
+
+  const handleRecommendSubmit = async (e) => {
+    e.preventDefault();
+    if (!recommendFormData.title.trim() || !recommendFormData.description.trim()) {
+      showNotification('Title and description are required.', 'error');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      let finalImageUrl = recommendFormData.imageUrl;
+      if (selectedRecommendImageFile) {
+        const { publicUrl } = await imageUploadService.uploadRecommendationImage(selectedRecommendImageFile);
+        finalImageUrl = publicUrl;
+      }
+      await recommendService.createRecommendation({
+        ...recommendFormData,
+        imageUrl: finalImageUrl
+      });
+      setRecommendFormData({
+        title: '',
+        description: '',
+        location: '',
+        type: 'place',
+        imageUrl: '',
+        rating: '',
+        tags: ''
+      });
+      setSelectedRecommendImageFile(null);
+      setRecommendImagePreview(null);
+      showNotification('Recommendation created successfully!', 'success');
+    } catch (err) {
+      showNotification('Failed to create recommendation: ' + (err.message || err), 'error');
+      console.error('Create recommendation error:', err);
     } finally {
       setIsSubmitting(false);
     }
@@ -604,7 +674,130 @@ const CreateService = () => {
             </form>
           </div>
         )}
-        {activeTab !== 'posts' && activeTab !== 'events' && activeTab !== 'people' && (
+        {activeTab === 'recommend' && (
+          <div style={{ maxWidth: 900, width: '100%', margin: '0 auto' }}>
+            <form onSubmit={handleRecommendSubmit} className="create-post-form">
+              <div className="form-group">
+                <label htmlFor="recommendTitle">Title</label>
+                <input
+                  type="text"
+                  id="recommendTitle"
+                  value={recommendFormData.title}
+                  onChange={(e) => handleRecommendInputChange('title', e.target.value)}
+                  placeholder="What are you recommending?"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="recommendDescription">Description</label>
+                <textarea
+                  id="recommendDescription"
+                  value={recommendFormData.description}
+                  onChange={(e) => handleRecommendInputChange('description', e.target.value)}
+                  placeholder="Describe your recommendation..."
+                  rows={4}
+                  maxLength={1000}
+                  required
+                />
+                <div className="char-count">{recommendFormData.description.length}/1000</div>
+              </div>
+              <div className="form-group">
+                <label htmlFor="recommendLocation">Location (optional)</label>
+                <input
+                  type="text"
+                  id="recommendLocation"
+                  value={recommendFormData.location}
+                  onChange={(e) => handleRecommendInputChange('location', e.target.value)}
+                  placeholder="Where is it?"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="recommendType">Type</label>
+                <select
+                  id="recommendType"
+                  value={recommendFormData.type}
+                  onChange={(e) => handleRecommendInputChange('type', e.target.value)}
+                >
+                  <option value="place">Place</option>
+                  <option value="event">Event</option>
+                  <option value="service">Service</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="recommendRating">Rating (optional)</label>
+                <input
+                  type="number"
+                  id="recommendRating"
+                  value={recommendFormData.rating}
+                  onChange={(e) => handleRecommendInputChange('rating', e.target.value)}
+                  placeholder="4.5"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="recommendTags">Tags (optional)</label>
+                <input
+                  type="text"
+                  id="recommendTags"
+                  value={recommendFormData.tags}
+                  onChange={(e) => handleRecommendInputChange('tags', e.target.value)}
+                  placeholder="Add tags separated by commas (e.g., #food, #fun)"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="recommendImage">Image (optional)</label>
+                <div className="image-upload-container">
+                  <input
+                    type="file"
+                    id="recommendImage"
+                    accept="image/*"
+                    onChange={handleRecommendImageFileChange}
+                    className="image-upload-input"
+                  />
+                  <label htmlFor="recommendImage" className="image-upload-label">
+                    <div className="image-upload-content">
+                      <span className="image-upload-icon">📷</span>
+                      <span className="image-upload-text">Choose an image or drag here</span>
+                      <span className="image-upload-hint">Max 5MB • JPEG, PNG, WebP, GIF</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+              <div className="form-group">
+                <label htmlFor="recommendImageUrl">Or provide image URL (optional)</label>
+                <input
+                  type="url"
+                  id="recommendImageUrl"
+                  value={recommendFormData.imageUrl}
+                  onChange={(e) => {
+                    handleRecommendInputChange('imageUrl', e.target.value);
+                    setSelectedRecommendImageFile(null);
+                    setRecommendImagePreview(null);
+                  }}
+                  placeholder="https://example.com/recommend-image.jpg"
+                />
+              </div>
+              {(recommendImagePreview || recommendFormData.imageUrl) && (
+                <div className="image-preview">
+                  <img
+                    src={recommendImagePreview || recommendFormData.imageUrl}
+                    alt="Preview"
+                    onError={(e) => (e.target.style.display = 'none')}
+                  />
+                </div>
+              )}
+              <div className="form-actions">
+                <button type="submit" className="submit-btn" disabled={!recommendFormData.title.trim() || !recommendFormData.description.trim() || isSubmitting}>
+                  {isSubmitting ? 'Creating...' : 'Create Recommendation'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+        {activeTab !== 'posts' && activeTab !== 'events' && activeTab !== 'people' && activeTab !== 'recommend' && (
           <div style={{ textAlign: 'center', color: '#86868b', padding: '2rem' }}>
             <p>Coming soon!</p>
           </div>

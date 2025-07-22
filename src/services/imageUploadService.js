@@ -125,5 +125,62 @@ export const imageUploadService = {
     }
     
     return true;
+  },
+
+  // Upload image to recommendation-images bucket
+  async uploadRecommendationImage(file) {
+    try {
+      // Ensure bucket exists before uploading (optional, skip if always present)
+      // await this.ensureRecommendationBucketExists();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('Could not get current user');
+      const userId = user.id;
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${userId}/${Date.now()}.${fileExt}`;
+      const { data, error } = await supabase.storage
+        .from('recommendation-images')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+      if (error) throw error;
+      // Get the signed URL (since bucket is private)
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('recommendation-images')
+        .createSignedUrl(fileName, 31536000); // 1 year expiry
+      if (signedUrlError) throw signedUrlError;
+      return { publicUrl: signedUrlData.signedUrl, fileName };
+    } catch (error) {
+      console.error('Error uploading recommendation image:', error);
+      throw error;
+    }
+  },
+
+  // Delete image from recommendation-images bucket
+  async deleteRecommendationImage(fileName) {
+    try {
+      const { error } = await supabase.storage
+        .from('recommendation-images')
+        .remove([fileName]);
+      if (error) throw error;
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting recommendation image:', error);
+      throw error;
+    }
+  },
+
+  // Get signed URL for recommendation image
+  async getRecommendationSignedUrl(fileName) {
+    try {
+      const { data, error } = await supabase.storage
+        .from('recommendation-images')
+        .createSignedUrl(fileName, 3600); // 1 hour expiry
+      if (error) throw error;
+      return data.signedUrl;
+    } catch (error) {
+      console.error('Error getting recommendation signed URL:', error);
+      throw error;
+    }
   }
 }; 

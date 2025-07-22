@@ -80,6 +80,68 @@
 --   location: TEXT - Location associated with the post
 
 -- ========================================
+-- RECOMMENDATIONS TABLE
+-- ========================================
+-- Table for storing user recommendations (places, events, services, etc.)
+--
+-- Columns:
+--   uuid: UUID (PRIMARY KEY) - Unique recommendation identifier
+--   created_at: TIMESTAMP WITH TIME ZONE - Recommendation creation time
+--   user_id: UUID (NOT NULL) - UUID of the user who created the recommendation
+--   image_url: TEXT - URL to recommendation image
+--   title: TEXT (NOT NULL) - Title of the recommendation
+--   description: TEXT (NOT NULL) - Description of the recommendation
+--   location: TEXT - Location associated with the recommendation
+--   type: TEXT - Type/category (e.g., place, event, service, other)
+--   rating: NUMERIC(3,2) - Optional rating (0.00-5.00)
+
+CREATE TABLE IF NOT EXISTS recommendations (
+  uuid UUID PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  user_id UUID NOT NULL REFERENCES profiles(uuid) ON DELETE CASCADE,
+  image_url TEXT,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  location TEXT,
+  type TEXT DEFAULT 'place',
+  rating NUMERIC(3,2) DEFAULT NULL
+);
+
+-- Enable Row Level Security and policies for recommendations
+GRANT SELECT, INSERT, UPDATE, DELETE ON recommendations TO authenticated;
+ALTER TABLE recommendations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all to read recommendations" ON recommendations FOR SELECT USING (true);
+CREATE POLICY "Users can create their own recommendations" ON recommendations FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own recommendations" ON recommendations FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own recommendations" ON recommendations FOR DELETE USING (auth.uid() = user_id);
+
+-- ========================================
+-- RECOMMENDATION_TAGS TABLE
+-- ========================================
+-- Junction table for recommendation tags
+--
+-- Columns:
+--   recommendation_id: UUID (NOT NULL) - UUID of the recommendation
+--   tag: TEXT (NOT NULL) - Tag name
+--   created_at: TIMESTAMP WITH TIME ZONE - When the tag was added
+--   PRIMARY KEY: (recommendation_id, tag)
+
+CREATE TABLE IF NOT EXISTS recommendation_tags (
+  recommendation_id UUID NOT NULL REFERENCES recommendations(uuid) ON DELETE CASCADE,
+  tag TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (recommendation_id, tag)
+);
+
+-- Enable RLS for recommendation_tags
+GRANT SELECT, INSERT, UPDATE, DELETE ON recommendation_tags TO authenticated;
+ALTER TABLE recommendation_tags ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all to read recommendation tags" ON recommendation_tags FOR SELECT USING (true);
+CREATE POLICY "Users can manage their own recommendation tags" ON recommendation_tags FOR ALL USING (
+  EXISTS (SELECT 1 FROM recommendations WHERE recommendations.uuid = recommendation_tags.recommendation_id AND recommendations.user_id = auth.uid())
+);
+
+-- ========================================
 -- TRIGGERS FOR LIKE AND COMMENT COUNTS
 -- ========================================
 

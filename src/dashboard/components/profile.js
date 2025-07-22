@@ -14,6 +14,12 @@ import { eventService } from '../../services/eventService';
 import { imageUploadService } from '../../services/imageUploadService';
 import EventImage from '../../components/eventImage';
 import { formatDateInTimezone, getUserTimezone, convertUTCToDatetimeLocal } from '../../utils/timezoneUtils';
+import { recommendService } from '../../services/recommendService';
+import RecommendationCard from './RecommendationCard';
+import RecommendationModal from './RecommendationModal';
+import ProfileAvatar from './ProfileAvatar';
+import EventCard from './EventCard';
+import EventModal from './EventModal';
 
 const EditProfileModal = ({
   showEditModal,
@@ -898,201 +904,6 @@ const PostModal = ({ post, onClose, userProfile, onCommentAdded }) => {
   );
 };
 
-const EventModal = ({ event, onClose, userProfile }) => {
-  const [userTimezone, setUserTimezone] = useState('UTC');
-
-  // Get user's timezone on component mount
-  useEffect(() => {
-    const timezone = getUserTimezone();
-    setUserTimezone(timezone);
-  }, []);
-
-  if (!event) return null;
-
-  return (
-    <div className="event-modal-overlay" onClick={onClose}>
-      <div className="event-modal-container" onClick={e => e.stopPropagation()}>
-        {/* Header with close button */}
-        <div className="event-modal-header">
-          <button className="event-modal-close" onClick={onClose}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Hero section with event image and gradient */}
-        <div className="event-modal-hero">
-          <div className="event-modal-image">
-            {event.image_url ? (
-              <EventImage
-                imageUrl={event.image_url}
-                alt={event.event}
-                className="event-modal-hero-image"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'flex';
-                }}
-              />
-            ) : null}
-            <div className="event-modal-placeholder" style={{ display: event.image_url ? 'none' : 'flex' }}>
-              <span className="event-modal-icon">🎉</span>
-            </div>
-            <div className="event-modal-gradient"></div>
-          </div>
-
-          {/* Event title overlay */}
-          <div className="event-modal-title-section">
-            <h1 className="event-modal-title">{event.event}</h1>
-            {event.location && (
-              <div className="event-modal-location">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 7.61305 3.94821 5.32387 5.63604 3.63604C7.32387 1.94821 9.61305 1 12 1C14.3869 1 16.6761 1.94821 18.364 3.63604C20.0518 5.32387 21 7.61305 21 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M12 13C13.6569 13 15 11.6569 15 10C15 8.34315 13.6569 7 12 7C10.3431 7 9 8.34315 9 10C9 11.6569 10.3431 13 12 13Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span>{event.location}</span>
-              </div>
-            )}
-            {event.scheduled_time && (
-              <div className="event-modal-time">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M12 6V12L16 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span>{formatDateInTimezone(event.scheduled_time, userTimezone, {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true
-                })}</span>
-              </div>
-            )}
-            {event.price !== null && (
-              <div className="event-modal-price">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 1V23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M17 5H9.5C8.57174 5 7.6815 5.36875 7.02513 6.02513C6.36875 6.6815 6 7.57174 6 8.5C6 9.42826 6.36875 10.3185 7.02513 10.9749C7.6815 11.6313 8.57174 12 9.5 12H14.5C15.4283 12 16.3185 12.3687 16.9749 13.0251C17.6313 13.6815 18 14.5717 18 15.5C18 16.4283 17.6313 17.3185 16.9749 17.9749C16.3185 18.6313 15.4283 19 14.5 19H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span>{event.price === 0 || isNaN(event.price) ? 'Free' : `$${parseFloat(event.price).toFixed(2)}`}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Content section */}
-        <div className="event-modal-content">
-          {/* Author info */}
-          <div className="event-modal-author">
-            <div className="event-modal-avatar">
-              <ProfileAvatar avatarPath={userProfile?.avatar_url} />
-            </div>
-            <div className="event-modal-author-info">
-              <div className="event-modal-author-name">
-                {userProfile?.display_name || userProfile?.username || 'User'}
-              </div>
-              <div className="event-modal-date">
-                {event.created_at ? new Date(event.created_at).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                }) : 'Recently'}
-              </div>
-            </div>
-          </div>
-
-          {/* Tags */}
-          {event.tags && event.tags.length > 0 && (
-            <div className="event-modal-tags">
-              {event.tags.map((tag, index) => (
-                <span key={index} className="event-modal-tag">
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Stats grid */}
-          <div className="event-modal-stats">
-            <div className="event-modal-stat">
-              <div className="event-modal-stat-icon">👥</div>
-              <div className="event-modal-stat-content">
-                <div className="event-modal-stat-number">{event.attendeeCount || 0}</div>
-                <div className="event-modal-stat-label">Attendees</div>
-              </div>
-            </div>
-            <div className="event-modal-stat">
-              <div className="event-modal-stat-icon">⭐</div>
-              <div className="event-modal-stat-content">
-                <div className="event-modal-stat-number">{event.rating || 0.0}</div>
-                <div className="event-modal-stat-label">Rating</div>
-              </div>
-            </div>
-            <div className="event-modal-stat">
-              <div className="event-modal-stat-icon">💬</div>
-              <div className="event-modal-stat-content">
-                <div className="event-modal-stat-number">{event.review_count || 0}</div>
-                <div className="event-modal-stat-label">Reviews</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-function ProfileAvatar({ avatarPath }) {
-  const [signedUrl, setSignedUrl] = React.useState(null);
-  React.useEffect(() => {
-    let isMounted = true;
-    async function fetchUrl() {
-      if (!avatarPath || avatarPath.trim() === '') {
-        setSignedUrl(null);
-        return;
-      }
-      if (avatarPath.startsWith('http')) {
-        setSignedUrl(avatarPath);
-        return;
-      }
-      const { data, error } = await supabase.storage
-        .from('avatars')
-        .createSignedUrl(avatarPath, 3600);
-      if (isMounted) {
-        if (error) {
-          setSignedUrl(null);
-        } else {
-          setSignedUrl(data.signedUrl);
-        }
-      }
-    }
-    fetchUrl();
-    return () => { isMounted = false; };
-  }, [avatarPath]);
-  if (!signedUrl) return <span role="img" aria-label="avatar">👤</span>;
-  return (
-    <img
-      src={signedUrl}
-      alt="avatar"
-      style={{
-        width: '100%',
-        height: '100%',
-        borderRadius: '50%',
-        objectFit: 'cover',
-        display: 'block',
-        border: 'none',
-        background: 'none',
-        minWidth: 0,
-        minHeight: 0
-      }}
-    />
-  );
-}
-
 const Profile = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('posts');
@@ -1134,6 +945,10 @@ const Profile = () => {
   const [isEditingEvent, setIsEditingEvent] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [userRecommendations, setUserRecommendations] = useState([]);
+  const [showRecommendationModal, setShowRecommendationModal] = useState(false);
+  const [selectedRecommendation, setSelectedRecommendation] = useState(null);
+  const [deleteRecommendationModal, setDeleteRecommendationModal] = useState({ open: false, rec: null });
 
   const { isPageLoaded, markPageAsLoaded } = usePageCache();
 
@@ -1345,47 +1160,6 @@ const Profile = () => {
     );
   });
 
-  const RecommendationCard = ({ rec }) => (
-    <div className="profile-rec-card">
-      <div className="rec-image-container">
-        <img
-          src={rec.image}
-          alt={rec.title}
-          className="rec-image"
-          onError={(e) => {
-            e.target.style.display = 'none';
-          }}
-        />
-        <div className="rec-type-badge">{rec.type}</div>
-      </div>
-      <div className="rec-content">
-        <div className="rec-header">
-          <h3 className="rec-title">{rec.title}</h3>
-          <span className="rec-distance">{rec.distance}</span>
-        </div>
-        <div className="rec-author">
-          <span className="author-avatar small">{userProfile.avatar_url ? '👤' : '👤'}</span>
-          <span>{userProfile.display_name || userProfile.username || 'User'}</span>
-          <span>•</span>
-          <span>{rec.timestamp}</span>
-        </div>
-        <p className="rec-description">{rec.description}</p>
-        <div className="rec-actions">
-          <button className="action-btn">
-            <span>❤️</span>
-            <span className="action-count">{rec.likes}</span>
-          </button>
-          <button className="action-btn">
-            <span>💬</span>
-          </button>
-          <button className="action-btn">
-            <span>📤</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
   // Load user profile and posts
   useEffect(() => {
     const loadProfile = async () => {
@@ -1461,6 +1235,10 @@ const Profile = () => {
           console.error('Error loading user events:', error);
           setUserEvents([]);
         }
+
+        // Get recommendations
+        const recommendations = await recommendService.getUserRecommendations(user.id);
+        setUserRecommendations(recommendations || []);
 
         setIsLoading(false);
       } catch (error) {
@@ -1794,175 +1572,24 @@ const Profile = () => {
     }
   };
 
-
-  const EventCard = ({ event }) => {
-    const [userTimezone, setUserTimezone] = useState('UTC');
-
-    // Get user's timezone on component mount
-    useEffect(() => {
-      const timezone = getUserTimezone();
-      setUserTimezone(timezone);
-    }, []);
-
-    const formatDate = (dateString) => {
-      if (!dateString) return null;
-      return formatDateInTimezone(dateString, userTimezone, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric'
-      });
-    };
-
-    const formatTime = (dateString) => {
-      if (!dateString) return null;
-      return formatDateInTimezone(dateString, userTimezone, {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      });
-    };
-
-    return (
-      <div
-        className="event-card"
-        onClick={() => {
-          setSelectedEvent(event);
-          setShowEventModal(true);
-        }}
-        style={{ cursor: 'pointer' }}
-      >
-        <div className="event-image-container">
-          {event.image_url ? (
-            <EventImage
-              imageUrl={event.image_url}
-              alt={event.event}
-              className="event-image"
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'flex';
-              }}
-            />
-          ) : null}
-          <div className="event-placeholder" style={{ display: event.image_url ? 'none' : 'flex' }}>
-            <span className="event-icon">🎉</span>
-          </div>
-
-          {/* Rating badge */}
-          <div className="event-rating">
-            <span className="rating-star">⭐</span>
-            <span className="rating-number">{event.rating || 0.0}</span>
-            <span className="rating-count">({event.review_count || 0})</span>
-          </div>
-
-          {/* Date badge */}
-          <div className="event-date-badge">
-            <div className="event-date">
-              {event.scheduled_time ? formatDate(event.scheduled_time) : formatDate(event.created_at)}
-            </div>
-            <div className="event-time">
-              {event.scheduled_time ? formatTime(event.scheduled_time) : 'Created'}
-            </div>
-          </div>
-
-          {/* Price badge */}
-          {event.price !== null && (
-            <div className="event-price">
-              <span className="price-text">
-                {event.price === 0 || isNaN(event.price) ? 'Free' : `$${parseFloat(event.price).toFixed(2)}`}
-              </span>
-            </div>
-          )}
-
-
-        </div>
-
-        <div className="event-content">
-          <div className="event-header">
-            <h3 className="event-name">{event.event}</h3>
-            <div className="event-header-details">
-              <span className="event-type-badge">
-                {event.event_type ? event.event_type.charAt(0).toUpperCase() + event.event_type.slice(1) : 'General'}
-              </span>
-            </div>
-          </div>
-
-          {event.location && (
-            <div className="event-location">
-              <span className="location-icon">📍</span>
-              <span className="location-name">{event.location}</span>
-            </div>
-          )}
-
-          <p className="event-description">
-            {event.description || 'No description available for this event.'}
-          </p>
-
-          <div className="event-footer">
-            <div className="event-tags">
-              {event.tags && event.tags.slice(0, 3).map((tag, index) => (
-                <span key={index} className="event-tag">{tag}</span>
-              ))}
-              {event.tags && event.tags.length > 3 && (
-                <span className="event-tag-more">+{event.tags.length - 3}</span>
-              )}
-            </div>
-            {/* Capacity badge */}
-            {event.capacity && (
-              <div className="event-capacity">
-                <span className="capacity-text">
-                  <span className="attendees-icon">👥</span>
-                  {event.attendeeCount || 0}/{event.capacity}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Action buttons */}
-          <div className="event-actions" style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-            <button
-              className="edit-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                openEditEventModal(event);
-              }}
-              style={{
-                background: '#007AFF',
-                color: 'white',
-                border: 'none',
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: '500',
-                cursor: 'pointer',
-                flex: 1
-              }}
-            >
-              Edit
-            </button>
-            <button
-              className="delete-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                setDeleteEventModal({ open: true, eventUuid: event.uuid });
-              }}
-              style={{
-                background: '#ff3b30',
-                color: 'white',
-                border: 'none',
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: '500',
-                cursor: 'pointer',
-                flex: 1
-              }}
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+  // Add handlers in the Profile component:
+  const openEditRecommendation = (rec) => {
+    // TODO: Implement edit modal logic
+    console.log('Edit recommendation:', rec);
+  };
+  const openDeleteRecommendation = (rec) => {
+    setDeleteRecommendationModal({ open: true, rec });
+  };
+  const handleDeleteRecommendation = async () => {
+    if (!deleteRecommendationModal.rec) return;
+    try {
+      await recommendService.deleteRecommendation(deleteRecommendationModal.rec.uuid);
+      setUserRecommendations(prev => prev.filter(r => r.uuid !== deleteRecommendationModal.rec.uuid));
+      setDeleteRecommendationModal({ open: false, rec: null });
+      showNotification('Recommendation deleted!', 'success');
+    } catch (error) {
+      showNotification('Failed to delete recommendation', 'error');
+    }
   };
 
   return (
@@ -2030,7 +1657,7 @@ const Profile = () => {
           className={`tab-btn ${activeTab === 'recommend' ? 'active' : ''}`}
           onClick={() => setActiveTab('recommend')}
         >
-          Recommendations (0)
+          Recommendations ({userRecommendations.length})
         </button>
         <button
           className={`tab-btn ${activeTab === 'listings' ? 'active' : ''}`}
@@ -2054,11 +1681,11 @@ const Profile = () => {
                   location: post.location || '',
                   likes: post.like_count || 0,
                   comments: post.comment_count || 0,
-                  distance: '', // You can add logic for distance if needed
+                  distance: '',
                 }} />
               ))
             ) : (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#666', width: '100%' }}>
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', margin: '0 auto', width: '100%', color: '#666', padding: '2rem' }}>
                 No posts yet. Start sharing your experiences!
               </div>
             )}
@@ -2066,14 +1693,84 @@ const Profile = () => {
         )}
 
         {activeTab === 'recommend' && (
-          <div className="recommend-grid" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            {userRecommend.length > 0 ? (
-              userRecommend.map(rec => (
-                <RecommendationCard key={rec.id} rec={rec} />
+          <div className="listings-grid">
+            {userRecommendations.length > 0 ? (
+              userRecommendations.map(rec => (
+                <div key={rec.uuid} onClick={() => { setSelectedRecommendation(rec); setShowRecommendationModal(true); }}>
+                  <RecommendationCard
+                    rec={{ ...rec, image: rec.image_url }}
+                    onEdit={openEditRecommendation}
+                    onDelete={openDeleteRecommendation}
+                  />
+                </div>
               ))
             ) : (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#666', width: '100%' }}>
-                No recommend yet. Start recommending places and events!
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', margin: '0 auto', width: '100%', color: '#666', padding: '2rem' }}>
+                No recommendations yet. Start recommending places and events!
+              </div>
+            )}
+            {showRecommendationModal && selectedRecommendation && (
+              <RecommendationModal
+                recommendation={selectedRecommendation}
+                onClose={() => { setShowRecommendationModal(false); setSelectedRecommendation(null); }}
+                userProfile={userProfile}
+              />
+            )}
+            {deleteRecommendationModal.open && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.4)',
+                zIndex: 3000,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <div style={{
+                  background: 'white',
+                  borderRadius: 16,
+                  padding: '32px 32px 24px 32px',
+                  minWidth: 320,
+                  maxWidth: '90vw',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+                  textAlign: 'center',
+                }}>
+                  <h2 style={{ margin: 0, marginBottom: 16 }}>Delete Recommendation?</h2>
+                  <p style={{ color: '#86868b', marginBottom: 32 }}>Are you sure you want to delete this recommendation? This action cannot be undone.</p>
+                  <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+                    <button
+                      style={{
+                        background: '#f0f0f0',
+                        color: '#1d1d1f',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '10px 24px',
+                        fontSize: 16,
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => setDeleteRecommendationModal({ open: false, rec: null })}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      style={{
+                        background: '#ff3b30',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '10px 24px',
+                        fontSize: 16,
+                        cursor: 'pointer',
+                      }}
+                      onClick={handleDeleteRecommendation}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -2083,12 +1780,29 @@ const Profile = () => {
           <div className="listings-grid">
             {userEvents.length > 0 ? (
               userEvents.map(event => (
-                <EventCard key={event.uuid} event={event} />
+                <EventCard
+                  key={event.uuid}
+                  event={event}
+                  openEditEventModal={openEditEventModal}
+                  setDeleteEventModal={setDeleteEventModal}
+                  setSelectedEvent={setSelectedEvent}
+                  setShowEventModal={setShowEventModal}
+                />
               ))
             ) : (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#666', gridColumn: '1 / -1' }}>
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', margin: '0 auto', width: '100%', color: '#666', padding: '2rem' }}>
                 No listings yet. Start creating your own listings!
               </div>
+            )}
+            {showEventModal && selectedEvent && (
+              <EventModal
+                event={selectedEvent}
+                onClose={() => {
+                  setShowEventModal(false);
+                  setSelectedEvent(null);
+                }}
+                userProfile={userProfile}
+              />
             )}
           </div>
         )}
