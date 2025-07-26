@@ -315,5 +315,31 @@ export const businessLocationService = {
       console.error('Error getting business locations by city:', error);
       throw error;
     }
+  },
+
+  // Get business locations created by current user
+  async getUserBusinessLocations() {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('Could not get current user');
+
+      const userId = user.id;
+
+      const { data, error } = await supabase
+        .from('business_locations')
+        .select(`
+          *,
+          business_location_tags(tag)
+        `)
+        .eq('created_by', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error('Error getting user business locations:', error);
+      throw error;
+    }
   }
 }; 

@@ -15,11 +15,14 @@ import { imageUploadService } from '../../services/imageUploadService';
 import EventImage from '../../components/eventImage';
 import { formatDateInTimezone, getUserTimezone, convertUTCToDatetimeLocal } from '../../utils/timezoneUtils';
 import { recommendService } from '../../services/recommendService';
-import RecommendationCard from './RecommendationCard';
-import RecommendationModal from './RecommendationModal';
+import RecommendationCard from './create-components/RecommendationCard';
+import RecommendationModal from './create-components/RecommendationModal';
 import ProfileAvatar from './ProfileAvatar';
 import EventCard from './EventCard';
 import EventModal from './EventModal';
+import { businessLocationService } from '../../services/businessLocationService';
+import BusinessLocationCard from './create-components/businessCard.tsx';
+import BusinessModal from './create-components/businessModal.tsx';
 
 const EditProfileModal = ({
   showEditModal,
@@ -949,6 +952,11 @@ const Profile = () => {
   const [showRecommendationModal, setShowRecommendationModal] = useState(false);
   const [selectedRecommendation, setSelectedRecommendation] = useState(null);
   const [deleteRecommendationModal, setDeleteRecommendationModal] = useState({ open: false, rec: null });
+  const [userBusinessLocations, setUserBusinessLocations] = useState([]);
+  const [deleteBusinessModal, setDeleteBusinessModal] = useState({ open: false, businessUuid: null });
+  const [isDeletingBusiness, setIsDeletingBusiness] = useState(false);
+  const [showBusinessModal, setShowBusinessModal] = useState(false);
+  const [selectedBusiness, setSelectedBusiness] = useState(null);
 
   const { isPageLoaded, markPageAsLoaded } = usePageCache();
 
@@ -1239,6 +1247,15 @@ const Profile = () => {
         // Get recommendations
         const recommendations = await recommendService.getUserRecommendations(user.id);
         setUserRecommendations(recommendations || []);
+
+        // Get user business locations
+        try {
+          const userBusinessLocationsData = await businessLocationService.getUserBusinessLocations();
+          setUserBusinessLocations(userBusinessLocationsData || []);
+        } catch (error) {
+          console.error('Error loading user business locations:', error);
+          setUserBusinessLocations([]);
+        }
 
         setIsLoading(false);
       } catch (error) {
@@ -1592,6 +1609,26 @@ const Profile = () => {
     }
   };
 
+  const handleDeleteBusiness = async (businessUuid) => {
+    setIsDeletingBusiness(true);
+    try {
+      await businessLocationService.deleteBusinessLocation(businessUuid);
+
+      // Update local state
+      setUserBusinessLocations(prev => prev.filter(business => business.uuid !== businessUuid));
+      setDeleteBusinessModal({ open: false, businessUuid: null });
+      setNotification({ open: true, message: 'Business location deleted successfully!', type: 'success' });
+
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } catch (error) {
+      console.error('Error deleting business location:', error);
+      setNotification({ open: true, message: 'Failed to delete business location', type: 'error' });
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } finally {
+      setIsDeletingBusiness(false);
+    }
+  };
+
   return (
     <div className="profile-container">
       <div className="profile-header">
@@ -1663,7 +1700,7 @@ const Profile = () => {
           className={`tab-btn ${activeTab === 'listings' ? 'active' : ''}`}
           onClick={() => setActiveTab('listings')}
         >
-          Listings ({userEvents.length})
+          Listings ({userEvents.length + userBusinessLocations.length})
         </button>
       </div>
 
@@ -1778,17 +1815,29 @@ const Profile = () => {
 
         {activeTab === 'listings' && (
           <div className="listings-grid">
-            {userEvents.length > 0 ? (
-              userEvents.map(event => (
-                <EventCard
-                  key={event.uuid}
-                  event={event}
-                  openEditEventModal={openEditEventModal}
-                  setDeleteEventModal={setDeleteEventModal}
-                  setSelectedEvent={setSelectedEvent}
-                  setShowEventModal={setShowEventModal}
-                />
-              ))
+            {userEvents.length > 0 || userBusinessLocations.length > 0 ? (
+              <>
+                {userEvents.map(event => (
+                  <EventCard
+                    key={event.uuid}
+                    event={event}
+                    openEditEventModal={openEditEventModal}
+                    setDeleteEventModal={setDeleteEventModal}
+                    setSelectedEvent={setSelectedEvent}
+                    setShowEventModal={setShowEventModal}
+                  />
+                ))}
+                {userBusinessLocations.map(business => (
+                  <BusinessLocationCard
+                    key={business.uuid}
+                    business={business}
+                    openEditBusinessModal={() => {}} // TODO: Implement edit modal
+                    setDeleteBusinessModal={setDeleteBusinessModal}
+                    setSelectedBusiness={setSelectedBusiness}
+                    setShowBusinessModal={setShowBusinessModal}
+                  />
+                ))}
+              </>
             ) : (
               <div style={{ gridColumn: '1 / -1', textAlign: 'center', margin: '0 auto', width: '100%', color: '#666', padding: '2rem' }}>
                 No listings yet. Start creating your own listings!
@@ -1800,6 +1849,16 @@ const Profile = () => {
                 onClose={() => {
                   setShowEventModal(false);
                   setSelectedEvent(null);
+                }}
+                userProfile={userProfile}
+              />
+            )}
+            {showBusinessModal && selectedBusiness && (
+              <BusinessModal
+                business={selectedBusiness}
+                onClose={() => {
+                  setShowBusinessModal(false);
+                  setSelectedBusiness(null);
                 }}
                 userProfile={userProfile}
               />
@@ -1950,6 +2009,68 @@ const Profile = () => {
                 disabled={isDeletingEvent}
               >
                 {isDeletingEvent ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Business Confirmation Modal */}
+      {deleteBusinessModal.open && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.4)',
+          zIndex: 3000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: '32px 32px 24px 32px',
+            minWidth: 320,
+            maxWidth: '90vw',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            textAlign: 'center',
+          }}>
+            <h2 style={{ margin: 0, marginBottom: 16 }}>Delete Business Location?</h2>
+            <p style={{ color: '#86868b', marginBottom: 32 }}>Are you sure you want to delete this business location? This action cannot be undone.</p>
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+              <button
+                style={{
+                  background: '#f0f0f0',
+                  color: '#1d1d1f',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '10px 24px',
+                  fontSize: 16,
+                  cursor: 'pointer',
+                }}
+                onClick={() => setDeleteBusinessModal({ open: false, businessUuid: null })}
+                disabled={isDeletingBusiness}
+              >
+                Cancel
+              </button>
+              <button
+                style={{
+                  background: '#ff3b30',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '10px 24px',
+                  fontSize: 16,
+                  cursor: isDeletingBusiness ? 'not-allowed' : 'pointer',
+                  opacity: isDeletingBusiness ? 0.7 : 1,
+                }}
+                onClick={() => handleDeleteBusiness(deleteBusinessModal.businessUuid)}
+                disabled={isDeletingBusiness}
+              >
+                {isDeletingBusiness ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import ProfileAvatar from './ProfileAvatar';
+import ProfileAvatar from '../ProfileAvatar';
 
 const RecommendationModal = ({ recommendation, onClose, userProfile }) => {
   if (!recommendation) return null;
