@@ -36,7 +36,7 @@ function Dashboard({ service }) {
       setTimeout(() => {
         setExploreDropdownOpen(false);
         setIsClosing(false);
-      }, 300);
+      }, 250);
     } else {
       setExploreDropdownOpen(true);
     }
@@ -49,7 +49,7 @@ function Dashboard({ service }) {
       setTimeout(() => {
         setExploreDropdownOpen(false);
         setIsClosing(false);
-      }, 300);
+      }, 250);
     }
   };
 
@@ -103,14 +103,14 @@ function Dashboard({ service }) {
         return <Events />;
       case 'people':
         return <People />;
-      case 'deep-search':
-        return <div>Deep Search content will be displayed here</div>;
+      // case 'deep-search':
+      //   return <div>Deep Search content will be displayed here</div>;
       case 'social':
         return <Social />;
       case 'profile':
         return <Profile />;
-      case 'plan':
-        return <Plan />;
+      // case 'plan':
+      //   return <Plan />;
       case 'create-service':
         return <CreateService />;
       default:
@@ -183,7 +183,7 @@ function Dashboard({ service }) {
             </div>
           </div>
           {(exploreDropdownOpen || isClosing) && (
-            <div id="explore-dropdown" className={isClosing ? 'closing' : ''}>
+            <div id="explore-dropdown" className={exploreDropdownOpen && !isClosing ? 'open' : isClosing ? 'closing' : ''}>
                 <div 
                   className={`explore-option ${selectedService === 'places' ? 'selected' : ''}`} 
                   onClick={() => handleExploreOptionClick('places')}
@@ -204,7 +204,7 @@ function Dashboard({ service }) {
                 </div>
             </div>
           )}
-          <div 
+          {/* <div 
             id="service-list-item"
             className={selectedService === 'deep-search' ? 'selected' : ''}
             onClick={() => handleServiceClick('deep-search')}
@@ -215,7 +215,7 @@ function Dashboard({ service }) {
               </svg>
             </div>
             <p>Deep Search</p>
-          </div>
+          </div> */}
           <div 
             id="service-list-item"
             className={selectedService === 'social' ? 'selected' : ''}
@@ -243,7 +243,7 @@ function Dashboard({ service }) {
             </div>
             <p>Profile</p>
             </div>
-            <div 
+            {/* <div 
               id="service-list-item"
               className={selectedService === 'plan' ? 'selected' : ''}
               onClick={() => handleServiceClick('plan')}
@@ -257,7 +257,7 @@ function Dashboard({ service }) {
               </svg>
             </div>
             <p>Plan</p>
-          </div>
+          </div> */}
           <div 
             id="service-list-item"
             className={selectedService === 'create-service' ? 'selected' : ''}

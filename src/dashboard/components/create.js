@@ -4,6 +4,7 @@ import { eventService } from '../../services/eventService';
 import { personService } from '../../services/personService';
 import { imageUploadService } from '../../services/imageUploadService';
 import { recommendService } from '../../services/recommendService';
+import BusinessLocationForm from './create-components/business-location.tsx';
 import './create.css';
 
 const TABS = [
@@ -11,7 +12,7 @@ const TABS = [
   { key: 'recommend', label: 'Recommend' },
   { key: 'people', label: 'People' },
   { key: 'events', label: 'Events' },
-  { key: 'locations', label: 'Locations' },
+  { key: 'business-locations', label: 'Locations' },
 ];
 
 const CreateService = () => {
@@ -797,7 +798,12 @@ const CreateService = () => {
             </form>
           </div>
         )}
-        {activeTab !== 'posts' && activeTab !== 'events' && activeTab !== 'people' && activeTab !== 'recommend' && (
+        {activeTab === 'business-locations' && (
+          <div style={{ maxWidth: 900, width: '100%', margin: '0 auto' }}>
+            <BusinessLocationForm />
+          </div>
+        )}
+        {activeTab !== 'posts' && activeTab !== 'events' && activeTab !== 'people' && activeTab !== 'recommend' && activeTab !== 'business-locations' && (
           <div style={{ textAlign: 'center', color: '#86868b', padding: '2rem' }}>
             <p>Coming soon!</p>
           </div>
