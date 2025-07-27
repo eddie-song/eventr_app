@@ -4,6 +4,8 @@ import LoadingScreen from './LoadingScreen.js';
 import { usePageCache } from '../context/PageCacheContext.js';
 import { userService } from '../../services/userService';
 import { postService } from '../../services/postService';
+import { followService } from '../../services/followService';
+import { eventService } from '../../services/eventService';
 import { supabase } from '../../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 import { likeService } from '../../services/likeService';
@@ -12,7 +14,6 @@ const Home = () => {
   const [activeSection, setActiveSection] = useState('all'); // 'all', 'friends', or 'following'
   const [selectedPost, setSelectedPost] = useState(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedActivityType, setSelectedActivityType] = useState('all');
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,6 +26,13 @@ const Home = () => {
   });
   const [notification, setNotification] = useState({ open: false, message: '', type: '' });
   
+  // New state for real data
+  const [friends, setFriends] = useState([]);
+  const [following, setFollowing] = useState([]);
+  const [allPosts, setAllPosts] = useState([]);
+  const [friendsPosts, setFriendsPosts] = useState([]);
+  const [followingPosts, setFollowingPosts] = useState([]);
+  
   const { isPageLoaded, markPageAsLoaded } = usePageCache();
 
   const showNotification = (message, type = 'success') => {
@@ -32,239 +40,202 @@ const Home = () => {
     setTimeout(() => setNotification({ open: false, message: '', type: '' }), 2500);
   };
 
-  const stories = [
-    { id: 1, author: 'Sarah Chen', avatar: '👩‍💻', isViewed: false },
-    { id: 2, author: 'Mike Johnson', avatar: '👨‍🎨', isViewed: true },
-    { id: 3, author: 'Emma Davis', avatar: '👩‍🍳', isViewed: false },
-    { id: 4, author: 'Alex Thompson', avatar: '👨‍💼', isViewed: true },
-    { id: 5, author: 'Lisa Wang', avatar: '👩‍🎤', isViewed: false },
-    { id: 6, author: 'David Kim', avatar: '👨‍🔬', isViewed: false },
-    { id: 7, author: 'Maria Garcia', avatar: '👩‍🏫', isViewed: true },
-    { id: 8, author: 'James Wilson', avatar: '👨‍💻', isViewed: false }
-  ];
-
-  const friendsPosts = [
-    {
-      id: 1,
-      author: 'Sarah Chen',
-      avatar: '👩‍💻',
-      content: 'Just discovered this amazing rooftop bar in downtown! The sunset views are incredible and they have live jazz every Thursday. Perfect spot for date night! 🍸✨',
-      location: 'Downtown Rooftop Bar',
-      distance: '0.8 miles away',
-      activityType: 'Nightlife',
-      image: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=600&h=400&fit=crop',
-      timestamp: '2 hours ago',
-      likes: 24,
-      comments: 8,
-      tags: ['#rooftop', '#jazz', '#datenight'],
-      source: 'friends'
-    },
-    {
-      id: 2,
-      author: 'Mike Johnson',
-      avatar: '👨‍🎨',
-      content: 'Hidden gem alert! This family-owned Italian restaurant in the West End has the best homemade pasta I\'ve ever tasted. Authentic recipes passed down for generations. 🍝🇮🇹',
-      location: 'Mama Rosa\'s Trattoria',
-      distance: '2.1 miles away',
-      activityType: 'Food & Dining',
-      image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&h=400&fit=crop',
-      timestamp: '4 hours ago',
-      likes: 156,
-      comments: 23,
-      tags: ['#italian', '#pasta', '#familyowned'],
-      source: 'friends'
-    },
-    {
-      id: 3,
-      author: 'Emma Davis',
-      avatar: '👩‍🍳',
-      content: 'Weekend farmers market is back! Fresh local produce, artisanal bread, and the cutest handmade crafts. Great way to support local businesses and get some fresh air. 🌱☀️',
-      location: 'Central Park Farmers Market',
-      distance: '1.3 miles away',
-      activityType: 'Outdoor',
-      image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=600&h=400&fit=crop',
-      timestamp: '6 hours ago',
-      likes: 89,
-      comments: 15,
-      tags: ['#farmersmarket', '#local', '#freshproduce'],
-      source: 'friends'
-    },
-    {
-      id: 4,
-      author: 'Alex Thompson',
-      avatar: '👨‍💼',
-      content: 'New hiking trail opened in the state park! 3-mile loop with stunning lake views and a waterfall. Perfect for a morning workout or peaceful afternoon walk. 🏃‍♂️🌲',
-      location: 'Riverside State Park',
-      distance: '12.5 miles away',
-      activityType: 'Outdoor',
-      image: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=600&h=400&fit=crop',
-      timestamp: '8 hours ago',
-      likes: 67,
-      comments: 12,
-      tags: ['#hiking', '#nature', '#workout'],
-      source: 'friends'
-    },
-    {
-      id: 5,
-      author: 'Lisa Wang',
-      avatar: '👩‍🎤',
-      content: 'Art gallery opening tonight! Local artists showcasing their work with live music and wine tasting. Free entry and great networking opportunity for creatives. 🎨🍷',
-      location: 'Contemporary Arts Center',
-      distance: '1.7 miles away',
-      activityType: 'Arts & Culture',
-      image: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=600&h=400&fit=crop',
-      timestamp: '1 day ago',
-      likes: 203,
-      comments: 31,
-      tags: ['#art', '#gallery', '#networking'],
-      source: 'friends'
-    }
-  ];
-
-  const followingPosts = [
-    {
-      id: 6,
-      author: 'David Kim',
-      avatar: '👨‍🔬',
-      content: 'Science museum has a new interactive exhibit about space exploration! Kids loved the VR Mars experience and the planetarium show. Educational and fun for all ages. 🚀🔬',
-      location: 'City Science Museum',
-      distance: '3.2 miles away',
-      activityType: 'Family',
-      image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=600&h=400&fit=crop',
-      timestamp: '1 day ago',
-      likes: 134,
-      comments: 19,
-      tags: ['#science', '#museum', '#familyfun'],
-      source: 'following'
-    },
-    {
-      id: 7,
-      author: 'Maria Garcia',
-      avatar: '👩‍🏫',
-      content: 'New yoga studio opening in the East Village! Offering morning classes, meditation sessions, and wellness workshops. Perfect for beginners and advanced practitioners. 🧘‍♀️✨',
-      location: 'Zen Yoga Studio',
-      distance: '2.8 miles away',
-      activityType: 'Wellness',
-      image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=600&h=400&fit=crop',
-      timestamp: '2 days ago',
-      likes: 98,
-      comments: 14,
-      tags: ['#yoga', '#wellness', '#meditation'],
-      source: 'following'
-    },
-    {
-      id: 8,
-      author: 'James Wilson',
-      avatar: '👨‍💻',
-      content: 'Tech meetup this weekend! Networking event for developers, designers, and entrepreneurs. Free pizza and great conversations about the future of tech. 💻🍕',
-      location: 'Innovation Hub',
-      distance: '1.5 miles away',
-      activityType: 'Networking',
-      image: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=600&h=400&fit=crop',
-      timestamp: '2 days ago',
-      likes: 76,
-      comments: 22,
-      tags: ['#tech', '#networking', '#meetup'],
-      source: 'following'
-    },
-    {
-      id: 9,
-      author: 'Sophie Brown',
-      avatar: '👩‍🎨',
-      content: 'Street art festival this weekend! Local and international artists transforming the city walls. Live painting, music, and food trucks. Don\'t miss this colorful celebration! 🎨🎵',
-      location: 'Downtown Arts District',
-      distance: '0.9 miles away',
-      activityType: 'Arts & Culture',
-      image: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=600&h=400&fit=crop',
-      timestamp: '3 days ago',
-      likes: 245,
-      comments: 38,
-      tags: ['#streetart', '#festival', '#localartists'],
-      source: 'following'
-    },
-    {
-      id: 10,
-      author: 'Carlos Rodriguez',
-      avatar: '👨‍🍳',
-      content: 'Food truck festival returns! Over 50 trucks serving everything from tacos to gourmet desserts. Live cooking demonstrations and family-friendly activities. 🚚🍔',
-      location: 'Riverside Park',
-      distance: '2.3 miles away',
-      activityType: 'Food & Dining',
-      image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&h=400&fit=crop',
-      timestamp: '3 days ago',
-      likes: 189,
-      comments: 27,
-      tags: ['#foodtrucks', '#festival', '#familyfun'],
-      source: 'following'
-    }
-  ];
-
-  const allPosts = [...friendsPosts, ...followingPosts].sort((a, b) => {
-    const timeA = new Date(a.timestamp);
-    const timeB = new Date(b.timestamp);
-    return timeB - timeA;
-  });
-
-  // Get unique activity types for filtering
-  const activityTypes = ['all', ...new Set(allPosts.map(post => post.activityType))];
-
-  // Filter posts by activity type
-  const filteredPosts = allPosts.filter(post => 
-    selectedActivityType === 'all' || post.activityType === selectedActivityType
-  );
-
-  // Get today's highlights (posts from today)
-  const todaysHighlights = allPosts.filter(post => 
-    post.timestamp.includes('hours ago') || post.timestamp.includes('minutes ago')
-  ).slice(0, 3);
-
-  // Handle creating a new post
-  const handleCreatePost = async (postData) => {
+  // Fetch friends and following users
+  const fetchFriendsAndFollowing = async () => {
     try {
-      const result = await postService.createPost(postData);
-      showNotification('Post created successfully!', 'success');
-    } catch (err) {
-      showNotification('Failed to create post: ' + (err.message || err), 'error');
-      console.error('Create post error:', err);
+      console.log('Fetching friends and following...');
+      
+      const [friendsData, followingData] = await Promise.all([
+        followService.getMutualFriends(),
+        followService.getFollowingUsers()
+      ]);
+      
+      console.log('Raw data received:', { friendsData, followingData });
+      
+      setFriends(friendsData || []);
+      setFollowing(followingData || []);
+      
+      // Debug logging
+      console.log('Friends and Following loaded:', {
+        friends: (friendsData || []).length,
+        following: (followingData || []).length,
+        friendsData: friendsData || [],
+        followingData: followingData || []
+      });
+      
+    } catch (error) {
+      console.error('Error fetching friends and following:', error);
+      showNotification('Failed to load friends and following', 'error');
+      // Set empty arrays on error
+      setFriends([]);
+      setFollowing([]);
     }
   };
 
-  // Handle scroll for back to top button
-  const handleScroll = (e) => {
-    const scrollTop = e.target.scrollTop;
-    setShowBackToTop(scrollTop > 300);
-  };
+  // Fetch posts from friends and following users
+  const fetchPosts = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-  // Refresh function
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 1500);
-  };
+      // Get all user IDs for friends and following
+      const friendIds = friends.map(f => f.user_id);
+      const followingIds = following.map(f => f.user_id);
+      const allUserIds = [...friendIds, ...followingIds, user.id];
 
-  // Back to top function
-  const scrollToTop = () => {
-    const container = document.querySelector('.section-content.scrollable');
-    if (container) {
-      container.scrollTo({ top: 0, behavior: 'smooth' });
+      console.log('Fetching posts for users:', {
+        friendIds,
+        followingIds,
+        allUserIds,
+        friendsCount: friends.length,
+        followingCount: following.length
+      });
+
+      // If no friends or following, show all posts as a fallback
+      if (allUserIds.length === 1 && allUserIds[0] === user.id) {
+        console.log('No friends or following found, showing all posts as fallback');
+        const { data: posts, error } = await supabase
+          .from('posts')
+          .select(`
+            *,
+            profiles!posts_user_id_fkey (
+              uuid,
+              username,
+              display_name,
+              avatar_url
+            )
+          `)
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        if (error) throw error;
+
+        const transformedPosts = posts.map(post => ({
+          id: post.uuid,
+          uuid: post.uuid,
+          author: post.profiles?.display_name || post.profiles?.username || 'Unknown User',
+          avatar: post.profiles?.avatar_url || '👤',
+          content: post.post_body_text || '',
+          location: post.location || '',
+          distance: 'Nearby',
+          activityType: 'General',
+          image: post.image_url || null,
+          timestamp: formatTimestamp(post.created_at),
+          likes: post.like_count || 0,
+          comments: post.comment_count || 0,
+          tags: [],
+          userId: post.user_id,
+          isOwnPost: post.user_id === user.id
+        }));
+
+        setAllPosts(transformedPosts);
+        setFriendsPosts([]);
+        setFollowingPosts([]);
+        return;
+      }
+
+      // Fetch posts from all relevant users
+      const { data: posts, error } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          profiles!posts_user_id_fkey (
+            uuid,
+            username,
+            display_name,
+            avatar_url
+          )
+        `)
+        .in('user_id', allUserIds)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+
+      // Transform posts to match the expected format
+      const transformedPosts = posts.map(post => ({
+        id: post.uuid,
+        uuid: post.uuid, // Add uuid for like functionality
+        author: post.profiles?.display_name || post.profiles?.username || 'Unknown User',
+        avatar: post.profiles?.avatar_url || '👤',
+        content: post.post_body_text || '',
+        location: post.location || '',
+        distance: 'Nearby', // Placeholder
+        activityType: 'General', // Placeholder
+        image: post.image_url || null,
+        timestamp: formatTimestamp(post.created_at),
+        likes: post.like_count || 0,
+        comments: post.comment_count || 0,
+        tags: [], // Could be expanded to fetch post_tags
+        userId: post.user_id,
+        isOwnPost: post.user_id === user.id
+      }));
+
+      setAllPosts(transformedPosts);
+      
+      // Filter posts by source - friends are users who follow each other
+      setFriendsPosts(transformedPosts.filter(post => friendIds.includes(post.userId)));
+      
+      // Following posts are from users the current user follows but aren't friends
+      setFollowingPosts(transformedPosts.filter(post => 
+        followingIds.includes(post.userId) && !friendIds.includes(post.userId)
+      ));
+
+      // Debug logging
+      console.log('Posts loaded:', {
+        totalPosts: transformedPosts.length,
+        friendsPosts: transformedPosts.filter(post => friendIds.includes(post.userId)).length,
+        followingPosts: transformedPosts.filter(post => followingIds.includes(post.userId) && !friendIds.includes(post.userId)).length,
+        friendIds,
+        followingIds,
+        allUserIds
+      });
+
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      showNotification('Failed to load posts', 'error');
     }
   };
 
-  // Check if page is already loaded
+  // Format timestamp to relative time
+  const formatTimestamp = (timestamp) => {
+    const now = new Date();
+    const postTime = new Date(timestamp);
+    const diffMs = now - postTime;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffHours < 1) return 'Just now';
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return postTime.toLocaleDateString();
+  };
+
+  // Load data on component mount
   useEffect(() => {
-    if (isPageLoaded('home')) {
-      setIsLoading(false);
-    } else {
-      // Simulate loading time
-      const loadingTime = Math.random() * 1000 + 1000; // Random time between 1-2 seconds
-      const timer = setTimeout(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        await fetchFriendsAndFollowing();
+        await fetchPosts();
+        markPageAsLoaded();
+      } catch (error) {
+        console.error('Error loading home data:', error);
+        showNotification('Failed to load home data', 'error');
+      } finally {
         setIsLoading(false);
-        markPageAsLoaded('home');
-      }, loadingTime);
-      return () => clearTimeout(timer);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // Refresh posts when friends/following change
+  useEffect(() => {
+    if (friends.length > 0 || following.length > 0) {
+      fetchPosts();
     }
-  }, [isPageLoaded, markPageAsLoaded]);
+  }, [friends, following]);
 
   // Like state for real posts
   const [likeStates, setLikeStates] = useState({}); // { [postUuid]: { liked: bool, likesCount: number } }
@@ -507,49 +478,132 @@ const Home = () => {
   };
 
   // Today's Highlights Component
-  const TodaysHighlights = () => (
-    todaysHighlights.length > 0 && (
+  const TodaysHighlights = () => {
+    const [recentEvents, setRecentEvents] = useState([]);
+    const [isLoadingEvents, setIsLoadingEvents] = useState(true);
+
+    useEffect(() => {
+      const fetchRecentEvents = async () => {
+        try {
+          setIsLoadingEvents(true);
+          const events = await eventService.getAllEvents();
+          // Get the 4 most recent events
+          const recent = events.slice(0, 4);
+          setRecentEvents(recent);
+        } catch (error) {
+          console.error('Error fetching recent events:', error);
+        } finally {
+          setIsLoadingEvents(false);
+        }
+      };
+
+      fetchRecentEvents();
+    }, []);
+
+    if (isLoadingEvents) {
+      return (
+        <div className="highlights-section">
+          <div className="highlights-header">
+            <h3>Today's Highlights</h3>
+            <span className="highlights-count">Loading...</span>
+          </div>
+          <div className="highlights-grid">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="highlight-card loading">
+                <div className="highlight-image">
+                  <div className="loading-placeholder"></div>
+                </div>
+                <div className="highlight-content">
+                  <div className="loading-placeholder" style={{ height: '16px', marginBottom: '8px' }}></div>
+                  <div className="loading-placeholder" style={{ height: '12px' }}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (recentEvents.length === 0) {
+      return null; // Don't show the section if no events
+    }
+
+    return (
       <div className="highlights-section">
         <div className="highlights-header">
           <h3>Today's Highlights</h3>
-          <span className="highlights-count">{todaysHighlights.length} new</span>
+          <span className="highlights-count">{recentEvents.length} events</span>
         </div>
         <div className="highlights-grid">
-          {todaysHighlights.map(post => (
-            <div key={post.id} className="highlight-card" onClick={() => setSelectedPost(post)}>
+          {recentEvents.map(event => (
+            <div key={event.uuid} className="highlight-card" onClick={() => setSelectedPost({
+              id: event.uuid,
+              author: 'Event',
+              avatar: '🎉',
+              content: event.description || event.event,
+              location: event.location || 'No location',
+              distance: 'Event',
+              activityType: event.event_type || 'General',
+              image: event.image_url || 'https://images.unsplash.com/photo-1549924231-f129b911e442?w=400&h=300&fit=crop',
+              timestamp: formatTimestamp(event.created_at),
+              likes: 0,
+              comments: 0,
+              tags: event.tags || [],
+              source: 'events',
+              userId: event.hosts?.[0] || null
+            })}>
               <div className="highlight-image">
-                <img src={post.image} alt={post.location} />
+                <img 
+                  src={event.image_url || 'https://images.unsplash.com/photo-1549924231-f129b911e442?w=400&h=300&fit=crop'} 
+                  alt={event.event}
+                  onError={(e) => {
+                    e.target.src = 'https://images.unsplash.com/photo-1549924231-f129b911e442?w=400&h=300&fit=crop';
+                  }}
+                />
                 <div className="highlight-overlay">
-                  <span className="highlight-time">{post.timestamp}</span>
+                  <span className="highlight-time">{formatTimestamp(event.created_at)}</span>
                 </div>
               </div>
               <div className="highlight-content">
-                <h4>{post.location}</h4>
-                <p>{post.content.substring(0, 60)}...</p>
+                <h4>{event.event}</h4>
+                <p>{(event.description || event.event).substring(0, 60)}...</p>
               </div>
             </div>
           ))}
         </div>
       </div>
-    )
   );
+  };
 
   // Activity Type Filter Component
-  const ActivityTypeFilter = () => (
-    <div className="activity-filter">
-      <div className="filter-container">
-        {activityTypes.map(type => (
-          <button
-            key={type}
-            className={`filter-btn ${selectedActivityType === type ? 'active' : ''}`}
-            onClick={() => setSelectedActivityType(type)}
-          >
-            {type === 'all' ? 'All' : type}
-          </button>
-        ))}
+  const ActivityTypeFilter = () => {
+    const categories = [
+      { id: 'all', name: 'All' },
+      { id: 'food', name: 'Food & Drink' },
+      { id: 'outdoor', name: 'Outdoor' },
+      { id: 'culture', name: 'Arts & Culture' },
+      { id: 'fitness', name: 'Fitness' },
+      { id: 'community', name: 'Community' },
+      { id: 'entertainment', name: 'Entertainment' },
+      { id: 'shopping', name: 'Shopping' }
+    ];
+
+    return (
+      <div className="activity-filter">
+        <div className="filter-container">
+          {categories.map(category => (
+            <button
+              key={category.id}
+              className={`filter-btn ${selectedActivityType === category.id ? 'active' : ''}`}
+              onClick={() => setSelectedActivityType(category.id)}
+            >
+              {category.name}
+            </button>
+          ))}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const SelectedPostView = ({ post, onClose }) => (
     <div className="selected-post-overlay">
@@ -658,25 +712,10 @@ const Home = () => {
           <h1>Home</h1>
             <QuickActions />
           </div>
-          <div className="header-right">
-            <button className="refresh-btn" onClick={handleRefresh} disabled={isRefreshing}>
-              <span className={isRefreshing ? 'refreshing' : ''}>🔄</span>
-            </button>
-          </div>
+
         </div>
         
-        <div className="stories-section">
-          <div className="stories-container">
-            {stories.map(story => (
-              <div key={story.id} className={`story-item ${story.isViewed ? 'viewed' : ''}`}>
-                <div className="story-avatar">
-                  {story.avatar}
-                </div>
-                <div className="story-author">{story.author}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+
 
         <TodaysHighlights />
         
@@ -707,36 +746,62 @@ const Home = () => {
         
         <div className="feed-content-container">
           {activeSection === 'all' && (
-            <div className="section-content scrollable" onScroll={handleScroll}>
-              {filteredPosts.map(post => (
-                <PostCard key={post.id} post={post} />
-              ))}
+            <div className="section-content scrollable" onScroll={() => setShowBackToTop(document.documentElement.scrollTop > 300)}>
+              {allPosts.filter(post => 
+                selectedActivityType === 'all' || post.activityType === selectedActivityType
+              ).length > 0 ? (
+                allPosts.filter(post => 
+                  selectedActivityType === 'all' || post.activityType === selectedActivityType
+                ).map(post => (
+                  <PostCard key={post.id} post={post} />
+                ))
+              ) : (
+                <div className="no-posts-message">
+                  <p>No posts to show. Start following people or create your first post!</p>
+                </div>
+              )}
             </div>
           )}
           
           {activeSection === 'friends' && (
-            <div className="section-content scrollable" onScroll={handleScroll}>
+            <div className="section-content scrollable" onScroll={() => setShowBackToTop(document.documentElement.scrollTop > 300)}>
               {friendsPosts.filter(post => 
                 selectedActivityType === 'all' || post.activityType === selectedActivityType
-              ).map(post => (
-                <PostCard key={post.id} post={post} />
-              ))}
+              ).length > 0 ? (
+                friendsPosts.filter(post => 
+                  selectedActivityType === 'all' || post.activityType === selectedActivityType
+                ).map(post => (
+                  <PostCard key={post.id} post={post} />
+                ))
+              ) : (
+                <div className="no-posts-message">
+                  <p>No posts from friends yet. Connect with more people!</p>
+                </div>
+              )}
             </div>
           )}
           
           {activeSection === 'following' && (
-            <div className="section-content scrollable" onScroll={handleScroll}>
+            <div className="section-content scrollable" onScroll={() => setShowBackToTop(document.documentElement.scrollTop > 300)}>
               {followingPosts.filter(post => 
                 selectedActivityType === 'all' || post.activityType === selectedActivityType
-              ).map(post => (
-                <PostCard key={post.id} post={post} />
-              ))}
+              ).length > 0 ? (
+                followingPosts.filter(post => 
+                  selectedActivityType === 'all' || post.activityType === selectedActivityType
+                ).map(post => (
+                  <PostCard key={post.id} post={post} />
+                ))
+              ) : (
+                <div className="no-posts-message">
+                  <p>No posts from people you're following. Start following more people!</p>
+                </div>
+              )}
             </div>
           )}
         </div>
 
         {showBackToTop && (
-          <button className="back-to-top-btn" onClick={scrollToTop}>
+          <button className="back-to-top-btn" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <span>↑</span>
           </button>
         )}
@@ -744,7 +809,30 @@ const Home = () => {
               <CreatePostModal
           isOpen={showCreatePostModal}
           onClose={() => setShowCreatePostModal(false)}
-          onSubmit={handleCreatePost}
+          onSubmit={async (postData) => {
+            try {
+              const { data: { user } } = await supabase.auth.getUser();
+              if (!user) {
+                showNotification('Please log in to create a post', 'error');
+                return;
+              }
+              // Use the postService to create the post
+              await postService.createPost({
+                content: postData.content,
+                location: postData.location,
+                imageUrl: postData.imageUrl,
+                tags: postData.tags
+              });
+
+              showNotification('Post created successfully!', 'success');
+              
+              // Refresh posts after creating
+              await fetchPosts();
+            } catch (err) {
+              showNotification('Failed to create post: ' + (err.message || err), 'error');
+              console.error('Create post error:', err);
+            }
+          }}
         />
     </div>
   );

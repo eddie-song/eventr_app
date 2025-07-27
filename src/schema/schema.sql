@@ -601,6 +601,586 @@ CREATE POLICY "Users can update their own reviews" ON business_location_reviews 
 CREATE POLICY "Users can delete their own reviews" ON business_location_reviews FOR DELETE USING (auth.uid() = user_id);
 
 -- ========================================
+-- MESSAGING SYSTEM TABLES
+-- ========================================
+
+-- ========================================
+-- CONVERSATIONS TABLE
+-- ========================================
+-- Table for storing conversation metadata
+--
+-- Columns:
+--   uuid: UUID (PRIMARY KEY) - Unique conversation identifier
+--   created_at: TIMESTAMP WITH TIME ZONE - Conversation creation time
+--   updated_at: TIMESTAMP WITH TIME ZONE - Last message time
+--   conversation_type: TEXT - Type of conversation ('direct', 'group')
+--   name: TEXT - Group name (for group conversations)
+--   created_by: UUID - UUID of the user who created the conversation
+
+CREATE TABLE IF NOT EXISTS conversations (
+  uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  conversation_type TEXT NOT NULL DEFAULT 'direct' CHECK (conversation_type IN ('direct', 'group')),
+  name TEXT, -- Only for group conversations
+  created_by UUID REFERENCES profiles(uuid) ON DELETE SET NULL
+);
+
+-- Enable RLS for conversations
+GRANT SELECT, INSERT, UPDATE, DELETE ON conversations TO authenticated;
+ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+
+-- Policies for conversations
+CREATE POLICY "Users can view conversations they participate in" ON conversations FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM conversation_participants 
+    WHERE conversation_participants.conversation_id = conversations.uuid 
+    AND conversation_participants.user_id = auth.uid()
+  )
+);
+CREATE POLICY "Users can create conversations" ON conversations FOR INSERT WITH CHECK (auth.uid() = created_by);
+CREATE POLICY "Users can update conversations they created" ON conversations FOR UPDATE USING (auth.uid() = created_by);
+
+-- ========================================
+-- CONVERSATION_PARTICIPANTS TABLE
+-- ========================================
+-- Junction table for conversation participants
+--
+-- Columns:
+--   conversation_id: UUID (NOT NULL) - UUID of the conversation
+--   user_id: UUID (NOT NULL) - UUID of the participant
+--   joined_at: TIMESTAMP WITH TIME ZONE - When the user joined
+--   role: TEXT - User role in conversation ('member', 'admin')
+--   PRIMARY KEY: (conversation_id, user_id)
+
+CREATE TABLE IF NOT EXISTS conversation_participants (
+  conversation_id UUID NOT NULL REFERENCES conversations(uuid) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(uuid) ON DELETE CASCADE,
+  joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  role TEXT DEFAULT 'member' CHECK (role IN ('member', 'admin')),
+  PRIMARY KEY (conversation_id, user_id)
+);
+
+-- Enable RLS for conversation_participants
+GRANT SELECT, INSERT, UPDATE, DELETE ON conversation_participants TO authenticated;
+ALTER TABLE conversation_participants ENABLE ROW LEVEL SECURITY;
+
+-- Policies for conversation_participants
+CREATE POLICY "Users can view participants in their conversations" ON conversation_participants FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM conversation_participants cp2
+    WHERE cp2.conversation_id = conversation_participants.conversation_id 
+    AND cp2.user_id = auth.uid()
+  )
+);
+CREATE POLICY "Users can add themselves to conversations" ON conversation_participants FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can remove themselves from conversations" ON conversation_participants FOR DELETE USING (auth.uid() = user_id);
+
+-- ========================================
+-- MESSAGES TABLE
+-- ========================================
+-- Table for storing individual messages
+--
+-- Columns:
+--   uuid: UUID (PRIMARY KEY) - Unique message identifier
+--   conversation_id: UUID (NOT NULL) - UUID of the conversation
+--   sender_id: UUID (NOT NULL) - UUID of the message sender
+--   content: TEXT (NOT NULL) - Message content
+--   message_type: TEXT - Type of message ('text', 'image', 'file')
+--   file_url: TEXT - URL to attached file
+--   created_at: TIMESTAMP WITH TIME ZONE - Message creation time
+--   updated_at: TIMESTAMP WITH TIME ZONE - Last edit time
+--   is_edited: BOOLEAN - Whether message has been edited
+--   reply_to: UUID - UUID of the message this is replying to
+
+CREATE TABLE IF NOT EXISTS messages (
+  uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id UUID NOT NULL REFERENCES conversations(uuid) ON DELETE CASCADE,
+  sender_id UUID NOT NULL REFERENCES profiles(uuid) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  message_type TEXT DEFAULT 'text' CHECK (message_type IN ('text', 'image', 'file')),
+  file_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  is_edited BOOLEAN DEFAULT FALSE,
+  reply_to UUID REFERENCES messages(uuid) ON DELETE SET NULL
+);
+
+-- Enable RLS for messages
+GRANT SELECT, INSERT, UPDATE, DELETE ON messages TO authenticated;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+
+-- Policies for messages
+CREATE POLICY "Users can view messages in their conversations" ON messages FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM conversation_participants 
+    WHERE conversation_participants.conversation_id = messages.conversation_id 
+    AND conversation_participants.user_id = auth.uid()
+  )
+);
+CREATE POLICY "Users can send messages to their conversations" ON messages FOR INSERT WITH CHECK (
+  auth.uid() = sender_id AND
+  EXISTS (
+    SELECT 1 FROM conversation_participants 
+    WHERE conversation_participants.conversation_id = messages.conversation_id 
+    AND conversation_participants.user_id = auth.uid()
+  )
+);
+CREATE POLICY "Users can edit their own messages" ON messages FOR UPDATE USING (auth.uid() = sender_id);
+CREATE POLICY "Users can delete their own messages" ON messages FOR DELETE USING (auth.uid() = sender_id);
+
+-- ========================================
+-- MESSAGE_READS TABLE
+-- ========================================
+-- Table for tracking message read status
+--
+-- Columns:
+--   message_id: UUID (NOT NULL) - UUID of the message
+--   user_id: UUID (NOT NULL) - UUID of the user who read the message
+--   read_at: TIMESTAMP WITH TIME ZONE - When the message was read
+--   PRIMARY KEY: (message_id, user_id)
+
+CREATE TABLE IF NOT EXISTS message_reads (
+  message_id UUID NOT NULL REFERENCES messages(uuid) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(uuid) ON DELETE CASCADE,
+  read_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (message_id, user_id)
+);
+
+-- Enable RLS for message_reads
+GRANT SELECT, INSERT, UPDATE, DELETE ON message_reads TO authenticated;
+ALTER TABLE message_reads ENABLE ROW LEVEL SECURITY;
+
+-- Policies for message_reads
+CREATE POLICY "Users can view their own read status" ON message_reads FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can mark messages as read" ON message_reads FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- ========================================
+-- HELPER FUNCTIONS FOR MESSAGING
+-- ========================================
+
+-- Function to get unread message count for a user
+CREATE OR REPLACE FUNCTION get_unread_message_count(user_uuid UUID)
+RETURNS BIGINT AS $$
+BEGIN
+  RETURN (
+    SELECT COUNT(*)
+    FROM messages m
+    JOIN conversation_participants cp ON m.conversation_id = cp.conversation_id
+    LEFT JOIN message_reads mr ON m.uuid = mr.message_id AND mr.user_id = user_uuid
+    WHERE cp.user_id = user_uuid 
+    AND m.sender_id != user_uuid
+    AND mr.message_id IS NULL
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get conversation participants
+CREATE OR REPLACE FUNCTION get_conversation_participants(conversation_uuid UUID)
+RETURNS TABLE (
+  user_id UUID,
+  username TEXT,
+  display_name TEXT,
+  avatar_url TEXT,
+  role TEXT,
+  joined_at TIMESTAMP WITH TIME ZONE
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    p.uuid,
+    p.username,
+    p.display_name,
+    p.avatar_url,
+    cp.role,
+    cp.joined_at
+  FROM conversation_participants cp
+  JOIN profiles p ON cp.user_id = p.uuid
+  WHERE cp.conversation_id = conversation_uuid
+  ORDER BY cp.joined_at ASC;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to create or get direct conversation between two users
+CREATE OR REPLACE FUNCTION get_or_create_direct_conversation(user1_uuid UUID, user2_uuid UUID)
+RETURNS UUID AS $$
+DECLARE
+  existing_conversation_id UUID;
+  new_conversation_id UUID;
+BEGIN
+  -- Check if direct conversation already exists
+  SELECT c.uuid INTO existing_conversation_id
+  FROM conversations c
+  JOIN conversation_participants cp1 ON c.uuid = cp1.conversation_id
+  JOIN conversation_participants cp2 ON c.uuid = cp2.conversation_id
+  WHERE c.conversation_type = 'direct'
+  AND cp1.user_id = user1_uuid
+  AND cp2.user_id = user2_uuid
+  AND cp1.user_id != cp2.user_id
+  LIMIT 1;
+
+  IF existing_conversation_id IS NOT NULL THEN
+    RETURN existing_conversation_id;
+  END IF;
+
+  -- Create new direct conversation
+  INSERT INTO conversations (conversation_type, created_by)
+  VALUES ('direct', user1_uuid)
+  RETURNING uuid INTO new_conversation_id;
+
+  -- Add both users as participants
+  INSERT INTO conversation_participants (conversation_id, user_id)
+  VALUES 
+    (new_conversation_id, user1_uuid),
+    (new_conversation_id, user2_uuid);
+
+  RETURN new_conversation_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ========================================
+-- TRIGGERS FOR MESSAGING
+-- ========================================
+
+-- Trigger to update conversation updated_at when new message is sent
+CREATE OR REPLACE FUNCTION update_conversation_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE conversations 
+  SET updated_at = NEW.created_at 
+  WHERE uuid = NEW.conversation_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER messages_update_conversation_timestamp
+  AFTER INSERT ON messages
+  FOR EACH ROW
+  EXECUTE FUNCTION update_conversation_timestamp();
+
+-- ========================================
+-- NOTIFICATIONS TABLE
+-- ========================================
+-- Table for storing user notifications
+--
+-- Columns:
+--   uuid: UUID (PRIMARY KEY) - Unique notification identifier
+--   user_id: UUID (NOT NULL) - UUID of the user receiving the notification
+--   type: TEXT (NOT NULL) - Type of notification ('follow', 'message', 'like', 'comment')
+--   title: TEXT (NOT NULL) - Notification title
+--   message: TEXT (NOT NULL) - Notification message
+--   data: JSONB - Additional data for the notification
+--   is_read: BOOLEAN - Whether the notification has been read
+--   created_at: TIMESTAMP WITH TIME ZONE - When the notification was created
+--   updated_at: TIMESTAMP WITH TIME ZONE - Last update time
+
+CREATE TABLE IF NOT EXISTS notifications (
+  uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(uuid) ON DELETE CASCADE,
+  type TEXT NOT NULL CHECK (type IN ('follow', 'message', 'like', 'comment')),
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  data JSONB DEFAULT '{}',
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS for notifications
+GRANT SELECT, INSERT, UPDATE, DELETE ON notifications TO authenticated;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+
+-- Policies for notifications
+CREATE POLICY "Users can view their own notifications" ON notifications FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can update their own notifications" ON notifications FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own notifications" ON notifications FOR DELETE USING (auth.uid() = user_id);
+
+-- Create index for better performance
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
+
+-- ========================================
+-- TRIGGERS FOR NOTIFICATIONS
+-- ========================================
+
+-- Trigger function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_notifications_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER notifications_update_updated_at
+  BEFORE UPDATE ON notifications
+  FOR EACH ROW
+  EXECUTE FUNCTION update_notifications_updated_at();
+
+-- ========================================
+-- HELPER FUNCTIONS FOR NOTIFICATIONS
+-- ========================================
+
+-- Function to create a follow notification
+CREATE OR REPLACE FUNCTION create_follow_notification(follower_uuid UUID, following_uuid UUID)
+RETURNS UUID AS $$
+DECLARE
+  follower_profile RECORD;
+  notification_id UUID;
+BEGIN
+  -- Get follower profile information
+  SELECT username, display_name, avatar_url INTO follower_profile
+  FROM profiles WHERE uuid = follower_uuid;
+  
+  -- Create notification
+  INSERT INTO notifications (user_id, type, title, message, data)
+  VALUES (
+    following_uuid,
+    'follow',
+    'New Follower',
+    COALESCE(follower_profile.display_name, follower_profile.username) || ' started following you',
+    jsonb_build_object(
+      'follower_id', follower_uuid,
+      'follower_username', follower_profile.username,
+      'follower_display_name', follower_profile.display_name,
+      'follower_avatar_url', follower_profile.avatar_url
+    )
+  ) RETURNING uuid INTO notification_id;
+  
+  RETURN notification_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to create a like notification
+CREATE OR REPLACE FUNCTION create_like_notification(liker_uuid UUID, post_uuid UUID)
+RETURNS UUID AS $$
+DECLARE
+  liker_profile RECORD;
+  post_owner_uuid UUID;
+  post_content TEXT;
+  notification_id UUID;
+BEGIN
+  -- Get liker profile information
+  SELECT username, display_name, avatar_url INTO liker_profile
+  FROM profiles WHERE uuid = liker_uuid;
+  
+  -- Get post information
+  SELECT user_id, post_body_text INTO post_owner_uuid, post_content
+  FROM posts WHERE uuid = post_uuid;
+  
+  -- Don't create notification if user likes their own post
+  IF liker_uuid = post_owner_uuid THEN
+    RETURN NULL;
+  END IF;
+  
+  -- Create notification
+  INSERT INTO notifications (user_id, type, title, message, data)
+  VALUES (
+    post_owner_uuid,
+    'like',
+    'New Like',
+    COALESCE(liker_profile.display_name, liker_profile.username) || ' liked your post',
+    jsonb_build_object(
+      'liker_id', liker_uuid,
+      'liker_username', liker_profile.username,
+      'liker_display_name', liker_profile.display_name,
+      'liker_avatar_url', liker_profile.avatar_url,
+      'post_id', post_uuid,
+      'post_content', post_content
+    )
+  ) RETURNING uuid INTO notification_id;
+  
+  RETURN notification_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to create a comment notification
+CREATE OR REPLACE FUNCTION create_comment_notification(commenter_uuid UUID, comment_uuid UUID)
+RETURNS UUID AS $$
+DECLARE
+  commenter_profile RECORD;
+  comment_data RECORD;
+  post_owner_uuid UUID;
+  notification_id UUID;
+BEGIN
+  -- Get commenter profile information
+  SELECT username, display_name, avatar_url INTO commenter_profile
+  FROM profiles WHERE uuid = commenter_uuid;
+  
+  -- Get comment and post information
+  SELECT c.comment_text, c.post_id, p.user_id, p.post_body_text 
+  INTO comment_data
+  FROM comments c
+  JOIN posts p ON c.post_id = p.uuid
+  WHERE c.uuid = comment_uuid;
+  
+  -- Don't create notification if user comments on their own post
+  IF commenter_uuid = comment_data.user_id THEN
+    RETURN NULL;
+  END IF;
+  
+  -- Create notification
+  INSERT INTO notifications (user_id, type, title, message, data)
+  VALUES (
+    comment_data.user_id,
+    'comment',
+    'New Comment',
+    COALESCE(commenter_profile.display_name, commenter_profile.username) || ' commented on your post',
+    jsonb_build_object(
+      'commenter_id', commenter_uuid,
+      'commenter_username', commenter_profile.username,
+      'commenter_display_name', commenter_profile.display_name,
+      'commenter_avatar_url', commenter_profile.avatar_url,
+      'comment_id', comment_uuid,
+      'comment_text', comment_data.comment_text,
+      'post_id', comment_data.post_id,
+      'post_content', comment_data.post_body_text
+    )
+  ) RETURNING uuid INTO notification_id;
+  
+  RETURN notification_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to create a message notification
+CREATE OR REPLACE FUNCTION create_message_notification(sender_uuid UUID, conversation_uuid UUID)
+RETURNS UUID AS $$
+DECLARE
+  sender_profile RECORD;
+  recipient_uuid UUID;
+  notification_id UUID;
+BEGIN
+  -- Get sender profile information
+  SELECT username, display_name, avatar_url INTO sender_profile
+  FROM profiles WHERE uuid = sender_uuid;
+  
+  -- Get recipient (other participant in conversation)
+  SELECT user_id INTO recipient_uuid
+  FROM conversation_participants
+  WHERE conversation_id = conversation_uuid AND user_id != sender_uuid
+  LIMIT 1;
+  
+  -- Create notification
+  INSERT INTO notifications (user_id, type, title, message, data)
+  VALUES (
+    recipient_uuid,
+    'message',
+    'New Message',
+    'New message from ' || COALESCE(sender_profile.display_name, sender_profile.username),
+    jsonb_build_object(
+      'sender_id', sender_uuid,
+      'sender_username', sender_profile.username,
+      'sender_display_name', sender_profile.display_name,
+      'sender_avatar_url', sender_profile.avatar_url,
+      'conversation_id', conversation_uuid
+    )
+  ) RETURNING uuid INTO notification_id;
+  
+  RETURN notification_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get unread notification count
+CREATE OR REPLACE FUNCTION get_unread_notification_count(user_uuid UUID)
+RETURNS BIGINT AS $$
+BEGIN
+  RETURN (
+    SELECT COUNT(*)
+    FROM notifications
+    WHERE user_id = user_uuid AND is_read = FALSE
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to mark notification as read
+CREATE OR REPLACE FUNCTION mark_notification_as_read(notification_uuid UUID, user_uuid UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  UPDATE notifications 
+  SET is_read = TRUE, updated_at = NOW()
+  WHERE uuid = notification_uuid AND user_id = user_uuid;
+  
+  RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to mark all notifications as read
+CREATE OR REPLACE FUNCTION mark_all_notifications_as_read(user_uuid UUID)
+RETURNS INTEGER AS $$
+DECLARE
+  updated_count INTEGER;
+BEGIN
+  UPDATE notifications 
+  SET is_read = TRUE, updated_at = NOW()
+  WHERE user_id = user_uuid AND is_read = FALSE;
+  
+  GET DIAGNOSTICS updated_count = ROW_COUNT;
+  RETURN updated_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ========================================
+-- TRIGGERS TO AUTO-CREATE NOTIFICATIONS
+-- ========================================
+
+-- Trigger to create follow notification
+CREATE OR REPLACE FUNCTION trigger_follow_notification()
+RETURNS TRIGGER AS $$
+BEGIN
+  PERFORM create_follow_notification(NEW.follower_id, NEW.following_id);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER create_follow_notification_trigger
+  AFTER INSERT ON user_follows
+  FOR EACH ROW
+  EXECUTE FUNCTION trigger_follow_notification();
+
+-- Trigger to create like notification
+CREATE OR REPLACE FUNCTION trigger_like_notification()
+RETURNS TRIGGER AS $$
+BEGIN
+  PERFORM create_like_notification(NEW.user_id, NEW.post_id);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER create_like_notification_trigger
+  AFTER INSERT ON post_likes
+  FOR EACH ROW
+  EXECUTE FUNCTION trigger_like_notification();
+
+-- Trigger to create comment notification
+CREATE OR REPLACE FUNCTION trigger_comment_notification()
+RETURNS TRIGGER AS $$
+BEGIN
+  PERFORM create_comment_notification(NEW.user_id, NEW.uuid);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER create_comment_notification_trigger
+  AFTER INSERT ON comments
+  FOR EACH ROW
+  EXECUTE FUNCTION trigger_comment_notification();
+
+-- Trigger to create message notification
+CREATE OR REPLACE FUNCTION trigger_message_notification()
+RETURNS TRIGGER AS $$
+BEGIN
+  PERFORM create_message_notification(NEW.sender_id, NEW.conversation_id);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER create_message_notification_trigger
+  AFTER INSERT ON messages
+  FOR EACH ROW
+  EXECUTE FUNCTION trigger_message_notification();
+
+-- ========================================
 -- UPDATE RECOMMENDATION_TAGS TABLE
 -- ========================================
 -- Update the existing recommendation_tags table to reference business_locations

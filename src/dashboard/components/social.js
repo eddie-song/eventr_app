@@ -416,7 +416,14 @@ const Social = () => {
             ) : (
               <div className="users-grid">
                 {filteredUsers.map(user => (
-                  <UserCard key={user.uuid} user={user} />
+                  <UserCard 
+                    key={user.uuid} 
+                    user={user} 
+                    onFollowChange={(userId, isFollowing) => {
+                      console.log(`User ${userId} follow status changed to: ${isFollowing}`);
+                      // You could update the user list or show a notification here
+                    }}
+                  />
                 ))}
               </div>
             )}
