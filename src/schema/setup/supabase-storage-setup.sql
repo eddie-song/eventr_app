@@ -1,6 +1,6 @@
 -- Create storage bucket for avatars
 INSERT INTO storage.buckets (id, name, public) 
-VALUES ('avatars', 'avatars', true)
+VALUES ('avatars', 'avatars', false)
 ON CONFLICT (id) DO NOTHING;
 
 -- Enable RLS on storage.objects
@@ -27,18 +27,41 @@ FOR DELETE USING (
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
--- Policy to allow public read access to avatars
-CREATE POLICY "Public read access to avatars" ON storage.objects
-FOR SELECT USING (bucket_id = 'avatars'); 
+-- Policy to allow authenticated users to view avatars (restricted access)
+CREATE POLICY "Authenticated users can view avatars" ON storage.objects
+FOR SELECT USING (
+  bucket_id = 'avatars' 
+  AND auth.role() = 'authenticated'
+); 
 
 -- Create a storage bucket for recommendation images
-insert into storage.buckets (id, name, public) values ('recommendations', 'recommendations', true)
+insert into storage.buckets (id, name, public) values ('recommendations', 'recommendations', false)
   on conflict (id) do nothing;
 
--- Grant authenticated users permissions on the recommendations bucket
--- (Supabase UI may be used for fine-grained policies, but this is a basic setup)
--- You may want to further restrict write/delete to only the user's own files
--- For now, allow all authenticated users to upload, update, and delete
+-- Policy to allow authenticated users to upload their own recommendation images
+CREATE POLICY "Users can upload their own recommendation images" ON storage.objects
+FOR INSERT WITH CHECK (
+  bucket_id = 'recommendations' 
+  AND auth.uid()::text = (storage.foldername(name))[1]
+);
 
--- Policy: Allow authenticated users to upload, update, and delete their own files
--- (You may want to add RLS policies in the Supabase dashboard for more control) 
+-- Policy to allow users to update their own recommendation images
+CREATE POLICY "Users can update their own recommendation images" ON storage.objects
+FOR UPDATE USING (
+  bucket_id = 'recommendations' 
+  AND auth.uid()::text = (storage.foldername(name))[1]
+);
+
+-- Policy to allow users to delete their own recommendation images
+CREATE POLICY "Users can delete their own recommendation images" ON storage.objects
+FOR DELETE USING (
+  bucket_id = 'recommendations' 
+  AND auth.uid()::text = (storage.foldername(name))[1]
+);
+
+-- Policy to allow authenticated users to view recommendation images
+CREATE POLICY "Authenticated users can view recommendation images" ON storage.objects
+FOR SELECT USING (
+  bucket_id = 'recommendations' 
+  AND auth.role() = 'authenticated'
+); 

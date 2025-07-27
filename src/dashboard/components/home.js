@@ -358,7 +358,6 @@ const Home = () => {
   const QuickActions = () => (
     <div className="quick-actions">
       <button className="quick-action-btn" onClick={() => setShowQuickActions(!showQuickActions)}>
-        <span>⚡</span>
         <span>Quick Actions</span>
       </button>
       {showQuickActions && (
@@ -367,19 +366,15 @@ const Home = () => {
             setShowCreatePostModal(true);
             setShowQuickActions(false);
           }}>
-            <span>📝</span>
             <span>Create Post</span>
           </button>
           <button className="action-menu-item">
-            <span>📍</span>
             <span>Check In</span>
           </button>
           <button className="action-menu-item">
-            <span>📸</span>
             <span>Share Photo</span>
           </button>
           <button className="action-menu-item">
-            <span>🎯</span>
             <span>Find Events</span>
           </button>
         </div>

@@ -1,0 +1,193 @@
+import React from 'react';
+
+interface Person {
+  uuid: string;
+  service: string;
+  description?: string;
+  location?: string;
+  contact_info?: string;
+  service_type?: string;
+  hourly_rate?: number;
+  review_count?: number;
+  rating?: number;
+  created_at?: string;
+  profiles?: {
+    uuid: string;
+    username: string;
+    display_name?: string;
+    avatar_url?: string;
+  };
+}
+
+interface PersonModalProps {
+  person: Person;
+  onClose: () => void;
+  userProfile?: any;
+}
+
+const PersonModal: React.FC<PersonModalProps> = ({ person, onClose, userProfile }) => {
+  const getServiceTypeColor = (serviceType: string) => {
+    const colors: { [key: string]: string } = {
+      professional: 'bg-blue-100 text-blue-800',
+      creative: 'bg-purple-100 text-purple-800',
+      technical: 'bg-green-100 text-green-800',
+      healthcare: 'bg-red-100 text-red-800',
+      education: 'bg-yellow-100 text-yellow-800',
+      consulting: 'bg-indigo-100 text-indigo-800',
+      maintenance: 'bg-gray-100 text-gray-800',
+      transportation: 'bg-orange-100 text-orange-800',
+      general: 'bg-gray-100 text-gray-800'
+    };
+    return colors[serviceType] || colors.general;
+  };
+
+  const formatPrice = (price?: number) => {
+    if (!price) return 'Negotiable';
+    return `$${price.toFixed(2)}/hr`;
+  };
+
+  const formatRating = (rating?: number) => {
+    if (!rating || rating === 0) return null;
+    return rating.toFixed(1);
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Recently';
+    return new Date(dateString).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+                         <div className="flex items-center space-x-4">
+               <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-xl">
+                 {person.service[0]?.toUpperCase() || 'S'}
+               </div>
+               <div>
+                 <h2 className="text-2xl font-bold text-gray-900">{person.service}</h2>
+                 <p className="text-gray-600">
+                   by {person.profiles?.display_name || `@${person.profiles?.username}` || 'You'}
+                 </p>
+               </div>
+             </div>
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-6">
+          {/* Service Type Badge */}
+          <div className="mb-6">
+            <span className={`px-3 py-1 rounded-full text-sm font-medium ${getServiceTypeColor(person.service_type || 'general')}`}>
+              {person.service_type || 'General'} Service
+            </span>
+          </div>
+
+          {/* Description */}
+          {person.description && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
+              <p className="text-gray-700 leading-relaxed">{person.description}</p>
+            </div>
+          )}
+
+          {/* Details Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {/* Location */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Location</h3>
+              <div className="flex items-center text-gray-700">
+                <span className="mr-2">📍</span>
+                <span>{person.location || 'Location not specified'}</span>
+              </div>
+            </div>
+
+            {/* Price */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Rate</h3>
+              <div className="text-green-600 font-semibold text-lg">
+                {formatPrice(person.hourly_rate)}
+              </div>
+            </div>
+
+            {/* Contact Info */}
+            {person.contact_info && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Contact</h3>
+                <div className="flex items-center text-gray-700">
+                  <span className="mr-2">📞</span>
+                  <span>{person.contact_info}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Rating */}
+            {formatRating(person.rating) && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Rating</h3>
+                <div className="flex items-center">
+                  <span className="text-yellow-400 text-xl mr-2">★</span>
+                  <span className="text-lg font-semibold text-gray-700">
+                    {formatRating(person.rating)}
+                  </span>
+                  {person.review_count && person.review_count > 0 && (
+                    <span className="text-gray-500 ml-2">
+                      ({person.review_count} reviews)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Created Date */}
+          <div className="border-t border-gray-200 pt-6">
+            <p className="text-sm text-gray-500">
+              Service created {formatDate(person.created_at)}
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t border-gray-200 bg-gray-50">
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Close
+            </button>
+            {person.contact_info && (
+              <button
+                onClick={() => {
+                  // Copy contact info to clipboard
+                  navigator.clipboard.writeText(person.contact_info || '');
+                  // You could add a toast notification here
+                }}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Copy Contact
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PersonModal; 

@@ -2,6 +2,73 @@ import { supabase } from '../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 
 export const postService = {
+  // Get all posts with tags and author information
+  async getAllPosts() {
+    try {
+      // Get posts
+      const { data: posts, error: postsError } = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (postsError) throw postsError;
+
+      // If no posts, return empty array
+      if (!posts || posts.length === 0) {
+        return [];
+      }
+
+      // Get user IDs from posts
+      const userIds = posts.map(post => post.user_id).filter(id => id);
+
+      // Get profiles for these users
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('uuid, username, display_name, avatar_url')
+        .in('uuid', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Get tags for all posts
+      const postIds = posts.map(post => post.uuid);
+      const { data: tags, error: tagsError } = await supabase
+        .from('post_tags')
+        .select('post_id, tag')
+        .in('post_id', postIds);
+
+      if (tagsError) throw tagsError;
+
+      // Create a map of profiles by user ID
+      const profilesMap = {};
+      if (profiles) {
+        profiles.forEach(profile => {
+          profilesMap[profile.uuid] = profile;
+        });
+      }
+
+      // Group tags by post_id
+      const tagsByPost = {};
+      tags.forEach(tag => {
+        if (!tagsByPost[tag.post_id]) {
+          tagsByPost[tag.post_id] = [];
+        }
+        tagsByPost[tag.post_id].push(tag.tag);
+      });
+
+      // Combine posts with their profiles and tags
+      const postsWithDetails = posts.map(post => ({
+        ...post,
+        profiles: profilesMap[post.user_id] || null,
+        tags: tagsByPost[post.uuid] || []
+      }));
+
+      return postsWithDetails;
+    } catch (error) {
+      console.error('Error fetching all posts:', error);
+      throw error;
+    }
+  },
+
   // Get posts with tags for a user
   async getUserPosts(userId) {
     try {

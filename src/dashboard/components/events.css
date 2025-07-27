@@ -114,6 +114,41 @@
   margin-bottom: 32px;
 }
 
+.service-coming-soon {
+  background: white;
+  border-radius: 16px;
+  padding: 60px 40px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e1e5e9;
+  grid-column: 1 / -1;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.coming-soon-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.7;
+}
+
+.service-coming-soon h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin: 0 0 8px 0;
+}
+
+.service-coming-soon p {
+  font-size: 16px;
+  color: #86868b;
+  margin: 0;
+  font-weight: 400;
+}
+
 .recommended-event-card {
   background: white;
   border-radius: 16px;

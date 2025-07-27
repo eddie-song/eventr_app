@@ -23,6 +23,11 @@ import EventModal from './EventModal';
 import { businessLocationService } from '../../services/businessLocationService';
 import BusinessLocationCard from './create-components/businessCard.tsx';
 import BusinessModal from './create-components/businessModal.tsx';
+import PostCard from '../profileComponents/postCard';
+import PostModal from '../profileComponents/postModal';
+import { personService } from '../../services/personService';
+import PersonCard from '../profileComponents/personCard';
+import PersonModal from '../profileComponents/personModal';
 
 const EditProfileModal = ({
   showEditModal,
@@ -461,451 +466,7 @@ const EditProfileModal = ({
   );
 };
 
-// Instagram-like Post Modal Component
-const PostModal = ({ post, onClose, userProfile, onCommentAdded }) => {
-  const [likeState, setLikeState] = React.useState({
-    liked: false,
-    likesCount: post.like_count || 0
-  });
-  const [commentText, setCommentText] = React.useState('');
-  const [showComments, setShowComments] = React.useState(true); // Show comments by default
-  const [comments, setComments] = React.useState([]);
-  const [commentsLoading, setCommentsLoading] = React.useState(false);
-  const [commentsError, setCommentsError] = React.useState(null);
-  const [addingComment, setAddingComment] = React.useState(false);
 
-  // On mount, check if the user has liked the post
-  React.useEffect(() => {
-    let isMounted = true;
-    async function checkLiked() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const liked = await likeService.hasUserLikedPost(post.uuid, user.id);
-        if (isMounted) {
-          setLikeState(prev => ({ ...prev, liked }));
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
-    checkLiked();
-    return () => { isMounted = false; };
-  }, [post.uuid]);
-
-  // Fetch comments when modal opens or post changes
-  React.useEffect(() => {
-    if (!showComments) return;
-    setCommentsLoading(true);
-    setCommentsError(null);
-    commentService.getCommentsForPost(post.uuid)
-      .then(setComments)
-      .catch(err => setCommentsError('Failed to load comments'))
-      .finally(() => setCommentsLoading(false));
-  }, [showComments, post.uuid]);
-
-  const handleLike = React.useCallback(async () => {
-    // Optimistic update
-    setLikeState(prev => {
-      const liked = !prev.liked;
-      const likesCount = liked ? prev.likesCount + 1 : Math.max(0, prev.likesCount - 1);
-      return { liked, likesCount };
-    });
-
-    try {
-      const result = await likeService.likePost(post.uuid);
-      // Update with actual result from server
-      setLikeState({ liked: result.liked, likesCount: result.likesCount });
-    } catch (e) {
-      console.error('Like error:', e);
-      // Revert on error
-      setLikeState(prev => ({
-        liked: !prev.liked,
-        likesCount: post.like_count || 0
-      }));
-    }
-  }, [post.uuid, post.like_count]);
-
-  const handleSubmitComment = async (e) => {
-    e.preventDefault();
-    if (!commentText.trim()) return;
-    setAddingComment(true);
-    try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-      // Optimistically add comment
-      const newComment = {
-        uuid: Math.random().toString(36).slice(2),
-        user_id: user.id,
-        comment_text: commentText,
-        created_at: new Date().toISOString(),
-        post_id: post.uuid,
-        parent_comment_id: null,
-        like_count: 0,
-        reply_count: 0
-      };
-      setComments(prev => [newComment, ...prev]);
-      setCommentText('');
-      await commentService.addComment({
-        postId: post.uuid,
-        userId: user.id,
-        commentText,
-      });
-      // Refetch to get real data (with uuid, etc)
-      const fresh = await commentService.getCommentsForPost(post.uuid);
-      setComments(fresh);
-      // Notify parent to update comment count in UI
-      if (onCommentAdded) onCommentAdded(post.uuid);
-    } catch (err) {
-      setCommentsError('Failed to add comment');
-    } finally {
-      setAddingComment(false);
-    }
-  };
-
-  if (!post) return null;
-
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.9)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 2000,
-      padding: '20px'
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        maxWidth: '900px',
-        width: '100%',
-        maxHeight: '90vh',
-        display: 'flex',
-        overflow: 'hidden',
-        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
-      }}>
-        {/* Left side - Image */}
-        <div style={{
-          flex: '1',
-          backgroundColor: '#000',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '400px'
-        }}>
-          {post.image ? (
-            <img
-              src={post.image}
-              alt="Post"
-              style={{
-                maxWidth: '100%',
-                maxHeight: '100%',
-                objectFit: 'contain'
-              }}
-              onError={(e) => {
-                e.target.style.display = 'none';
-              }}
-            />
-          ) : (
-            <div style={{
-              color: '#666',
-              fontSize: '18px',
-              textAlign: 'center'
-            }}>
-              No image
-            </div>
-          )}
-        </div>
-
-        {/* Right side - Content */}
-        <div style={{
-          flex: '1',
-          display: 'flex',
-          flexDirection: 'column',
-          maxWidth: '400px',
-          minWidth: '300px'
-        }}>
-          {/* Header */}
-          <div style={{
-            padding: '16px',
-            borderBottom: '1px solid #e1e5e9',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              backgroundColor: '#f0f0f0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '16px'
-            }}>
-              {userProfile?.avatar_url ? (
-                <img
-                  src={userProfile.avatar_url}
-                  alt="avatar"
-                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
-                  onError={e => (e.target.style.display = 'none')}
-                />
-              ) : (
-                '👤'
-              )}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: '600', fontSize: '14px' }}>
-                {userProfile?.display_name || userProfile?.username || 'User'}
-              </div>
-              <div style={{ fontSize: '12px', color: '#86868b' }}>
-                {post.location || 'Unknown location'}
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              style={{
-                background: 'none',
-                border: 'none',
-                fontSize: '20px',
-                cursor: 'pointer',
-                padding: '4px',
-                color: '#86868b'
-              }}
-            >
-              ×
-            </button>
-          </div>
-
-          {/* Content */}
-          <div style={{
-            flex: 1,
-            overflow: 'auto',
-            padding: '16px'
-          }}>
-            {/* Post text */}
-            <div style={{ marginBottom: '16px' }}>
-              <p style={{
-                fontSize: '14px',
-                lineHeight: '1.4',
-                margin: '0 0 12px 0',
-                color: '#1d1d1f'
-              }}>
-                {post.content}
-              </p>
-
-              {/* Tags */}
-              {post.tags && post.tags.length > 0 && (
-                <div style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '6px',
-                  marginBottom: '12px'
-                }}>
-                  {post.tags.map((tag, index) => (
-                    <span key={index} style={{
-                      backgroundColor: '#E3F2FD',
-                      color: '#1976D2',
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      fontWeight: '500'
-                    }}>
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* Location */}
-              {post.location && (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '12px',
-                  color: '#86868b',
-                  marginBottom: '12px'
-                }}>
-                  <span>📍</span>
-                  <span>{post.location}</span>
-                </div>
-              )}
-
-              {/* Timestamp */}
-              <div style={{
-                fontSize: '12px',
-                color: '#86868b',
-                marginBottom: '16px'
-              }}>
-                {post.timestamp}
-              </div>
-            </div>
-
-            {/* Comments section */}
-            <div style={{
-              borderTop: '1px solid #e1e5e9',
-              paddingTop: '16px',
-              minHeight: 120
-            }}>
-              <button
-                onClick={() => setShowComments(!showComments)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#86868b',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  marginBottom: '12px'
-                }}
-              >
-                {showComments ? 'Hide comments' : 'View comments'}
-              </button>
-
-              {showComments && (
-                <div style={{ marginBottom: '16px', maxHeight: 200, overflowY: 'auto' }}>
-                  {commentsLoading && <div style={{ color: '#86868b', textAlign: 'center', padding: 12 }}>Loading comments...</div>}
-                  {commentsError && <div style={{ color: 'red', textAlign: 'center', padding: 12 }}>{commentsError}</div>}
-                  {!commentsLoading && !commentsError && comments.length === 0 && (
-                    <div style={{ fontSize: '14px', color: '#86868b', textAlign: 'center', padding: 20 }}>No comments yet. Be the first to comment!</div>
-                  )}
-                  {!commentsLoading && !commentsError && comments.length > 0 && (
-                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                      {comments.map(comment => (
-                        <li key={comment.uuid} style={{ marginBottom: 12, borderBottom: '1px solid #f0f0f0', paddingBottom: 8 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontWeight: 600, fontSize: 13 }}>{comment.user_id === userProfile?.uuid ? (userProfile.display_name || userProfile.username || 'You') : 'User'}</span>
-                            <span style={{ color: '#86868b', fontSize: 11 }}>{new Date(comment.created_at).toLocaleString()}</span>
-                          </div>
-                          <div style={{ fontSize: 14 }}>{comment.comment_text}</div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div style={{
-            padding: '16px',
-            borderTop: '1px solid #e1e5e9'
-          }}>
-            {/* Action buttons */}
-            <div style={{
-              display: 'flex',
-              gap: '16px',
-              marginBottom: '12px'
-            }}>
-              <button
-                onClick={handleLike}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  color: likeState.liked ? '#ff3b30' : '#86868b',
-                  transition: 'color 0.2s ease'
-                }}
-              >
-                {likeState.liked ? '❤️' : '🤍'}
-              </button>
-              <button
-                onClick={() => setShowComments(true)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  color: '#86868b'
-                }}
-              >
-                💬
-              </button>
-              <button
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  color: '#86868b'
-                }}
-              >
-                📤
-              </button>
-              <button
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  color: '#86868b'
-                }}
-              >
-                🔖
-              </button>
-            </div>
-
-            {/* Like count */}
-            <div style={{
-              fontSize: '14px',
-              fontWeight: '600',
-              marginBottom: '8px'
-            }}>
-              {likeState.likesCount} like{likeState.likesCount !== 1 ? 's' : ''}
-            </div>
-
-            {/* Comment input */}
-            <form onSubmit={handleSubmitComment} style={{
-              display: 'flex',
-              gap: '8px',
-              alignItems: 'center',
-              marginTop: 8
-            }}>
-              <input
-                type="text"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Add a comment..."
-                style={{
-                  flex: 1,
-                  border: 'none',
-                  outline: 'none',
-                  fontSize: '14px',
-                  padding: '8px 0',
-                  background: '#f8f9fa',
-                  borderRadius: 6
-                }}
-                disabled={addingComment}
-              />
-              <button
-                type="submit"
-                disabled={!commentText.trim() || addingComment}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: commentText.trim() ? '#007AFF' : '#c1c1c1',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: commentText.trim() && !addingComment ? 'pointer' : 'default'
-                }}
-              >
-                {addingComment ? 'Posting...' : 'Post'}
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -957,6 +518,11 @@ const Profile = () => {
   const [isDeletingBusiness, setIsDeletingBusiness] = useState(false);
   const [showBusinessModal, setShowBusinessModal] = useState(false);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
+  const [userPeople, setUserPeople] = useState([]);
+  const [deletePersonModal, setDeletePersonModal] = useState({ open: false, personUuid: null });
+  const [isDeletingPerson, setIsDeletingPerson] = useState(false);
+  const [showPersonModal, setShowPersonModal] = useState(false);
+  const [selectedPerson, setSelectedPerson] = useState(null);
 
   const { isPageLoaded, markPageAsLoaded } = usePageCache();
 
@@ -1015,158 +581,7 @@ const Profile = () => {
 
 
 
-  const PostCard = React.memo(({ post }) => {
-    const postUuid = post.uuid;
-    const isMenuOpen = showPostMenu === post.uuid;
-    const [likeState, handleLike] = useLikeState(postUuid, post.like_count || 0);
 
-    const handleMenuClick = React.useCallback((e) => {
-      e.stopPropagation();
-      setShowPostMenu(isMenuOpen ? null : post.uuid);
-    }, [isMenuOpen, post.uuid]);
-
-    const handleLikeClick = React.useCallback((e) => {
-      e.stopPropagation();
-      handleLike();
-    }, [handleLike]);
-
-    const handlePostClick = React.useCallback(() => {
-      setSelectedPostModal(post);
-    }, [post]);
-
-    return (
-      <div className="profile-post-card" onClick={handlePostClick}>
-        <div className="post-header">
-          <div className="post-author">
-            <div className="author-avatar">
-              {userProfile.avatar_url ? (
-                <img
-                  src={userProfile.avatar_url}
-                  alt="avatar"
-                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', display: 'block' }}
-                  onError={e => (e.target.style.display = 'none')}
-                />
-              ) : (
-                '👤'
-              )}
-            </div>
-            <div className="author-info">
-              <div className="author-name">{userProfile.display_name || userProfile.username || 'User'}</div>
-              <div className="post-timestamp">{post.timestamp}</div>
-            </div>
-          </div>
-          <div style={{ position: 'relative' }}>
-            <button className="post-menu" onClick={handleMenuClick}>
-              ⋯
-            </button>
-            {isMenuOpen && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                right: 0,
-                background: 'white',
-                border: '1px solid #e1e5e9',
-                borderRadius: '8px',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-                zIndex: 10,
-                minWidth: '160px',
-                padding: '4px 0'
-              }}>
-                <button
-                  style={{
-                    width: '100%',
-                    background: 'none',
-                    border: 'none',
-                    padding: '10px 16px',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '15px',
-                    color: '#1d1d1f',
-                    whiteSpace: 'nowrap'
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openEditModal(post);
-                    setShowPostMenu(null);
-                  }}
-                >
-                  ✏️ Edit Post
-                </button>
-                <button
-                  style={{
-                    width: '100%',
-                    background: 'none',
-                    border: 'none',
-                    padding: '10px 16px',
-                    textAlign: 'left',
-                    cursor: isDeleting ? 'not-allowed' : 'pointer',
-                    fontSize: '15px',
-                    color: '#ff3b30',
-                    opacity: isDeleting ? 0.6 : 1,
-                    whiteSpace: 'nowrap'
-                  }}
-                  disabled={isDeleting}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeleteModal({ open: true, postUuid: post.uuid });
-                    setShowPostMenu(null);
-                  }}
-                >
-                  🗑️ Delete Post
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="post-content">
-          <p>{post.content}</p>
-          {post.image && (
-            <div className="post-image-container">
-              <img
-                src={post.image}
-                alt={`${post.location}`}
-                className="post-image"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
-              />
-            </div>
-          )}
-          <div className="post-location">
-            <span className="location-icon">📍</span>
-            <span className="location-name">{post.location}</span>
-            <span className="location-distance">{post.distance}</span>
-          </div>
-          <div className="post-tags">
-            {post.tags.map((tag, index) => (
-              <span key={index} className="tag">{tag}</span>
-            ))}
-          </div>
-        </div>
-
-        <div className="post-actions">
-          <button className={`action-btn${likeState.liked ? ' active' : ''}`} onClick={handleLikeClick}>
-            <span>❤️</span>
-            <span className="action-count">{likeState.likesCount}</span>
-          </button>
-          <button className="action-btn">
-            <span>💬</span>
-            <span className="action-count">{post.comments || 0}</span>
-          </button>
-          <button className="action-btn">
-            <span>📤</span>
-          </button>
-          <button className="action-btn">
-            <span>🔖</span>
-          </button>
-          <button className="action-btn">
-            <span>🗺️</span>
-          </button>
-        </div>
-      </div>
-    );
-  });
 
   // Load user profile and posts
   useEffect(() => {
@@ -1255,6 +670,16 @@ const Profile = () => {
         } catch (error) {
           console.error('Error loading user business locations:', error);
           setUserBusinessLocations([]);
+        }
+
+        // Get user people/services
+        try {
+          const userPeopleData = await personService.getUserPeople();
+          console.log('User people data:', userPeopleData);
+          setUserPeople(userPeopleData || []);
+        } catch (error) {
+          console.error('Error loading user people:', error);
+          setUserPeople([]);
         }
 
         setIsLoading(false);
@@ -1629,6 +1054,26 @@ const Profile = () => {
     }
   };
 
+  const handleDeletePerson = async (personUuid) => {
+    setIsDeletingPerson(true);
+    try {
+      await personService.deletePerson(personUuid);
+
+      // Update local state
+      setUserPeople(prev => prev.filter(person => person.uuid !== personUuid));
+      setDeletePersonModal({ open: false, personUuid: null });
+      setNotification({ open: true, message: 'Service deleted successfully!', type: 'success' });
+
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } catch (error) {
+      console.error('Error deleting person:', error);
+      setNotification({ open: true, message: 'Failed to delete service', type: 'error' });
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } finally {
+      setIsDeletingPerson(false);
+    }
+  };
+
   return (
     <div className="profile-container">
       <div className="profile-header">
@@ -1700,7 +1145,7 @@ const Profile = () => {
           className={`tab-btn ${activeTab === 'listings' ? 'active' : ''}`}
           onClick={() => setActiveTab('listings')}
         >
-          Listings ({userEvents.length + userBusinessLocations.length})
+          Listings ({userEvents.length + userBusinessLocations.length + userPeople.length})
         </button>
       </div>
 
@@ -1709,17 +1154,28 @@ const Profile = () => {
           <div className="posts-grid" style={{ width: '100%' }}>
             {userPosts.length > 0 ? (
               userPosts.map(post => (
-                <PostCard key={post.uuid} post={{
-                  ...post,
-                  content: post.post_body_text,
-                  image: post.image_url,
-                  tags: post.tags || [],
-                  timestamp: post.created_at ? new Date(post.created_at).toLocaleString() : '',
-                  location: post.location || '',
-                  likes: post.like_count || 0,
-                  comments: post.comment_count || 0,
-                  distance: '',
-                }} />
+                <PostCard 
+                  key={post.uuid} 
+                  post={{
+                    ...post,
+                    content: post.post_body_text,
+                    image: post.image_url,
+                    tags: post.tags || [],
+                    timestamp: post.created_at ? new Date(post.created_at).toLocaleString() : '',
+                    location: post.location || '',
+                    likes: post.like_count || 0,
+                    comments: post.comment_count || 0,
+                    distance: '',
+                  }}
+                  userProfile={userProfile}
+                  onPostClick={setSelectedPostModal}
+                  onEditPost={openEditModal}
+                  onDeletePost={(postUuid) => setDeleteModal({ open: true, postUuid })}
+                  isDeleting={isDeleting}
+                  showPostMenu={showPostMenu}
+                  setShowPostMenu={setShowPostMenu}
+                  useLikeState={useLikeState}
+                />
               ))
             ) : (
               <div style={{ gridColumn: '1 / -1', textAlign: 'center', margin: '0 auto', width: '100%', color: '#666', padding: '2rem' }}>
@@ -1815,7 +1271,7 @@ const Profile = () => {
 
         {activeTab === 'listings' && (
           <div className="listings-grid">
-            {userEvents.length > 0 || userBusinessLocations.length > 0 ? (
+            {userEvents.length > 0 || userBusinessLocations.length > 0 || userPeople.length > 0 ? (
               <>
                 {userEvents.map(event => (
                   <EventCard
@@ -1835,6 +1291,17 @@ const Profile = () => {
                     setDeleteBusinessModal={setDeleteBusinessModal}
                     setSelectedBusiness={setSelectedBusiness}
                     setShowBusinessModal={setShowBusinessModal}
+                  />
+                ))}
+                {userPeople.map(person => (
+                  <PersonCard
+                    key={person.uuid}
+                    person={person}
+                    onDelete={(personUuid) => setDeletePersonModal({ open: true, personUuid })}
+                    onView={(person) => {
+                      setSelectedPerson(person);
+                      setShowPersonModal(true);
+                    }}
                   />
                 ))}
               </>
@@ -1859,6 +1326,16 @@ const Profile = () => {
                 onClose={() => {
                   setShowBusinessModal(false);
                   setSelectedBusiness(null);
+                }}
+                userProfile={userProfile}
+              />
+            )}
+            {showPersonModal && selectedPerson && (
+              <PersonModal
+                person={selectedPerson}
+                onClose={() => {
+                  setShowPersonModal(false);
+                  setSelectedPerson(null);
                 }}
                 userProfile={userProfile}
               />
@@ -2071,6 +1548,68 @@ const Profile = () => {
                 disabled={isDeletingBusiness}
               >
                 {isDeletingBusiness ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Person Confirmation Modal */}
+      {deletePersonModal.open && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.4)',
+          zIndex: 3000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: '32px 32px 24px 32px',
+            minWidth: 320,
+            maxWidth: '90vw',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            textAlign: 'center',
+          }}>
+            <h2 style={{ margin: 0, marginBottom: 16 }}>Delete Service?</h2>
+            <p style={{ color: '#86868b', marginBottom: 32 }}>Are you sure you want to delete this service? This action cannot be undone.</p>
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+              <button
+                style={{
+                  background: '#f0f0f0',
+                  color: '#1d1d1f',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '10px 24px',
+                  fontSize: 16,
+                  cursor: 'pointer',
+                }}
+                onClick={() => setDeletePersonModal({ open: false, personUuid: null })}
+                disabled={isDeletingPerson}
+              >
+                Cancel
+              </button>
+              <button
+                style={{
+                  background: '#ff3b30',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '10px 24px',
+                  fontSize: 16,
+                  cursor: isDeletingPerson ? 'not-allowed' : 'pointer',
+                  opacity: isDeletingPerson ? 0.7 : 1,
+                }}
+                onClick={() => handleDeletePerson(deletePersonModal.personUuid)}
+                disabled={isDeletingPerson}
+              >
+                {isDeletingPerson ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>

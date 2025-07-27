@@ -42,7 +42,10 @@ CREATE TRIGGER on_auth_user_created
 -- Create interests table
 CREATE TABLE IF NOT EXISTS interests (
   uuid UUID PRIMARY KEY,
-  interest TEXT NOT NULL
+  interest TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  category TEXT,
+  description TEXT
 );
 
 -- Enable Row Level Security and policies for interests
@@ -56,13 +59,24 @@ CREATE TABLE IF NOT EXISTS events (
   event TEXT NOT NULL,
   location TEXT,
   review_count INTEGER DEFAULT 0,
-  rating NUMERIC(3,2) DEFAULT 0.00
+  rating NUMERIC(3,2) DEFAULT 0.00,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  description TEXT,
+  scheduled_time TIMESTAMP WITH TIME ZONE,
+  price NUMERIC(10,2),
+  capacity INTEGER,
+  event_type TEXT DEFAULT 'general',
+  image_url TEXT,
+  user_id UUID REFERENCES profiles(uuid) ON DELETE CASCADE
 );
 
 -- Enable Row Level Security and policies for events
-grant select on events to authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON events TO authenticated;
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all to read events" ON events FOR SELECT USING (true);
+CREATE POLICY "Users can create their own events" ON events FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own events" ON events FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own events" ON events FOR DELETE USING (auth.uid() = user_id);
 
 -- Create location table
 CREATE TABLE IF NOT EXISTS location (
@@ -71,7 +85,14 @@ CREATE TABLE IF NOT EXISTS location (
   longitude NUMERIC(9,6),
   latitude NUMERIC(9,6),
   review_count INTEGER DEFAULT 0,
-  rating NUMERIC(3,2) DEFAULT 0.00
+  rating NUMERIC(3,2) DEFAULT 0.00,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  description TEXT,
+  address TEXT,
+  city TEXT,
+  state TEXT,
+  country TEXT,
+  postal_code TEXT
 );
 
 -- Enable Row Level Security and policies for location
@@ -82,14 +103,20 @@ CREATE POLICY "Allow all to read locations" ON location FOR SELECT USING (true);
 -- Create person table
 CREATE TABLE IF NOT EXISTS person (
   uuid UUID PRIMARY KEY,
-  user_id UUID,
+  user_id UUID REFERENCES profiles(uuid) ON DELETE CASCADE,
   service TEXT NOT NULL,
   review_count INTEGER DEFAULT 0,
-  rating NUMERIC(3,2) DEFAULT 0.00
+  rating NUMERIC(3,2) DEFAULT 0.00,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  contact_info TEXT,
+  description TEXT,
+  hourly_rate NUMERIC(10,2),
+  location TEXT,
+  service_type TEXT DEFAULT 'general'
 );
 
 -- Enable Row Level Security and policies for person
-grant select on person to authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON person TO authenticated;
 ALTER TABLE person ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all to read person" ON person FOR SELECT USING (true);
 CREATE POLICY "Users can update their own person record" ON person FOR UPDATE USING (auth.uid() = user_id);
@@ -176,6 +203,9 @@ CREATE TABLE IF NOT EXISTS event_tags (
 grant select, insert, update, delete on event_tags to authenticated;
 ALTER TABLE event_tags ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all to read event tags" ON event_tags FOR SELECT USING (true);
+CREATE POLICY "Users can manage event tags for events they own" ON event_tags FOR ALL USING (
+  EXISTS (SELECT 1 FROM event_hosts WHERE event_hosts.event_id = event_tags.event_id AND event_hosts.user_id = auth.uid())
+);
 
 -- Event hosts junction table
 CREATE TABLE IF NOT EXISTS event_hosts (
@@ -226,6 +256,14 @@ CREATE TABLE IF NOT EXISTS post_tags (
   PRIMARY KEY (post_id, tag)
 );
 
+-- Enable RLS for post_tags
+GRANT SELECT, INSERT, UPDATE, DELETE ON post_tags TO authenticated;
+ALTER TABLE post_tags ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all to read post tags" ON post_tags FOR SELECT USING (true);
+CREATE POLICY "Users can manage their own post tags" ON post_tags FOR ALL USING (
+  EXISTS (SELECT 1 FROM posts WHERE posts.uuid = post_tags.post_id AND posts.user_id = auth.uid())
+);
+
 -- Indexes for post_tags
 CREATE INDEX IF NOT EXISTS idx_post_tags_tag ON post_tags(tag);
 CREATE INDEX IF NOT EXISTS idx_post_tags_post_id ON post_tags(post_id);
@@ -239,6 +277,12 @@ CREATE TABLE IF NOT EXISTS post_likes (
   PRIMARY KEY (post_id, user_id)
 );
 
+-- Enable RLS for post_likes
+GRANT SELECT, INSERT, UPDATE, DELETE ON post_likes TO authenticated;
+ALTER TABLE post_likes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all to read post likes" ON post_likes FOR SELECT USING (true);
+CREATE POLICY "Users can manage their own post likes" ON post_likes FOR ALL USING (auth.uid() = user_id);
+
 -- Indexes for post_likes
 CREATE INDEX IF NOT EXISTS idx_post_likes_user_id ON post_likes(user_id);
 CREATE INDEX IF NOT EXISTS idx_post_likes_post_id ON post_likes(post_id);
@@ -251,6 +295,12 @@ CREATE TABLE IF NOT EXISTS comment_likes (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   PRIMARY KEY (comment_id, user_id)
 );
+
+-- Enable RLS for comment_likes
+GRANT SELECT, INSERT, UPDATE, DELETE ON comment_likes TO authenticated;
+ALTER TABLE comment_likes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all to read comment likes" ON comment_likes FOR SELECT USING (true);
+CREATE POLICY "Users can manage their own comment likes" ON comment_likes FOR ALL USING (auth.uid() = user_id);
 
 -- Indexes for comment_likes
 CREATE INDEX IF NOT EXISTS idx_comment_likes_user_id ON comment_likes(user_id);
@@ -282,7 +332,44 @@ CREATE TABLE IF NOT EXISTS user_saves (
 -- Enable RLS for user_saves
 grant select, insert, update, delete on user_saves to authenticated;
 ALTER TABLE user_saves ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can manage their own saves" ON user_saves FOR ALL USING (auth.uid() = user_id); 
+CREATE POLICY "Users can manage their own saves" ON user_saves FOR ALL USING (auth.uid() = user_id);
+
+-- Create recommendations table
+CREATE TABLE IF NOT EXISTS recommendations (
+  uuid UUID PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  user_id UUID NOT NULL REFERENCES profiles(uuid) ON DELETE CASCADE,
+  image_url TEXT,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  location TEXT,
+  type TEXT DEFAULT 'place',
+  rating NUMERIC(3,2) DEFAULT NULL
+);
+
+-- Enable Row Level Security and policies for recommendations
+GRANT SELECT, INSERT, UPDATE, DELETE ON recommendations TO authenticated;
+ALTER TABLE recommendations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all to read recommendations" ON recommendations FOR SELECT USING (true);
+CREATE POLICY "Users can create their own recommendations" ON recommendations FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own recommendations" ON recommendations FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own recommendations" ON recommendations FOR DELETE USING (auth.uid() = user_id);
+
+-- Create recommendation_tags table
+CREATE TABLE IF NOT EXISTS recommendation_tags (
+  recommendation_id UUID NOT NULL REFERENCES recommendations(uuid) ON DELETE CASCADE,
+  tag TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (recommendation_id, tag)
+);
+
+-- Enable RLS for recommendation_tags
+GRANT SELECT, INSERT, UPDATE, DELETE ON recommendation_tags TO authenticated;
+ALTER TABLE recommendation_tags ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all to read recommendation tags" ON recommendation_tags FOR SELECT USING (true);
+CREATE POLICY "Users can manage their own recommendation tags" ON recommendation_tags FOR ALL USING (
+  EXISTS (SELECT 1 FROM recommendations WHERE recommendations.uuid = recommendation_tags.recommendation_id AND recommendations.user_id = auth.uid())
+); 
 
 -- Add indexes for posts and comments main tables
 CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts(user_id);
@@ -300,4 +387,55 @@ RETURNS void AS $$
 BEGIN
   UPDATE posts SET comment_count = comment_count + 1 WHERE uuid = postid;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER; 
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger functions for like and comment counts
+CREATE OR REPLACE FUNCTION increment_post_like_count()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE posts SET like_count = like_count + 1 WHERE uuid = NEW.post_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION decrement_post_like_count()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE posts SET like_count = GREATEST(like_count - 1, 0) WHERE uuid = OLD.post_id;
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION increment_post_comment_count()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE posts SET comment_count = comment_count + 1 WHERE uuid = NEW.post_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION decrement_post_comment_count()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE posts SET comment_count = GREATEST(comment_count - 1, 0) WHERE uuid = OLD.post_id;
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create triggers for post_likes
+CREATE TRIGGER post_likes_after_insert
+AFTER INSERT ON post_likes
+FOR EACH ROW EXECUTE FUNCTION increment_post_like_count();
+
+CREATE TRIGGER post_likes_after_delete
+AFTER DELETE ON post_likes
+FOR EACH ROW EXECUTE FUNCTION decrement_post_like_count();
+
+-- Create triggers for comments
+CREATE TRIGGER comments_after_insert
+AFTER INSERT ON comments
+FOR EACH ROW EXECUTE FUNCTION increment_post_comment_count();
+
+CREATE TRIGGER comments_after_delete
+AFTER DELETE ON comments
+FOR EACH ROW EXECUTE FUNCTION decrement_post_comment_count(); 

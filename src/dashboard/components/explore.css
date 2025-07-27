@@ -114,6 +114,41 @@
   margin-bottom: 32px;
 }
 
+.service-coming-soon {
+  background: white;
+  border-radius: 16px;
+  padding: 60px 40px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e1e5e9;
+  grid-column: 1 / -1;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.coming-soon-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.7;
+}
+
+.service-coming-soon h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin: 0 0 8px 0;
+}
+
+.service-coming-soon p {
+  font-size: 16px;
+  color: #86868b;
+  margin: 0;
+  font-weight: 400;
+}
+
 .recommended-place-card {
   background: white;
   border-radius: 16px;
@@ -278,6 +313,11 @@
   backdrop-filter: blur(10px);
 }
 
+.rating-count {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
 .rating-star {
   font-size: 12px;
 }
@@ -321,6 +361,27 @@
   margin-left: 12px;
 }
 
+.place-location {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 6px 10px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border-left: 3px solid #34C759;
+}
+
+.location-icon {
+  font-size: 14px;
+}
+
+.location-name {
+  font-weight: 500;
+  color: #1d1d1f;
+  font-size: 14px;
+}
+
 .place-description {
   font-size: 14px;
   color: #86868b;
@@ -332,10 +393,44 @@
   overflow: hidden;
 }
 
+.place-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
 .place-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  flex: 1;
+  align-items: flex-start;
+}
+
+.place-tag-more {
+  background-color: #f0f0f0;
+  color: #86868b;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  font-style: italic;
+}
+
+.place-price-range {
+  background: #f0f0f0;
+  color: #1d1d1f;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.price-range-text {
+  color: #1d1d1f;
+  font-weight: 500;
 }
 
 .place-tag {
