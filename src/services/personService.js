@@ -206,6 +206,46 @@ export const personService = {
     }
   },
 
+  // Get people by a specific user ID
+  async getUserPeopleById(userId) {
+    try {
+      const { data: people, error: peopleError } = await supabase
+        .from('person')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (peopleError) throw peopleError;
+
+      // If no people, return empty array
+      if (!people || people.length === 0) {
+        return [];
+      }
+
+      // Get the user's profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('uuid, username, display_name, avatar_url')
+        .eq('uuid', userId)
+        .single();
+
+      if (profileError) {
+        console.error('Error getting user profile:', profileError);
+      }
+
+      // Combine people with the user's profile
+      const peopleWithProfiles = people.map(person => ({
+        ...person,
+        profiles: profile || null
+      }));
+
+      return peopleWithProfiles;
+    } catch (error) {
+      console.error('Error getting user people by ID:', error);
+      throw error;
+    }
+  },
+
   // Search people by service type
   async searchPeopleByService(serviceQuery) {
     try {

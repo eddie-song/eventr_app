@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface Person {
   uuid: string;
@@ -32,6 +33,7 @@ const PersonCard: React.FC<PersonCardProps> = ({
   onDelete, 
   onView 
 }) => {
+  const navigate = useNavigate();
   console.log('PersonCard received person data:', person);
   const getServiceTypeColor = (serviceType: string) => {
     const colors: { [key: string]: string } = {
@@ -61,7 +63,10 @@ const PersonCard: React.FC<PersonCardProps> = ({
     return (
     <div 
       className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-200 cursor-pointer flex flex-col h-full"
-      onClick={() => onView?.(person)}
+      onClick={() => {
+        // Navigate to person detail page
+        navigate(`/dashboard/person/${person.uuid}`);
+      }}
     >
       {/* Header with avatar and service type */}
       <div className="p-4 pb-3 flex-shrink-0">
@@ -100,7 +105,9 @@ const PersonCard: React.FC<PersonCardProps> = ({
         {/* Location and price */}
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center text-gray-500">
-            <span className="mr-1">📍</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16" style={{ color: 'currentColor', marginRight: '4px' }}>
+              <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
+            </svg>
             <span className="truncate">
               {person.location || 'Location not specified'}
             </span>

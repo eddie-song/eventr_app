@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './events.css';
 import LoadingScreen from './LoadingScreen.js';
 import { usePageCache } from '../context/PageCacheContext.js';
@@ -7,6 +8,7 @@ import EventImage from '../../components/eventImage';
 import { formatDateInTimezone, getUserTimezone, convertUTCToDatetimeLocal } from '../../utils/timezoneUtils';
 
 const Events = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
@@ -97,7 +99,11 @@ const Events = () => {
   };
 
   const EventCard = ({ event }) => (
-    <div className="event-card">
+    <div 
+      className="event-card" 
+      onClick={() => navigate(`/dashboard/event/${event.uuid}`)}
+      style={{ cursor: 'pointer' }}
+    >
       <div className="event-image-container">
         {event.image_url ? (
           <EventImage 
@@ -154,8 +160,10 @@ const Events = () => {
         </div>
         {event.location && (
           <div className="event-location">
-            <span className="location-icon">📍</span>
-            <span className="location-name">{event.location}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16" style={{ color: 'currentColor', marginRight: '4px' }}>
+              <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
+            </svg>
+            {event.location || 'Location not specified'}
           </div>
         )}
         <p className="event-description">
@@ -185,7 +193,11 @@ const Events = () => {
   );
 
   const RecommendedEventCard = ({ event }) => (
-    <div className="recommended-event-card">
+    <div 
+      className="recommended-event-card"
+      onClick={() => navigate(`/dashboard/event/${event.uuid}`)}
+      style={{ cursor: 'pointer' }}
+    >
       <div className="event-image-container">
         <img 
           src={event.image} 
@@ -219,7 +231,9 @@ const Events = () => {
           <span className="event-distance">{event.distance}</span>
         </div>
         <div className="event-location">
-          <span className="location-icon">📍</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16" style={{ color: 'currentColor', marginRight: '4px' }}>
+            <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
+          </svg>
           <span className="location-name">{event.location}</span>
         </div>
         <p className="event-description">{event.description}</p>

@@ -1,5 +1,5 @@
 -- ========================================
--- EVENTR DATABASE SETUP
+-- ENCOUNTERS DATABASE SETUP
 -- ========================================
 -- Run this script in your Supabase SQL editor to set up all tables
 
@@ -679,9 +679,3 @@ INSERT INTO interests (interest) VALUES
   ('Gaming'),
   ('Photography')
 ON CONFLICT (interest) DO NOTHING;
-
--- ========================================
--- COMPLETION MESSAGE
--- ========================================
--- All tables have been created successfully!
--- You can now use the Eventr application with the complete database schema. 

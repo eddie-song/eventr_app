@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { followService } from '../../services/followService';
 
 interface User {
@@ -19,6 +20,7 @@ interface UserCardProps {
 }
 
 const UserCard: React.FC<UserCardProps> = ({ user, onFollowChange }) => {
+  const navigate = useNavigate();
   const [isFollowing, setIsFollowing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
@@ -85,6 +87,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, onFollowChange }) => {
       setIsLoading(false);
     }
   };
+
   // Generate avatar emoji based on display name or username
   const getAvatarEmoji = (name: string | null, username: string) => {
     const displayName = name || username;
@@ -121,107 +124,60 @@ const UserCard: React.FC<UserCardProps> = ({ user, onFollowChange }) => {
   const lastActive = formatDate(user.updated_at);
 
   return (
-    <div className="group bg-white/80 backdrop-blur-xl rounded-2xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-white/20 transition-all duration-300 cursor-pointer hover:shadow-[0_20px_60px_rgb(0,0,0,0.12)] hover:scale-[1.02] hover:bg-white/90">
-      {/* Header Section */}
-      <div className="relative p-6 pb-4">
-        <div className="flex items-start gap-4">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:border-gray-200 transition-all duration-300 overflow-hidden">
+      {/* Header with Avatar and Basic Info */}
+      <div className="p-6">
+        <div className="flex items-start space-x-4">
           {/* Avatar */}
-          <div className="relative flex-shrink-0">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl shadow-lg">
+          <div className="flex-shrink-0">
+            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-medium shadow-lg">
               {avatarEmoji}
             </div>
           </div>
           
-          {/* User Info */}
-          <div className="flex-1 min-w-0 pt-1">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold text-gray-900 text-lg leading-tight">{displayName}</h3>
-            </div>
-            <p className="text-blue-500 font-medium text-sm mb-2">@{user.username}</p>
-            {user.phone && (
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <span className="text-gray-400">📞</span>
-                <span className="font-medium">{user.phone}</span>
+                                {/* User Info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 truncate">{displayName}</h3>
+                <span className="text-sm font-medium text-blue-600">@{user.username}</span>
               </div>
-            )}
-          </div>
-        </div>
-        
-        {/* Account Info */}
-        <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100/50">
-          <div className="flex gap-6">
-            <div className="text-center">
-              <div className="font-bold text-gray-900 text-lg">@{user.username}</div>
-              <div className="text-xs text-gray-500 font-medium uppercase tracking-wider">Username</div>
             </div>
-            <div className="text-center">
-              <div className="font-bold text-gray-900 text-lg">{followCounts.followers}</div>
-              <div className="text-xs text-gray-500 font-medium uppercase tracking-wider">Followers</div>
-            </div>
-            <div className="text-center">
-              <div className="font-bold text-gray-900 text-lg">{followCounts.following}</div>
-              <div className="text-xs text-gray-500 font-medium uppercase tracking-wider">Following</div>
-            </div>
-          </div>
         </div>
       </div>
-      
-      {/* Content Section */}
-      <div className="px-6 pb-4">
-        <p className="text-gray-700 text-sm leading-relaxed mb-4 line-clamp-2 font-medium">
-          {userBio}
-        </p>
-        
-        {/* Contact Info */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          <span className="bg-gray-100/80 text-gray-700 px-3 py-1.5 rounded-full text-xs font-semibold">
-            📧 {user.email}
-          </span>
-          {user.phone && (
-            <span className="bg-gray-100/80 text-gray-700 px-3 py-1.5 rounded-full text-xs font-semibold">
-              📞 {user.phone}
-            </span>
-          )}
-        </div>
-        
-        {/* Account Status */}
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-          <span className="font-medium">
-            Account active • Updated {lastActive}
-          </span>
-        </div>
-      </div>
-      
+
+             
+
       {/* Action Buttons */}
-      <div className="px-4 pb-4">
-        <div className="flex gap-2">
+      <div className="px-6 pb-6">
+        <div className="flex space-x-3">
           <button 
             onClick={handleFollowToggle}
             disabled={isLoading}
-            className={`flex-1 py-2.5 px-3 rounded-xl font-semibold text-xs transition-all duration-200 hover:shadow-lg hover:scale-105 active:scale-95 ${
+            className={`flex-1 py-2.5 px-4 rounded-xl font-medium text-sm transition-all duration-200 ${
               isFollowing 
-                ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md' 
-                : 'bg-blue-500 text-white hover:bg-blue-600'
+                ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' 
+                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md'
             } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            <span className="flex items-center justify-center">
-              {isLoading ? (
+            {isLoading ? (
+              <div className="flex items-center justify-center space-x-2">
                 <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <span>{isLoading ? 'Loading...' : (isFollowing ? 'Following' : 'Follow')}</span>
-              )}
-            </span>
+                <span>Loading...</span>
+              </div>
+            ) : (
+              <span>{isFollowing ? 'Following' : 'Follow'}</span>
+            )}
           </button>
-          <button className="flex-1 bg-gray-100 text-gray-700 py-2.5 px-3 rounded-xl font-semibold text-xs transition-all duration-200 hover:bg-gray-200 hover:shadow-md hover:scale-105 active:scale-95">
-            <span className="flex items-center justify-center">
-              <span>Message</span>
-            </span>
+          
+          <button className="flex-1 py-2.5 px-4 rounded-xl font-medium text-sm bg-gray-50 text-gray-700 hover:bg-gray-100 transition-all duration-200">
+            Message
           </button>
-          <button className="flex-1 bg-gray-100 text-gray-700 py-2.5 px-3 rounded-xl font-semibold text-xs transition-all duration-200 hover:bg-gray-200 hover:shadow-md hover:scale-105 active:scale-95">
-            <span className="flex items-center justify-center">
-              <span>Profile</span>
-            </span>
+          
+          <button 
+            onClick={() => navigate(`/dashboard/user/${user.uuid}`)}
+            className="flex-1 py-2.5 px-4 rounded-xl font-medium text-sm bg-gray-50 text-gray-700 hover:bg-gray-100 transition-all duration-200"
+          >
+            Profile
           </button>
         </div>
       </div>

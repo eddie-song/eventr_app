@@ -56,7 +56,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
         )}
         
         {/* Rating Badge */}
-        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-gray-800 px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+        <div className="absolute top-3 right-3 bg-white/90 text-gray-800 px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
           <span className="text-yellow-500">⭐</span>
           <span>{recommendation.rating?.toFixed(1) || '0.0'}</span>
         </div>
@@ -79,7 +79,9 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
         {/* Location */}
         {recommendation.location && (
           <div className="flex items-center gap-2 mb-3 text-sm text-gray-600">
-            <span className="text-gray-400">📍</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16">
+              <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
+            </svg>
             <span className="font-medium">{recommendation.location}</span>
           </div>
         )}

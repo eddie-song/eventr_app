@@ -256,7 +256,7 @@ const Notifications: React.FC = () => {
       </div>
 
       {/* Tab Navigation */}
-      <div className="relative bg-gray-50/50 backdrop-blur-sm rounded-2xl p-1.5 mb-8 shadow-sm">
+      <div className="relative bg-gray-50/50 rounded-2xl p-1.5 mb-8 shadow-sm">
         <div className="flex relative">
           {[
             { key: 'all', label: 'All', count: notificationCounts.total },

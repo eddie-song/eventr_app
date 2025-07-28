@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/authService';
 import './Dashboard.css';
 import Explore from './components/explore.js';
@@ -11,6 +11,10 @@ import Profile from './components/profile.js';
 import Plan from './components/plan.js';
 import CreateService from './components/create.js';
 import Notifications from './components/notifications.tsx';
+import PlaceDetail from './components/PlaceDetail.tsx';
+import EventDetail from './components/EventDetail.tsx';
+import PersonDetail from './components/PersonDetail.tsx';
+import UserProfile from './components/UserProfile.tsx';
 import { PageCacheProvider } from './context/PageCacheContext.js';
 import { supabase } from '../lib/supabaseClient';
 import { notificationService } from '../services/notificationService';
@@ -18,16 +22,65 @@ import FollowTest from './components/FollowTest.tsx';
 
 function Dashboard({ service }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  
   // Initialize selectedService from localStorage if available
   const getInitialService = () => {
     const saved = localStorage.getItem('dashboard_selected_service');
-    return saved || 'home';
+    return saved || 'social';
   };
-  const [selectedService, setSelectedService] = useState(getInitialService());
+  
+  // Check if we're on a place, event, person, or user profile detail URL
+  const isPlaceDetailUrl = location.pathname.startsWith('/dashboard/place/');
+  const isEventDetailUrl = location.pathname.startsWith('/dashboard/event/');
+  const isPersonDetailUrl = location.pathname.startsWith('/dashboard/person/');
+  const isUserProfileUrl = location.pathname.startsWith('/dashboard/user/');
+  
+  const [selectedService, setSelectedService] = useState(
+    isPlaceDetailUrl ? 'place-detail' : 
+    isEventDetailUrl ? 'event-detail' : 
+    isPersonDetailUrl ? 'person-detail' : 
+    isUserProfileUrl ? 'user-profile' : 
+    getInitialService()
+  );
+
+  // Update selectedService when URL changes
+  useEffect(() => {
+    const isPlaceDetailUrl = location.pathname.startsWith('/dashboard/place/');
+    const isEventDetailUrl = location.pathname.startsWith('/dashboard/event/');
+    const isPersonDetailUrl = location.pathname.startsWith('/dashboard/person/');
+    const isUserProfileUrl = location.pathname.startsWith('/dashboard/user/');
+    
+    if (isPlaceDetailUrl) {
+      setSelectedService('place-detail');
+    } else if (isEventDetailUrl) {
+      setSelectedService('event-detail');
+    } else if (isPersonDetailUrl) {
+      setSelectedService('person-detail');
+    } else if (isUserProfileUrl) {
+      setSelectedService('user-profile');
+    } else if (location.pathname === '/dashboard' && (selectedService === 'place-detail' || selectedService === 'event-detail' || selectedService === 'person-detail' || selectedService === 'user-profile')) {
+      // Reset to default service when on main dashboard
+      setSelectedService(getInitialService());
+    }
+  }, [location.pathname]);
   const [exploreDropdownOpen, setExploreDropdownOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [notificationCount, setNotificationCount] = useState(0);
+
+  // Component cache to prevent re-creation
+  const componentCache = useRef({
+    explore: <Explore key="explore" />,
+    places: <Explore key="places" />,
+    events: <Events key="events" />,
+    people: <People key="people" />,
+    social: <Social key="social" />,
+    notifications: <Notifications key="notifications" />,
+    profile: <Profile key="profile" />,
+    'follow-test': <FollowTest key="follow-test" />,
+    'create-service': <CreateService key="create-service" />
+  });
 
   // Persist selectedService to localStorage whenever it changes
   useEffect(() => {
@@ -48,6 +101,16 @@ function Dashboard({ service }) {
 
   const handleServiceClick = (serviceName) => {
     setSelectedService(serviceName);
+    
+    // If we're currently on a detail view (place, event, person, or user profile)
+    // and switching to a different service, navigate to the base dashboard URL
+    if (location.pathname !== '/dashboard' && 
+        (serviceName === 'social' || serviceName === 'explore' || serviceName === 'events' || 
+         serviceName === 'people' || serviceName === 'profile' || serviceName === 'notifications' || 
+         serviceName === 'create-service')) {
+      navigate('/dashboard');
+    }
+    
     if (exploreDropdownOpen && serviceName !== 'explore') {
       setIsClosing(true);
       setTimeout(() => {
@@ -59,6 +122,13 @@ function Dashboard({ service }) {
 
   const handleExploreOptionClick = (option) => {
     setSelectedService(option);
+    
+    // If we're currently on a detail view and switching to an explore option,
+    // navigate to the base dashboard URL
+    if (location.pathname !== '/dashboard' && 
+        (option === 'explore' || option === 'places')) {
+      navigate('/dashboard');
+    }
   };
 
   // Check authentication on component mount
@@ -103,35 +173,135 @@ function Dashboard({ service }) {
     checkAuth();
   }, [navigate]);
 
-  const renderServiceContent = () => {
-    switch (selectedService) {
-      case 'home':
-        return <Home />;
-      case 'explore':
-        return <Explore />;
-      case 'places':
-        return <Explore />;
-      case 'events':
-        return <Events />;
-      case 'people':
-        return <People />;
-      // case 'deep-search':
-      //   return <div>Deep Search content will be displayed here</div>;
-      case 'social':
-        return <Social />;
-      case 'notifications':
-        return <Notifications />;
-      case 'profile':
-        return <Profile />;
-      case 'follow-test':
-        return <FollowTest />;
-      // case 'plan':
-      //   return <Plan />;
-      case 'create-service':
-        return <CreateService />;
-      default:
-        return <Explore />;
+  // Real-time notification count updates
+  useEffect(() => {
+    if (isCheckingAuth) return; // Don't subscribe until auth is checked
+
+    const setupNotificationSubscription = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Subscribe to notification changes
+      const subscription = supabase
+        .channel('notifications')
+        .on('postgres_changes', 
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`
+          }, 
+          async () => {
+            // Refresh notification count when notifications change
+            try {
+              const counts = await notificationService.getNotificationCount();
+              setNotificationCount(counts.total);
+            } catch (error) {
+              console.error('Error updating notification count:', error);
+            }
+          }
+        )
+        .subscribe();
+
+      return subscription;
+    };
+
+    setupNotificationSubscription().then(subscription => {
+      return () => {
+        if (subscription) {
+          subscription.unsubscribe();
+        }
+      };
+    });
+  }, [isCheckingAuth]);
+
+  // Extract placeId or eventId from URL path
+  const extractPlaceId = () => {
+    const pathParts = location.pathname.split('/');
+    const placeIndex = pathParts.indexOf('place');
+    if (placeIndex !== -1 && placeIndex + 1 < pathParts.length) {
+      return pathParts[placeIndex + 1];
     }
+    return null;
+  };
+
+  const extractEventId = () => {
+    const pathParts = location.pathname.split('/');
+    const eventIndex = pathParts.indexOf('event');
+    if (eventIndex !== -1 && eventIndex + 1 < pathParts.length) {
+      return pathParts[eventIndex + 1];
+    }
+    return null;
+  };
+
+  const extractPersonId = () => {
+    const pathParts = location.pathname.split('/');
+    const personIndex = pathParts.indexOf('person');
+    if (personIndex !== -1 && personIndex + 1 < pathParts.length) {
+      return pathParts[personIndex + 1];
+    }
+    return null;
+  };
+
+  const extractUserId = () => {
+    const pathParts = location.pathname.split('/');
+    const userIndex = pathParts.indexOf('user');
+    if (userIndex !== -1 && userIndex + 1 < pathParts.length) {
+      return pathParts[userIndex + 1];
+    }
+    return null;
+  };
+
+  const renderServiceContent = () => {
+    if (selectedService === 'place-detail') {
+      const placeId = extractPlaceId();
+      // Only render PlaceDetail if we have a valid placeId
+      if (placeId) {
+        return <PlaceDetail key="place-detail" placeId={placeId} />;
+      } else {
+        // If no placeId, fall back to default service
+        const defaultService = getInitialService();
+        return componentCache.current[defaultService] || componentCache.current.explore;
+      }
+    }
+    
+    if (selectedService === 'event-detail') {
+      const eventId = extractEventId();
+      // Only render EventDetail if we have a valid eventId
+      if (eventId) {
+        return <EventDetail key="event-detail" eventId={eventId} />;
+      } else {
+        // If no eventId, fall back to default service
+        const defaultService = getInitialService();
+        return componentCache.current[defaultService] || componentCache.current.explore;
+      }
+    }
+    
+    if (selectedService === 'person-detail') {
+      const personId = extractPersonId();
+      // Only render PersonDetail if we have a valid personId
+      if (personId) {
+        return <PersonDetail key="person-detail" personId={personId} />;
+      } else {
+        // If no personId, fall back to default service
+        const defaultService = getInitialService();
+        return componentCache.current[defaultService] || componentCache.current.explore;
+      }
+    }
+    
+    if (selectedService === 'user-profile') {
+      const userId = extractUserId();
+      // Only render UserProfile if we have a valid userId
+      if (userId) {
+        return <UserProfile key="user-profile" />;
+      } else {
+        // If no userId, fall back to default service
+        const defaultService = getInitialService();
+        return componentCache.current[defaultService] || componentCache.current.explore;
+      }
+    }
+    
+    return componentCache.current[selectedService] || componentCache.current.explore;
   };
 
   // Show loading while checking authentication
@@ -156,21 +326,21 @@ function Dashboard({ service }) {
       <div id="dashboard-side-bar">
         <div className="logo-text">
           <h1 onClick={() => navigate('/')}>
-            eventr
+          encounters
           </h1>
         </div>
         <div id="service-list">
           <div 
-            id="service-list-item" 
-            className={selectedService === 'home' ? 'selected' : ''}
-            onClick={() => handleServiceClick('home')}
+            id="service-list-item"
+            className={selectedService === 'social' ? 'selected' : ''}
+            onClick={() => handleServiceClick('social')}
           >
             <div>
               <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24">
-                <path fill="currentColor" d="M6 19h3v-5q0-.425.288-.712T10 13h4q.425 0 .713.288T15 14v5h3v-9l-6-4.5L6 10zm-2 0v-9q0-.475.213-.9t.587-.7l6-4.5q.525-.4 1.2-.4t1.2.4l6 4.5q.375.275.588.7T20 10v9q0 .825-.588 1.413T18 21h-4q-.425 0-.712-.288T13 20v-5h-2v5q0 .425-.288.713T10 21H6q-.825 0-1.412-.587T4 19m8-6.75"></path>
+                <path fill="currentColor" d="M13.07 10.41a5 5 0 0 0 0-5.82A3.4 3.4 0 0 1 15 4a3.5 3.5 0 0 1 0 7a3.4 3.5 0 0 1-1.93-.59M5.5 7.5A3.5 3.5 0 1 1 9 11a3.5 3.5 0 0 1-3.5-3.5m2 0A1.5 1.5 0 1 0 9 6a1.5 1.5 0 0 0-1.5 1.5M16 17v2H2v-2s0-4 7-4s7 4 7 4m-2 0c-.14-.78-1.33-2-5-2s-4.93 1.31-5 2m11.95-4A5.32 5.32 0 0 1 18 17v2h4v-2s0-3.63-6.06-4Z"></path>
               </svg>
             </div>
-            <p>Home</p>
+            <p>Social</p>
           </div>
           <div 
             id="service-list-item" 
@@ -234,22 +404,11 @@ function Dashboard({ service }) {
           </div> */}
           <div 
             id="service-list-item"
-            className={selectedService === 'social' ? 'selected' : ''}
-            onClick={() => handleServiceClick('social')}
-          >
-            <div>
-              <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24">
-                <path fill="currentColor" d="M13.07 10.41a5 5 0 0 0 0-5.82A3.4 3.4 0 0 1 15 4a3.5 3.5 0 0 1 0 7a3.4 3.4 0 0 1-1.93-.59M5.5 7.5A3.5 3.5 0 1 1 9 11a3.5 3.5 0 0 1-3.5-3.5m2 0A1.5 1.5 0 1 0 9 6a1.5 1.5 0 0 0-1.5 1.5M16 17v2H2v-2s0-4 7-4s7 4 7 4m-2 0c-.14-.78-1.33-2-5-2s-4.93 1.31-5 2m11.95-4A5.32 5.32 0 0 1 18 17v2h4v-2s0-3.63-6.06-4Z"></path>
-              </svg>
-            </div>
-            <p>Social</p>
-          </div>
-          <div 
-            id="service-list-item"
             className={selectedService === 'notifications' ? 'selected' : ''}
             onClick={() => handleServiceClick('notifications')}
+            style={{ overflow: 'visible' }}
           >
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', display: 'inline-block' }}>
               <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24">
                 <g fill="none" fillRule="evenodd">
                   <path d="m12.594 23.258l-.012.002l-.071.035l-.02.004l-.014-.004l-.071-.036q-.016-.004-.024.006l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.016-.018m.264-.113l-.014.002l-.184.093l-.01.01l-.003.011l.018.43l.005.012l.008.008l.201.092q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.003-.011l.018-.43l-.003-.012l-.01-.01z"></path>
@@ -259,14 +418,14 @@ function Dashboard({ service }) {
               {notificationCount > 0 && (
                 <div style={{
                   position: 'absolute',
-                  top: -4,
-                  right: -4,
+                  top: -6,
+                  right: -8,
                   backgroundColor: '#ef4444',
                   color: 'white',
                   borderRadius: '50%',
-                  minWidth: '16px',
-                  height: '16px',
-                  fontSize: '10px',
+                  minWidth: '18px',
+                  height: '18px',
+                  fontSize: '11px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -274,7 +433,8 @@ function Dashboard({ service }) {
                   padding: '0 4px',
                   lineHeight: '1',
                   whiteSpace: 'nowrap',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  zIndex: 9999
                 }}>
                   {notificationCount > 99 ? '99+' : notificationCount}
                 </div>

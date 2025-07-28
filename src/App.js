@@ -18,6 +18,10 @@ function App() {
         <Route path='/register/email-confirmation' element={<EmailConfirmation />} />
         <Route path='/onboarding' element={<Onboarding />} />
         <Route path='/dashboard' element={<Dashboard />} />
+        <Route path='/dashboard/user/:userId' element={<Dashboard />} />
+        <Route path='/dashboard/place/:placeId' element={<Dashboard />} />
+        <Route path='/dashboard/event/:eventId' element={<Dashboard />} />
+        <Route path='/dashboard/person/:personId' element={<Dashboard />} />
       </Routes>
     </Router>
     </OnboardingProvider>

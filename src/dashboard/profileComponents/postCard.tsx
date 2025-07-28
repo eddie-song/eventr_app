@@ -77,7 +77,7 @@ const PostCard: React.FC<PostCardProps> = ({
 
   return (
     <div 
-      className="bg-white rounded-3xl p-6 shadow-[0_2px_20px_rgba(0,0,0,0.08)] border border-gray-100/50 transition-all duration-300 cursor-pointer mb-6 hover:shadow-[0_8px_40px_rgba(0,0,0,0.12)] hover:-translate-y-1 active:translate-y-0 backdrop-blur-sm"
+      className="bg-white rounded-3xl p-6 shadow-[0_2px_20px_rgba(0,0,0,0.08)] border border-gray-100/50 transition-all duration-300 cursor-pointer mb-6 hover:shadow-[0_8px_40px_rgba(0,0,0,0.12)] hover:-translate-y-1 active:translate-y-0"
       onClick={handlePostClick}
     >
       {/* Post Header */}
@@ -118,7 +118,7 @@ const PostCard: React.FC<PostCardProps> = ({
           
           {/* Dropdown Menu */}
           {isMenuOpen && (
-            <div className="absolute top-full right-0 mt-2 bg-white/95 backdrop-blur-xl border border-gray-200/50 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] z-10 min-w-48 py-2 overflow-hidden">
+            <div className="absolute top-full right-0 mt-2 bg-white/95 border border-gray-200/50 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] z-10 min-w-48 py-2 overflow-hidden">
               <button
                 className="w-full bg-transparent border-none py-3 px-4 text-left cursor-pointer text-sm text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200 flex items-center gap-3"
                 onClick={handleEditClick}
@@ -162,9 +162,9 @@ const PostCard: React.FC<PostCardProps> = ({
         {/* Location */}
         {post.location && (
           <div className="flex items-center gap-3 mb-4 px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100/50">
-            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-sm">📍</span>
-            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16" className="text-blue-500">
+              <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
+            </svg>
             <div className="flex-1">
               <span className="font-semibold text-gray-900 text-sm">
                 {post.location}
@@ -203,16 +203,24 @@ const PostCard: React.FC<PostCardProps> = ({
           }`}
           onClick={handleLikeClick}
         >
-          <span className="text-xl transition-transform duration-200 hover:scale-110">
-            {likeState.liked ? '❤️' : '🤍'}
-          </span>
+          {likeState.liked ? (
+            <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+          )}
           <span className="text-sm font-semibold min-w-4 text-center">
             {likeState.likesCount}
           </span>
         </button>
         
         <button className="flex items-center gap-2 bg-transparent border-none py-2 px-4 rounded-2xl cursor-pointer text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-all duration-300">
-          <span className="text-xl transition-transform duration-200 hover:scale-110">💬</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24">
+            <path fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 21a9 9 0 1 0-9-9c0 1.488.36 2.891 1 4.127L3 21l4.873-1c1.236.64 2.64 1 4.127 1"></path>
+          </svg>
           <span className="text-sm font-semibold min-w-4 text-center">
             {post.comments || 0}
           </span>

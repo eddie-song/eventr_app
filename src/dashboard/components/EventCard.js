@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import EventImage from '../../components/eventImage';
 import { getUserTimezone, formatDateInTimezone } from '../../utils/timezoneUtils';
 
 const EventCard = ({ event, openEditEventModal, setDeleteEventModal, setSelectedEvent, setShowEventModal }) => {
+  const navigate = useNavigate();
   const [userTimezone, setUserTimezone] = useState('UTC');
 
   useEffect(() => {
@@ -32,8 +34,8 @@ const EventCard = ({ event, openEditEventModal, setDeleteEventModal, setSelected
     <div
       className="event-card"
       onClick={() => {
-        setSelectedEvent && setSelectedEvent(event);
-        setShowEventModal && setShowEventModal(true);
+        // Navigate to event detail page
+        navigate(`/dashboard/event/${event.uuid}`);
       }}
       style={{ cursor: 'pointer' }}
     >
@@ -87,7 +89,9 @@ const EventCard = ({ event, openEditEventModal, setDeleteEventModal, setSelected
         </div>
         {event.location && (
           <div className="event-location">
-            <span className="location-icon">📍</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16" style={{ color: 'currentColor' }}>
+              <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
+            </svg>
             <span className="location-name">{event.location}</span>
           </div>
         )}

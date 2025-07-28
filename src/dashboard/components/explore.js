@@ -88,7 +88,11 @@ function Explore() {
   }, [isPageLoaded, markPageAsLoaded]);
 
   const PlaceCard = ({ place }) => (
-    <div className="place-card">
+    <div 
+      className="place-card" 
+      onClick={() => navigate(`/dashboard/place/${place.id}`)}
+      style={{ cursor: 'pointer' }}
+    >
       <div className="place-image-container">
         <img 
           src={place.image} 
@@ -110,7 +114,9 @@ function Explore() {
           <span className="place-distance">{place.distance}</span>
         </div>
         <div className="place-location">
-          <span className="location-icon">📍</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16" style={{ color: 'currentColor', marginRight: '4px' }}>
+            <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
+          </svg>
           <span className="location-name">{place.city && place.state ? `${place.city}, ${place.state}` : place.address || 'Location not specified'}</span>
         </div>
         <p className="place-description">{place.description}</p>
@@ -134,7 +140,11 @@ function Explore() {
   );
 
   const RecommendedPlaceCard = ({ place }) => (
-    <div className="recommended-place-card">
+    <div 
+      className="recommended-place-card"
+      onClick={() => navigate(`/dashboard/place/${place.id}`)}
+      style={{ cursor: 'pointer' }}
+    >
       <div className="place-image-container">
         <img 
           src={place.image} 

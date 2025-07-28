@@ -225,7 +225,9 @@ const PostModal: React.FC<PostModalProps> = ({ post, onClose, userProfile, onCom
                {/* Location */}
                {post.location && (
                  <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
-                   <span>📍</span>
+                   <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16">
+                     <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
+                   </svg>
                    <span>{post.location}</span>
                  </div>
                )}
@@ -279,19 +281,33 @@ const PostModal: React.FC<PostModalProps> = ({ post, onClose, userProfile, onCom
                 className="bg-transparent border-none text-2xl cursor-pointer transition-colors duration-200 hover:scale-110"
                 style={{ color: likeState.liked ? '#ff3b30' : '#86868b' }}
               >
-                {likeState.liked ? '❤️' : '🤍'}
+                {likeState.liked ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                  </svg>
+                )}
               </button>
               <button
                 onClick={() => setShowComments(true)}
                 className="bg-transparent border-none text-2xl cursor-pointer text-gray-500 hover:text-gray-700 transition-colors duration-200 hover:scale-110"
               >
-                💬
+                <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24">
+                  <path fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 21a9 9 0 1 0-9-9c0 1.488.36 2.891 1 4.127L3 21l4.873-1c1.236.64 2.64 1 4.127 1"></path>
+                </svg>
+              </button>
+              <button className="bg-transparent border-none text-2xl cursor-pointer text-green-500 hover:text-green-700 transition-colors duration-200 hover:scale-110">
+                <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24">
+                  <path fill="currentColor" d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
+                </svg>
               </button>
               <button className="bg-transparent border-none text-2xl cursor-pointer text-gray-500 hover:text-gray-700 transition-colors duration-200 hover:scale-110">
-                📤
-              </button>
-              <button className="bg-transparent border-none text-2xl cursor-pointer text-gray-500 hover:text-gray-700 transition-colors duration-200 hover:scale-110">
-                🔖
+                <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24">
+                  <path fill="currentColor" d="m12 18l-4.2 1.8q-1 .425-1.9-.162T5 17.975V5q0-.825.588-1.412T7 3h10q.825 0 1.413.588T19 5v12.975q0 1.075-.9 1.663t-1.9.162zm0-2.2l5 2.15V5H7v12.95zM12 5H7h10z"></path>
+                </svg>
               </button>
             </div>
 

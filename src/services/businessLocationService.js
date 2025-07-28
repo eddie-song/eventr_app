@@ -188,5 +188,51 @@ export const businessLocationService = {
       console.error('Error in getUserBusinessLocations:', error);
       throw error;
     }
+  },
+
+  // Get business locations created by a specific user ID
+  async getUserBusinessLocationsById(userId) {
+    try {
+      const { data, error } = await supabase
+        .from('business_locations')
+        .select(`
+          *,
+          business_location_tags(tag),
+          business_location_reviews(
+            rating,
+            review_text,
+            created_at
+          )
+        `)
+        .eq('created_by', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching user business locations by ID:', error);
+        throw error;
+      }
+
+      // Transform the data to calculate average rating and review count
+      const transformedData = data.map(location => {
+        const reviews = location.business_location_reviews || [];
+        const averageRating = reviews.length > 0 
+          ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length 
+          : 0;
+        
+        const tags = location.business_location_tags || [];
+        
+        return {
+          ...location,
+          rating: parseFloat(averageRating.toFixed(1)),
+          review_count: reviews.length,
+          tags: tags.map(tagObj => tagObj.tag)
+        };
+      });
+
+      return transformedData;
+    } catch (error) {
+      console.error('Error in getUserBusinessLocationsById:', error);
+      throw error;
+    }
   }
 }; 

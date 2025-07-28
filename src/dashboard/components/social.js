@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './social.css';
 import LoadingScreen from './LoadingScreen.js';
 import { usePageCache } from '../context/PageCacheContext.js';
@@ -22,6 +22,8 @@ const Social = () => {
   const [posts, setPosts] = useState([]);
   const [postsError, setPostsError] = useState(null);
   const [postsLoading, setPostsLoading] = useState(false);
+  const [postsPage, setPostsPage] = useState(1);
+  const [hasMorePosts, setHasMorePosts] = useState(true);
   
   const { isPageLoaded, markPageAsLoaded } = usePageCache();
 
@@ -84,11 +86,13 @@ const Social = () => {
   };
 
   // Fetch posts from database
-  const fetchPosts = async () => {
-    setPostsLoading(true);
+  const fetchPosts = useCallback(async (page = 1, append = false) => {
+    if (page === 1) {
+      setPostsLoading(true);
+    }
     setPostsError(null);
     try {
-      const postsData = await postService.getAllPosts();
+      const postsData = await postService.getAllPosts(page, 20);
       
       // Transform posts data to match the SocialPost component interface
       const transformedPosts = (postsData || []).map(post => ({
@@ -107,15 +111,32 @@ const Social = () => {
         category: 'general' // Default category
       }));
       
-      setPosts(transformedPosts);
+      if (append) {
+        setPosts(prevPosts => [...prevPosts, ...transformedPosts]);
+      } else {
+        setPosts(transformedPosts);
+      }
+      
+      // Check if there are more posts to load
+      setHasMorePosts(transformedPosts.length === 20);
+      setPostsPage(page);
     } catch (error) {
       console.error('Error fetching posts:', error);
       setPostsError('Failed to load posts');
-      setPosts([]);
+      if (!append) {
+        setPosts([]);
+      }
     } finally {
       setPostsLoading(false);
     }
-  };
+  }, []);
+
+  // Load more posts
+  const loadMorePosts = useCallback(() => {
+    if (!postsLoading && hasMorePosts) {
+      fetchPosts(postsPage + 1, true);
+    }
+  }, [postsLoading, hasMorePosts, postsPage, fetchPosts]);
 
   // Fetch users from database (first 10, excluding current user)
   const fetchUsers = async () => {
@@ -196,6 +217,7 @@ const Social = () => {
         updated_at: profile.updated_at || profile.created_at
       }));
       
+      console.log('Found real users from database:', transformedUsers);
       setUsers(transformedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -227,15 +249,7 @@ const Social = () => {
       }, loadingTime);
       return () => clearTimeout(timer);
     }
-  }, [isPageLoaded, markPageAsLoaded]);
-
-
-
-
-
-
-
-
+  }, []);
 
   // Show loading screen
   if (isLoading) {
@@ -325,6 +339,17 @@ const Social = () => {
                 {filteredPosts.map(post => (
                   <PostCard key={post.id} post={post} />
                 ))}
+                {hasMorePosts && (
+                  <div className="load-more-container">
+                    <button 
+                      onClick={loadMorePosts}
+                      disabled={postsLoading}
+                      className="load-more-button"
+                    >
+                      {postsLoading ? 'Loading...' : 'Load More Posts'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

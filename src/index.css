@@ -32,6 +32,26 @@ textarea {
 
     h1 {
         font-weight: bold;
+        font-size: 1.5rem; /* Default size for desktop */
+    }
+}
+
+/* Responsive font sizing for smaller screens */
+@media (max-width: 1024px) {
+    .logo-text h1 {
+        font-size: 1.25rem; /* Smaller for laptop screens */
+    }
+}
+
+@media (max-width: 768px) {
+    .logo-text h1 {
+        font-size: 1rem; /* Even smaller for mobile screens */
+    }
+}
+
+@media (max-width: 480px) {
+    .logo-text h1 {
+        font-size: 0.875rem; /* Smallest for very small mobile screens */
     }
 }
 

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './people.css';
 import LoadingScreen from './LoadingScreen.js';
 import { usePageCache } from '../context/PageCacheContext.js';
 import { personService } from '../../services/personService';
 
 const People = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
@@ -97,7 +99,11 @@ const People = () => {
     });
 
   const PersonCard = ({ person }) => (
-    <div className="person-card">
+    <div 
+      className="person-card" 
+      onClick={() => navigate(`/dashboard/person/${person.id}`)}
+      style={{ cursor: 'pointer' }}
+    >
       <div className="person-image-container">
         <img 
           src={person.image} 
@@ -126,8 +132,10 @@ const People = () => {
           <span className="title-text">{person.title}</span>
         </div>
         <div className="person-location">
-          <span className="location-icon">📍</span>
-          <span className="location-name">{person.location}</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16" style={{ color: 'currentColor', marginRight: '4px' }}>
+            <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
+          </svg>
+          {person.location || 'Location not specified'}
         </div>
         <p className="person-description">{person.description}</p>
         <div className="person-footer">
@@ -146,7 +154,11 @@ const People = () => {
   );
 
   const RecommendedPersonCard = ({ person }) => (
-    <div className="recommended-person-card">
+    <div 
+      className="recommended-person-card"
+      onClick={() => navigate(`/dashboard/person/${person.id}`)}
+      style={{ cursor: 'pointer' }}
+    >
       <div className="person-image-container">
         <img 
           src={person.image} 
@@ -180,8 +192,10 @@ const People = () => {
           <span className="title-text">{person.title}</span>
         </div>
         <div className="person-location">
-          <span className="location-icon">📍</span>
-          <span className="location-name">{person.location}</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16" style={{ color: 'currentColor', marginRight: '4px' }}>
+            <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
+          </svg>
+          {person.location || 'Location not specified'}
         </div>
         <p className="person-description">{person.description}</p>
         <div className="recommendation-reason">

@@ -62,7 +62,7 @@ function Login() {
       <div id="header">
         <div className="logo-text" onClick={() => navigate('/')}>
           <h1>
-            eventr
+            encounters
           </h1>
         </div>
       </div>

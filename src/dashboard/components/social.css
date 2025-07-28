@@ -606,6 +606,37 @@
   text-align: center;
 }
 
+.load-more-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+  grid-column: 1 / -1;
+}
+
+.load-more-button {
+  background-color: #007AFF;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 160px;
+}
+
+.load-more-button:hover:not(:disabled) {
+  background-color: #0056CC;
+  transform: translateY(-1px);
+}
+
+.load-more-button:disabled {
+  background-color: #86868b;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .loading-spinner {
   width: 40px;
   height: 40px;

@@ -47,7 +47,7 @@ function Landing() {
       <div id="header">
         <div className="logo-text">
           <h1>
-            eventr
+            encounters
           </h1>
         </div>
         <div id="button-container">
@@ -79,7 +79,7 @@ function Landing() {
             With One Click.
           </h1>
           <p id="top-section-desc">
-            EVENTR is more than a social media app or a search engine.<br /> <br />
+            encounters is more than a social media app or a search engine.<br /> <br />
             It's an <span><i>engine</i></span> to help you get more <span className="green-text"><i>social</i></span>.
           </p>
         </div>
@@ -114,7 +114,7 @@ function Landing() {
           <h2>
             Go out and <span><i>do more</i></span>. Ready?
           </h2>
-          <button id="third-button">
+          <button id="third-button" onClick={() => navigate('/login')}>
             Start Exploring
             {/* <span>
               <svg xmlns="http://www.w3.org/2000/svg" width={15} height={15} viewBox="0 0 15 15">

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { formatDateInTimezone } from '../../../utils/timezoneUtils';
 
 interface BusinessLocationTag {
@@ -45,9 +46,11 @@ const BusinessLocationCard: React.FC<BusinessLocationCardProps> = ({
   setSelectedBusiness, 
   setShowBusinessModal 
 }) => {
+  const navigate = useNavigate();
+  
   const handleCardClick = () => {
-    setSelectedBusiness(business);
-    setShowBusinessModal(true);
+    // Navigate to business location detail page
+    navigate(`/dashboard/place/${business.uuid}`);
   };
 
   const handleEditClick = (e: React.MouseEvent) => {
@@ -113,9 +116,11 @@ const BusinessLocationCard: React.FC<BusinessLocationCardProps> = ({
         </div>
 
         <div className="event-details">
-          <div className="event-location">
-            <span className="location-icon">📍</span>
-            <span>{business.city}, {business.state}</span>
+          <div className="business-location">
+            <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16" style={{ color: 'currentColor', marginRight: '4px' }}>
+              <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
+            </svg>
+            {business.address || 'Location not specified'}
           </div>
 
           {business.price_range && (

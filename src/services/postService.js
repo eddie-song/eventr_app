@@ -2,14 +2,28 @@ import { supabase } from '../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 
 export const postService = {
-  // Get all posts with tags and author information
-  async getAllPosts() {
+  // Get all posts with tags and author information - OPTIMIZED VERSION
+  async getAllPosts(page = 1, limit = 20) {
     try {
-      // Get posts
+      const offset = (page - 1) * limit;
+      
+      // Use a single query with joins to get all data at once
       const { data: posts, error: postsError } = await supabase
         .from('posts')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select(`
+          *,
+          profiles!posts_user_id_fkey(
+            uuid,
+            username,
+            display_name,
+            avatar_url
+          ),
+          post_tags(
+            tag
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
 
       if (postsError) throw postsError;
 
@@ -18,48 +32,11 @@ export const postService = {
         return [];
       }
 
-      // Get user IDs from posts
-      const userIds = posts.map(post => post.user_id).filter(id => id);
-
-      // Get profiles for these users
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('uuid, username, display_name, avatar_url')
-        .in('uuid', userIds);
-
-      if (profilesError) throw profilesError;
-
-      // Get tags for all posts
-      const postIds = posts.map(post => post.uuid);
-      const { data: tags, error: tagsError } = await supabase
-        .from('post_tags')
-        .select('post_id, tag')
-        .in('post_id', postIds);
-
-      if (tagsError) throw tagsError;
-
-      // Create a map of profiles by user ID
-      const profilesMap = {};
-      if (profiles) {
-        profiles.forEach(profile => {
-          profilesMap[profile.uuid] = profile;
-        });
-      }
-
-      // Group tags by post_id
-      const tagsByPost = {};
-      tags.forEach(tag => {
-        if (!tagsByPost[tag.post_id]) {
-          tagsByPost[tag.post_id] = [];
-        }
-        tagsByPost[tag.post_id].push(tag.tag);
-      });
-
-      // Combine posts with their profiles and tags
+      // Transform the data to match the expected format
       const postsWithDetails = posts.map(post => ({
         ...post,
-        profiles: profilesMap[post.user_id] || null,
-        tags: tagsByPost[post.uuid] || []
+        profiles: post.profiles,
+        tags: post.post_tags ? post.post_tags.map(tag => tag.tag) : []
       }));
 
       return postsWithDetails;

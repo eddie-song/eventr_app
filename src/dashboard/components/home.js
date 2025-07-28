@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import './home.css';
 import LoadingScreen from './LoadingScreen.js';
 import { usePageCache } from '../context/PageCacheContext.js';
@@ -10,7 +10,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 import { likeService } from '../../services/likeService';
 
-const Home = () => {
+const Home = memo(() => {
   const [activeSection, setActiveSection] = useState('all'); // 'all', 'friends', or 'following'
   const [selectedPost, setSelectedPost] = useState(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -213,12 +213,16 @@ const Home = () => {
 
   // Load data on component mount
   useEffect(() => {
+    console.log('Home component useEffect running, isPageLoaded:', isPageLoaded('home'));
+    
     const loadData = async () => {
+      console.log('Loading home data...');
       setIsLoading(true);
       try {
         await fetchFriendsAndFollowing();
         await fetchPosts();
-        markPageAsLoaded();
+        markPageAsLoaded('home');
+        console.log('Home data loaded successfully');
       } catch (error) {
         console.error('Error loading home data:', error);
         showNotification('Failed to load home data', 'error');
@@ -227,8 +231,16 @@ const Home = () => {
       }
     };
 
-    loadData();
-  }, []);
+    // Check if page is already loaded
+    if (isPageLoaded('home')) {
+      console.log('Home page already loaded, skipping data fetch');
+      setIsLoading(false);
+      // Don't fetch data again if page is cached to prevent reloading
+    } else {
+      console.log('Home page not loaded, fetching data...');
+      loadData();
+    }
+  }, []); // Empty dependency array since we're checking isPageLoaded inside
 
   // Refresh posts when friends/following change
   useEffect(() => {
@@ -292,7 +304,9 @@ const Home = () => {
           </div>
         )}
         <div className="post-location">
-          <span className="location-icon">📍</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16" style={{ color: 'currentColor', marginRight: '4px' }}>
+            <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
+          </svg>
           <span className="location-name">{post.location}</span>
           <span className="location-distance">{post.distance}</span>
         </div>
@@ -638,7 +652,9 @@ const Home = () => {
           )}
           
           <div className="selected-post-location">
-            <span className="location-icon">📍</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16" style={{ color: 'currentColor', marginRight: '4px' }}>
+              <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
+            </svg>
             <span className="location-name">{post.location}</span>
             <span className="location-distance">{post.distance}</span>
           </div>
@@ -674,7 +690,7 @@ const Home = () => {
   );
 
   // Show loading screen
-  if (isLoading) {
+  if (isLoading && !isPageLoaded('home')) {
     return <LoadingScreen message="Loading Your Feed . . ." />;
   }
 
@@ -836,6 +852,6 @@ const Home = () => {
         />
     </div>
   );
-};
+});
 
 export default Home;

@@ -375,6 +375,8 @@ CREATE POLICY "Users can manage their own recommendation tags" ON recommendation
 CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts(user_id);
 CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at);
 CREATE INDEX IF NOT EXISTS idx_posts_location ON posts(location);
+CREATE INDEX IF NOT EXISTS idx_posts_created_at_desc ON posts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_user_id_created_at ON posts(user_id, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_comments_user_id ON comments(user_id);
@@ -439,3 +441,8 @@ FOR EACH ROW EXECUTE FUNCTION increment_post_comment_count();
 CREATE TRIGGER comments_after_delete
 AFTER DELETE ON comments
 FOR EACH ROW EXECUTE FUNCTION decrement_post_comment_count(); 
+
+-- Additional indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_post_tags_post_id_tag ON post_tags(post_id, tag);
+CREATE INDEX IF NOT EXISTS idx_profiles_uuid_username ON profiles(uuid, username);
+CREATE INDEX IF NOT EXISTS idx_profiles_display_name ON profiles(display_name); 
