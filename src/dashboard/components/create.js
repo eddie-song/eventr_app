@@ -40,7 +40,8 @@ const CreateService = () => {
     location: '',
     contactInfo: '',
     serviceType: 'general',
-    hourlyRate: ''
+    hourlyRate: '',
+    imageUrl: ''
   });
   const [recommendFormData, setRecommendFormData] = useState({
     title: '',
@@ -55,6 +56,8 @@ const CreateService = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [selectedRecommendImageFile, setSelectedRecommendImageFile] = useState(null);
   const [recommendImagePreview, setRecommendImagePreview] = useState(null);
+  const [selectedPeopleImageFile, setSelectedPeopleImageFile] = useState(null);
+  const [peopleImagePreview, setPeopleImagePreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState({ open: false, message: '', type: '' });
 
@@ -197,15 +200,33 @@ const CreateService = () => {
     }
     setIsSubmitting(true);
     try {
-      await personService.createPerson(personFormData);
+      let finalImageUrl = personFormData.imageUrl;
+      
+      // Upload image file if selected
+      if (selectedPeopleImageFile) {
+        const { publicUrl } = await imageUploadService.uploadPeopleImage(selectedPeopleImageFile);
+        finalImageUrl = publicUrl;
+      }
+      
+      // Create person service with image URL
+      await personService.createPerson({
+        ...personFormData,
+        imageUrl: finalImageUrl
+      });
+      
+      // Reset form
       setPersonFormData({ 
         service: '', 
         description: '', 
         location: '', 
         contactInfo: '', 
         serviceType: 'general', 
-        hourlyRate: '' 
+        hourlyRate: '',
+        imageUrl: ''
       });
+      setSelectedPeopleImageFile(null);
+      setPeopleImagePreview(null);
+      
       showNotification('Service created successfully!', 'success');
     } catch (err) {
       showNotification('Failed to create service: ' + (err.message || err), 'error');
@@ -666,6 +687,66 @@ const CreateService = () => {
                 </div>
                 <div className="price-hint">Leave empty for negotiable rates</div>
               </div>
+
+              <div className="form-group">
+                <label htmlFor="personImage">Service Image (optional)</label>
+                <div className="image-upload-container">
+                  <input
+                    type="file"
+                    id="personImage"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        try {
+                          imageUploadService.validateImageFile(file);
+                          setSelectedPeopleImageFile(file);
+                          const reader = new FileReader();
+                          reader.onload = (e) => setPeopleImagePreview(e.target.result);
+                          reader.readAsDataURL(file);
+                          setPersonFormData(prev => ({ ...prev, imageUrl: '' }));
+                        } catch (error) {
+                          showNotification(error.message, 'error');
+                          e.target.value = '';
+                        }
+                      }
+                    }}
+                    className="image-upload-input"
+                  />
+                  <label htmlFor="personImage" className="image-upload-label">
+                    <div className="image-upload-content">
+                      <span className="image-upload-icon">📷</span>
+                      <span className="image-upload-text">Choose an image or drag here</span>
+                      <span className="image-upload-hint">Max 5MB • JPEG, PNG, WebP, GIF</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="personImageUrl">Or provide image URL (optional)</label>
+                <input
+                  type="url"
+                  id="personImageUrl"
+                  value={personFormData.imageUrl}
+                  onChange={(e) => {
+                    handlePersonInputChange('imageUrl', e.target.value);
+                    setSelectedPeopleImageFile(null);
+                    setPeopleImagePreview(null);
+                  }}
+                  placeholder="https://example.com/service-image.jpg"
+                />
+              </div>
+              
+              {(peopleImagePreview || personFormData.imageUrl) && (
+                <div className="image-preview">
+                  <img
+                    src={peopleImagePreview || personFormData.imageUrl}
+                    alt="Preview"
+                    onError={(e) => (e.target.style.display = 'none')}
+                  />
+                </div>
+              )}
 
               <div className="form-actions">
                 <button type="submit" className="submit-btn" disabled={!personFormData.service.trim() || isSubmitting}>

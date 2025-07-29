@@ -256,44 +256,100 @@ const Notifications: React.FC = () => {
       </div>
 
       {/* Tab Navigation */}
-      <div className="relative bg-gray-50/50 rounded-2xl p-1.5 mb-8 shadow-sm">
-        <div className="flex relative">
+      <div className="mb-8">
+        <div
+          style={{
+            display: 'flex',
+            background: '#f8f8fa',
+            borderRadius: 24,
+            border: '1px solid #e5e6ea',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+            overflow: 'visible',
+            width: '100%',
+            maxWidth: 900,
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            padding: 4,
+            position: 'relative',
+          }}
+        >
           {[
             { key: 'all', label: 'All', count: notificationCounts.total },
             { key: 'follows', label: 'Follows', count: notificationCounts.followers },
             { key: 'messages', label: 'Messages', count: notificationCounts.messages },
             { key: 'likes', label: 'Likes', count: notificationCounts.likes + notificationCounts.comments }
-          ].map((tab, index) => (
-        <button 
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
-              className={`relative flex-1 py-3 px-4 text-sm font-medium transition-all duration-300 ease-out border-0 ${
-                index === 0 ? 'rounded-l-xl' : 
-                index === 3 ? 'rounded-r-xl' : 
-                'rounded-none'
-              } ${
-                activeTab === tab.key
-                  ? 'text-gray-900 bg-white shadow-lg shadow-gray-200/50 transform scale-[1.02]'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
-              }`}
-            >
-              <div className="flex items-center justify-center space-x-2">
-                <span className="font-semibold">{tab.label}</span>
-                {tab.count > 0 && (
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium transition-all duration-300 ${
-                    activeTab === tab.key
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {tab.count}
-                  </span>
+          ].map((tab, index) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as any)}
+                style={{
+                  minWidth: 0,
+                  flex: 1,
+                  border: 'none',
+                  margin: 0,
+                  background: 'transparent',
+                  color: isActive ? '#222' : '#86868b',
+                  fontWeight: isActive ? 600 : 500,
+                  fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif',
+                  fontSize: 16,
+                  outline: 'none',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  zIndex: 2,
+                  padding: '12px 8px',
+                  borderRadius: 20,
+                  transition: 'color 0.18s cubic-bezier(.4,0,.2,1)',
+                }}
+              >
+                {/* Pill highlight for active tab */}
+                {isActive && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      left: 6,
+                      right: 6,
+                      top: 2,
+                      bottom: 2,
+                      background: 'white',
+                      borderRadius: 20,
+                      zIndex: 1,
+                      transition: 'all 0.18s cubic-bezier(.4,0,.2,1)',
+                    }}
+                  />
                 )}
-              </div>
-              {activeTab === tab.key && (
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-white to-gray-50/50 -z-10"></div>
-              )}
-        </button>
-          ))}
+                <span style={{
+                  position: 'relative',
+                  zIndex: 2,
+                  display: 'block',
+                  width: '100%',
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                  }}>
+                    <span>{tab.label}</span>
+                    {tab.count > 0 && (
+                      <span style={{
+                        padding: '2px 8px',
+                        borderRadius: 12,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        backgroundColor: isActive ? '#007AFF' : '#E5E7EB',
+                        color: isActive ? 'white' : '#6B7280',
+                        transition: 'all 0.18s cubic-bezier(.4,0,.2,1)',
+                      }}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </div>
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

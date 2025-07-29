@@ -23,7 +23,8 @@ export const personService = {
           location: personData.location || null,
           contact_info: personData.contactInfo || null,
           service_type: personData.serviceType || 'general',
-          hourly_rate: personData.hourlyRate ? parseFloat(personData.hourlyRate) : null
+          hourly_rate: personData.hourlyRate ? parseFloat(personData.hourlyRate) : null,
+          image_url: personData.imageUrl || null
         }]);
 
       if (personError) throw personError;

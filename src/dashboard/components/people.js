@@ -68,6 +68,10 @@ const People = () => {
     if (!person) return null;
     
     const profile = person.profiles || {};
+    
+    // Use service image if available, otherwise fall back to avatar or default
+    let imageUrl = person.image_url || profile.avatar_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop';
+    
     return {
       id: person.uuid || `person-${Math.random()}`,
       name: profile.display_name || profile.username || 'Anonymous',
@@ -75,7 +79,7 @@ const People = () => {
       category: person.service_type || 'general',
       location: person.location || 'Location not specified',
       distance: 'Distance not available', // Could be calculated later with geolocation
-      image: profile.avatar_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
+      image: imageUrl,
       description: person.description || 'No description available.',
       rate: person.hourly_rate ? `$${person.hourly_rate}/hour` : 'Rate not specified',
       rating: person.rating || 0.0,

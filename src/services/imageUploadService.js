@@ -245,5 +245,68 @@ export const imageUploadService = {
       console.error('Error getting business location signed URL:', error);
       throw error;
     }
+  },
+
+  // Upload image to people-images bucket
+  async uploadPeopleImage(file) {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('Could not get current user');
+      
+      const userId = user.id;
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${userId}/${Date.now()}.${fileExt}`;
+      
+      const { data, error } = await supabase.storage
+        .from('people-images')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (error) throw error;
+      
+      // Get the signed URL (since bucket is private)
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('people-images')
+        .createSignedUrl(fileName, 31536000); // 1 year expiry
+      
+      if (signedUrlError) throw signedUrlError;
+      
+      return { publicUrl: signedUrlData.signedUrl, fileName };
+    } catch (error) {
+      console.error('Error uploading people image:', error);
+      throw error;
+    }
+  },
+
+  // Delete image from people-images bucket
+  async deletePeopleImage(fileName) {
+    try {
+      const { error } = await supabase.storage
+        .from('people-images')
+        .remove([fileName]);
+      
+      if (error) throw error;
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting people image:', error);
+      throw error;
+    }
+  },
+
+  // Get signed URL for people image
+  async getPeopleSignedUrl(fileName) {
+    try {
+      const { data, error } = await supabase.storage
+        .from('people-images')
+        .createSignedUrl(fileName, 3600); // 1 hour expiry
+      
+      if (error) throw error;
+      return data.signedUrl;
+    } catch (error) {
+      console.error('Error getting people signed URL:', error);
+      throw error;
+    }
   }
 }; 

@@ -4,7 +4,7 @@ import Register from './register/Register.js'
 import Login from './login/Login.js';
 import Onboarding from './register/components/Onboarding.js';
 import EmailConfirmation from './register/components/EmailConfirmation.js';
-import Dashboard from './dashboard/Dashboard.js';
+import Dashboard from './dashboard/components/dashboard.tsx';
 import { OnboardingProvider } from './register/context/registerContext';
 
 function App() {

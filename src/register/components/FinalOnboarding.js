@@ -102,75 +102,140 @@ function FinalOnboarding({ nextStep }) {
       <div id="register-modal-header">
         Last Step!
       </div>
-              <div className="final-onboarding-modal">
-          <div>
-            <button 
-              onClick={handleCompleteOnboarding}
-              disabled={isLoading}
-              style={{ opacity: isLoading ? 0.7 : 1 }}
-            >
-              {isLoading ? 'Completing Setup...' : 'Complete Setup'}
-            </button>
-            <p>
-              Or
-            </p>
-            <p id="suggested-events">Suggested events near you</p>
-            <div>
-              test
-            </div>
-          </div>
-          <div>
-            <button onClick={handleSkip} disabled={isLoading}>
-              Skip
-            </button>
-          </div>
+      <div className="final-onboarding-modal">
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '20px',
+          width: '100%',
+          maxWidth: '400px',
+          margin: '0 auto'
+        }}>
+          <button 
+            onClick={() => {
+              // Clear onboarding data and navigate to dashboard with home service
+              clear();
+              localStorage.setItem('dashboard_selected_service', 'home');
+              navigate('/dashboard');
+            }}
+            style={{
+              width: '100%',
+              padding: '12px 24px',
+              backgroundColor: '#007AFF',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 8px rgba(0, 122, 255, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = '#0056CC';
+              e.target.style.transform = 'translateY(-1px)';
+              e.target.style.boxShadow = '0 4px 12px rgba(0, 122, 255, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = '#007AFF';
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 2px 8px rgba(0, 122, 255, 0.3)';
+            }}
+          >
+            Start Searching
+          </button>
+          
+          <p style={{
+            color: '#8E8E93',
+            fontSize: '14px',
+            margin: '8px 0',
+            fontWeight: '500'
+          }}>
+            Or
+          </p>
+          
+          <button 
+            onClick={() => {
+              // Clear onboarding data and navigate to dashboard with create service
+              clear();
+              localStorage.setItem('dashboard_selected_service', 'create-service');
+              navigate('/dashboard');
+            }}
+            style={{
+              width: '100%',
+              padding: '12px 24px',
+              backgroundColor: '#F2F2F7',
+              color: '#007AFF',
+              border: '1px solid #E5E5EA',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 1px 4px rgba(0, 0, 0, 0.1)'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = '#E5E5EA';
+              e.target.style.transform = 'translateY(-1px)';
+              e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = '#F2F2F7';
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 1px 4px rgba(0, 0, 0, 0.1)';
+            }}
+          >
+            Create a Listing
+          </button>
         </div>
-        {/* Modern Error Display */}
-        {error && (
-          <div style={{ 
-            marginTop: '20px',
-            animation: 'slideInUp 0.3s ease-out'
+      </div>
+      {/* Modern Error Display */}
+      {error && (
+        <div style={{ 
+          marginTop: '20px',
+          animation: 'slideInUp 0.3s ease-out'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)',
+            color: 'white',
+            fontSize: '14px',
+            padding: '16px 20px',
+            borderRadius: '12px',
+            border: 'none',
+            boxShadow: '0 4px 12px rgba(255, 107, 107, 0.3)',
+            position: 'relative',
+            overflow: 'hidden'
           }}>
             <div style={{
-              background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)',
-              color: 'white',
-              fontSize: '14px',
-              padding: '16px 20px',
-              borderRadius: '12px',
-              border: 'none',
-              boxShadow: '0 4px 12px rgba(255, 107, 107, 0.3)',
-              position: 'relative',
-              overflow: 'hidden'
+              position: 'absolute',
+              top: '0',
+              left: '0',
+              right: '0',
+              height: '3px',
+              background: 'linear-gradient(90deg, #ff8a80, #ff5722)'
+            }} />
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
             }}>
               <div style={{
-                position: 'absolute',
-                top: '0',
-                left: '0',
-                right: '0',
-                height: '3px',
-                background: 'linear-gradient(90deg, #ff8a80, #ff5722)'
-              }} />
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
+                fontSize: '18px',
+                lineHeight: '1'
               }}>
-                <div style={{
-                  fontSize: '18px',
-                  lineHeight: '1'
-                }}>
-                  ⚠️
-                </div>
-                <div style={{
-                  flex: '1',
-                  lineHeight: '1.4'
-                }}>
-                  {error}
-                </div>
+                ⚠️
+              </div>
+              <div style={{
+                flex: '1',
+                lineHeight: '1.4'
+              }}>
+                {error}
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
     </div>
   );
 }

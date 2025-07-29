@@ -33,7 +33,7 @@ function EmailConfirmation() {
   return (
     <div id="register-page-container">
       <div id="header">
-        <div className="logo-text" onClick={() => navigate('/')}>
+        <div className="logo-text" onClick={() => navigate('/')} style={{ paddingLeft: '20px' }}>
           <h1>
             encounters
           </h1>
