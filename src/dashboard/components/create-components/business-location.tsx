@@ -165,8 +165,13 @@ const BusinessLocationForm: React.FC = () => {
   // Cleanup for imagePreview blob URLs
   React.useEffect(() => {
     return () => {
-      if (imagePreview && typeof imagePreview === 'string' && imagePreview.startsWith('blob:')) {
+      if (
+        imagePreview &&
+        typeof imagePreview === 'string' &&
+        /^blob:/i.test(imagePreview)
+      ) {
         URL.revokeObjectURL(imagePreview);
+      }
       }
     };
   }, [imagePreview]);
