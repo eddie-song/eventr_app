@@ -88,7 +88,11 @@ const BusinessLocationForm: React.FC = () => {
         // Clear URL input when file is selected
         setFormData(prev => ({ ...prev, imageUrl: '' }));
       } catch (error: any) {
-        showNotification(error.message, 'error');
+-        showNotification(error.message, 'error');
++        showNotification('Invalid image file. Please check the file type and size.', 'error');
++        console.error('Image validation error:', error);
+        e.target.value = '';
+      }
         e.target.value = '';
       }
     }
