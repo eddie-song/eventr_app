@@ -311,10 +311,11 @@ const CreateService = () => {
   };
 
   return (
-    <div className="home-container" style={{ paddingTop: 40 }}>
+    <div className="home-container" style={{ paddingTop: 0 }}>
       <div className="home-feed">
-        <div className="feed-header">
+        <div className="social-header">
           <h1>Create</h1>
+          <p>Share posts, events, services, and recommendations with the community</p>
         </div>
         {notification.open && (
           <div style={{

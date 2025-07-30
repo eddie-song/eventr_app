@@ -866,11 +866,17 @@ BEGIN
     VALUES ('direct', user1_uuid, sorted_user1, sorted_user2)
     RETURNING uuid INTO new_conversation_id;
 
+    -- Temporarily disable RLS to allow inserting both participants
+    PERFORM set_config('role', 'service_role', true);
+    
     -- Add both users as participants
     INSERT INTO conversation_participants (conversation_id, user_id)
     VALUES 
       (new_conversation_id, user1_uuid),
       (new_conversation_id, user2_uuid);
+    
+    -- Reset role back to authenticated user
+    PERFORM set_config('role', 'authenticated', true);
 
     RETURN new_conversation_id;
   EXCEPTION
@@ -1098,10 +1104,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to create a message notification
 CREATE OR REPLACE FUNCTION create_message_notification(sender_uuid UUID, conversation_uuid UUID)
-RETURNS UUID AS $$
+RETURNS INTEGER AS $$
 DECLARE
   sender_profile RECORD;
-  notification_id UUID;
+  notification_count INTEGER;
 BEGIN
   SET search_path = public, pg_temp;
   -- Get sender profile information
@@ -1124,10 +1130,10 @@ BEGIN
     )
   FROM conversation_participants cp
   WHERE cp.conversation_id = conversation_uuid 
-    AND cp.user_id != sender_uuid
-  RETURNING uuid INTO notification_id;
+    AND cp.user_id != sender_uuid;
   
-  RETURN notification_id;
+  GET DIAGNOSTICS notification_count = ROW_COUNT;
+  RETURN notification_count;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

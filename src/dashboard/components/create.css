@@ -1,5 +1,24 @@
 /* CreateService Component Styles */
 
+.social-header {
+  margin-bottom: 32px;
+}
+
+.social-header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1d1d1f;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.5px;
+}
+
+.social-header p {
+  font-size: 18px;
+  color: #86868b;
+  margin: 0;
+  font-weight: 400;
+}
+
 .create-post-form {
   box-sizing: border-box;
   padding: 0 16px 24px 16px;

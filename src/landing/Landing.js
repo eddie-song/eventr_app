@@ -9,8 +9,6 @@ function Landing() {
   const [displayedText, setDisplayedText] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [svgKey, setSvgKey] = useState(0);
-  const [hasAnimated, setHasAnimated] = useState(false);
 
   useEffect(() => {
     const currentString = searchOptions[currentIndex];
@@ -23,24 +21,18 @@ function Landing() {
         setDisplayedText(currentString.substring(0, displayedText.length - 1));
       } else {
         if (!isDeleting) {
-          if (!hasAnimated) {
-            setSvgKey(prev => prev + 1);
-            setHasAnimated(true);
-          }
-
           setTimeout(() => {
             setIsDeleting(true);
           }, 1500);
         } else {
           setIsDeleting(false);
           setCurrentIndex((currentIndex + 1) % searchOptions.length);
-          setHasAnimated(false);
         }
       }
     }, speed);
 
     return () => clearTimeout(timeout);
-  }, [displayedText, isDeleting, currentIndex, hasAnimated]);
+  }, [displayedText, isDeleting, currentIndex]);
 
   return (
     <div id="page-container">
@@ -93,14 +85,10 @@ function Landing() {
             <span className="text-wrapper">{displayedText}</span><span className="cursor">|</span>
           </h2>
           <div>
-            <svg key={svgKey} xmlns="http://www.w3.org/2000/svg" width={30} height={30} viewBox="0 0 24 24">
+            <svg xmlns="http://www.w3.org/2000/svg" width={30} height={30} viewBox="0 0 24 24">
               <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}>
-                <path strokeDasharray={40} strokeDashoffset={40} d="M10.76 13.24c-2.34 -2.34 -2.34 -6.14 0 -8.49c2.34 -2.34 6.14 -2.34 8.49 0c2.34 2.34 2.34 6.14 0 8.49c-2.34 2.34 -6.14 2.34 -8.49 0Z">
-                  <animate fill="freeze" attributeName="stroke-dashoffset" dur="0.5s" values="40;0"></animate>
-                </path>
-                <path strokeDasharray={12} strokeDashoffset={12} d="M10.5 13.5l-7.5 7.5">
-                  <animate fill="freeze" attributeName="stroke-dashoffset" begin="0.5s" dur="0.2s" values="12;0"></animate>
-                </path>
+                <path d="M10.76 13.24c-2.34 -2.34 -2.34 -6.14 0 -8.49c2.34 -2.34 6.14 -2.34 8.49 0c2.34 2.34 2.34 6.14 0 8.49c-2.34 2.34 -6.14 2.34 -8.49 0Z"></path>
+                <path d="M10.5 13.5l-7.5 7.5"></path>
               </g>
             </svg>
           </div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import PropTypes from 'prop-types';
 import './people.css';
 
 const BasePersonCard = ({ 
@@ -106,6 +107,34 @@ const BasePersonCard = ({
       </div>
     </div>
   );
+};
+
+BasePersonCard.propTypes = {
+  person: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
+    image: PropTypes.string,
+    rating: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    reviews: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    rate: PropTypes.string,
+    title: PropTypes.string,
+    distance: PropTypes.string,
+    location: PropTypes.string,
+    description: PropTypes.string,
+    tags: PropTypes.arrayOf(PropTypes.string),
+    availability: PropTypes.string
+  }).isRequired,
+  className: PropTypes.string,
+  showRecommendedBadge: PropTypes.bool,
+  recommendationReason: PropTypes.string,
+  onClick: PropTypes.func
+};
+
+BasePersonCard.defaultProps = {
+  className: "person-card",
+  showRecommendedBadge: false,
+  recommendationReason: null,
+  onClick: null
 };
 
 export default BasePersonCard; 
