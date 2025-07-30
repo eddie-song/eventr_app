@@ -51,7 +51,16 @@ export const formatRating = (rating?: number): string | null => {
  */
 export const formatDate = (dateString?: string): string => {
   if (!dateString) return 'Recently';
-  return new Date(dateString).toLocaleDateString('en-US', { 
+  
+  // Create a Date object and validate it
+  const date = new Date(dateString);
+  
+  // Check if the date is valid (not NaN and not Invalid Date)
+  if (isNaN(date.getTime())) {
+    return 'Recently';
+  }
+  
+  return date.toLocaleDateString('en-US', { 
     year: 'numeric', 
     month: 'long', 
     day: 'numeric' 

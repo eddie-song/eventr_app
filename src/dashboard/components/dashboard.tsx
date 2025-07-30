@@ -48,19 +48,23 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
     const saved = localStorage.getItem('dashboard_selected_service');
     return (saved as ServiceType) || 'social';
   };
-  
-  // Check if we're on a place, event, person, or user profile detail URL
-  const isPlaceDetailUrl = location.pathname.startsWith('/dashboard/place/');
-  const isEventDetailUrl = location.pathname.startsWith('/dashboard/event/');
-  const isPersonDetailUrl = location.pathname.startsWith('/dashboard/person/');
-  const isUserProfileUrl = location.pathname.startsWith('/dashboard/user/');
+
+  // Extract service type from current pathname
+  const getServiceFromPathname = (pathname: string): ServiceType | null => {
+    if (pathname.startsWith('/dashboard/place/')) {
+      return 'place-detail';
+    } else if (pathname.startsWith('/dashboard/event/')) {
+      return 'event-detail';
+    } else if (pathname.startsWith('/dashboard/person/')) {
+      return 'person-detail';
+    } else if (pathname.startsWith('/dashboard/user/')) {
+      return 'user-profile';
+    }
+    return null;
+  };
   
   const [selectedService, setSelectedService] = useState<ServiceType>(
-    isPlaceDetailUrl ? 'place-detail' : 
-    isEventDetailUrl ? 'event-detail' : 
-    isPersonDetailUrl ? 'person-detail' : 
-    isUserProfileUrl ? 'user-profile' : 
-    getInitialService()
+    getServiceFromPathname(location.pathname) || getInitialService()
   );
 
   // Check for service query parameter and set it as selected service
@@ -82,19 +86,10 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
 
   // Update selectedService when URL changes
   useEffect(() => {
-    const isPlaceDetailUrl = location.pathname.startsWith('/dashboard/place/');
-    const isEventDetailUrl = location.pathname.startsWith('/dashboard/event/');
-    const isPersonDetailUrl = location.pathname.startsWith('/dashboard/person/');
-    const isUserProfileUrl = location.pathname.startsWith('/dashboard/user/');
+    const serviceFromPath = getServiceFromPathname(location.pathname);
     
-    if (isPlaceDetailUrl) {
-      setSelectedService('place-detail');
-    } else if (isEventDetailUrl) {
-      setSelectedService('event-detail');
-    } else if (isPersonDetailUrl) {
-      setSelectedService('person-detail');
-    } else if (isUserProfileUrl) {
-      setSelectedService('user-profile');
+    if (serviceFromPath) {
+      setSelectedService(serviceFromPath);
     } else if (location.pathname === '/dashboard' && (selectedService === 'place-detail' || selectedService === 'event-detail' || selectedService === 'person-detail' || selectedService === 'user-profile')) {
       // Reset to default service when on main dashboard
       setSelectedService(getInitialService());
@@ -256,39 +251,11 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
     };
   }, [isCheckingAuth]);
 
-  // Extract placeId or eventId from URL path
-  const extractPlaceId = (): string | null => {
+  const extractIdFromPath = (idType: 'place' | 'event' | 'person' | 'user'): string | null => {
     const pathParts = location.pathname.split('/');
-    const placeIndex = pathParts.indexOf('place');
-    if (placeIndex !== -1 && placeIndex + 1 < pathParts.length) {
-      return pathParts[placeIndex + 1];
-    }
-    return null;
-  };
-
-  const extractEventId = (): string | null => {
-    const pathParts = location.pathname.split('/');
-    const eventIndex = pathParts.indexOf('event');
-    if (eventIndex !== -1 && eventIndex + 1 < pathParts.length) {
-      return pathParts[eventIndex + 1];
-    }
-    return null;
-  };
-
-  const extractPersonId = (): string | null => {
-    const pathParts = location.pathname.split('/');
-    const personIndex = pathParts.indexOf('person');
-    if (personIndex !== -1 && personIndex + 1 < pathParts.length) {
-      return pathParts[personIndex + 1];
-    }
-    return null;
-  };
-
-  const extractUserId = (): string | null => {
-    const pathParts = location.pathname.split('/');
-    const userIndex = pathParts.indexOf('user');
-    if (userIndex !== -1 && userIndex + 1 < pathParts.length) {
-      return pathParts[userIndex + 1];
+    const typeIndex = pathParts.indexOf(idType);
+    if (typeIndex !== -1 && typeIndex + 1 < pathParts.length) {
+      return pathParts[typeIndex + 1];
     }
     return null;
   };
@@ -311,22 +278,22 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
 
   const renderServiceContent = (): React.ReactElement => {
     if (selectedService === 'place-detail') {
-      const placeId = extractPlaceId();
+      const placeId = extractIdFromPath('place');
       return renderDetailView(placeId, PlaceDetail, 'place-detail', { placeId });
     }
     
     if (selectedService === 'event-detail') {
-      const eventId = extractEventId();
+      const eventId = extractIdFromPath('event');
       return renderDetailView(eventId, EventDetail, 'event-detail', { eventId });
     }
     
     if (selectedService === 'person-detail') {
-      const personId = extractPersonId();
+      const personId = extractIdFromPath('person');
       return renderDetailView(personId, PersonDetail, 'person-detail', { personId });
     }
     
     if (selectedService === 'user-profile') {
-      const userId = extractUserId();
+      const userId = extractIdFromPath('user');
       return renderDetailView(userId, UserProfile, 'user-profile');
     }
     

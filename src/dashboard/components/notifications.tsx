@@ -24,6 +24,9 @@ interface User {
 const Notifications: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [offset, setOffset] = useState(0);
   const [activeTab, setActiveTab] = useState<'all' | 'follows' | 'messages' | 'likes'>('all');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [notificationCounts, setNotificationCounts] = useState({
@@ -86,13 +89,37 @@ const Notifications: React.FC = () => {
     if (!currentUser) return;
     
     setLoading(true);
+    setOffset(0);
     try {
       const data = await notificationService.getNotifications(50, 0);
       setNotifications(data);
+      setHasMore(data.length === 50);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMoreNotifications = async () => {
+    if (!currentUser || loadingMore || !hasMore) return;
+    
+    setLoadingMore(true);
+    try {
+      const newOffset = offset + 50;
+      const data = await notificationService.getNotifications(50, newOffset);
+      
+      if (data.length > 0) {
+        setNotifications(prev => [...prev, ...data]);
+        setOffset(newOffset);
+        setHasMore(data.length === 50);
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error('Error loading more notifications:', error);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -444,8 +471,12 @@ const Notifications: React.FC = () => {
       {/* Load More Button */}
       {filteredNotifications.length > 0 && (
         <div className="text-center mt-8">
-          <button className="px-6 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors">
-            Load More
+          <button 
+            onClick={loadMoreNotifications}
+            className="px-6 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+            disabled={loadingMore || !hasMore}
+          >
+            {loadingMore ? 'Loading...' : hasMore ? 'Load More' : 'No more notifications'}
           </button>
         </div>
       )}

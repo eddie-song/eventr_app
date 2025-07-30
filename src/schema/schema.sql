@@ -124,12 +124,6 @@ CREATE POLICY "Users can delete their own recommendations" ON recommendations FO
 -- RECOMMENDATION_TAGS TABLE
 -- ========================================
 -- Junction table for business location tags (renamed from recommendation tags)
---
--- Columns:
---   business_location_id: UUID (NOT NULL) - UUID of the business location
---   tag: TEXT (NOT NULL) - Tag name
---   created_at: TIMESTAMP WITH TIME ZONE - When the tag was added
---   PRIMARY KEY: (business_location_id, tag)
 
 CREATE TABLE IF NOT EXISTS recommendation_tags (
   recommendation_id UUID NOT NULL REFERENCES recommendations(uuid) ON DELETE CASCADE,
@@ -364,6 +358,7 @@ RETURNS TABLE (
   followed_at TIMESTAMP WITH TIME ZONE
 ) AS $$
 BEGIN
+  SET search_path = public, pg_temp;
   RETURN QUERY
   SELECT 
     p.uuid,
@@ -388,6 +383,7 @@ RETURNS TABLE (
   followed_at TIMESTAMP WITH TIME ZONE
 ) AS $$
 BEGIN
+  SET search_path = public, pg_temp;
   RETURN QUERY
   SELECT 
     p.uuid,
@@ -412,6 +408,7 @@ RETURNS TABLE (
   friendship_created_at TIMESTAMP WITH TIME ZONE
 ) AS $$
 BEGIN
+  SET search_path = public, pg_temp;
   RETURN QUERY
   SELECT 
     p.uuid,
@@ -431,6 +428,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION are_friends(user1_uuid UUID, user2_uuid UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
+  SET search_path = public, pg_temp;
   RETURN EXISTS (
     SELECT 1 
     FROM user_follows uf1
@@ -444,6 +442,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION is_following(follower_uuid UUID, following_uuid UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
+  SET search_path = public, pg_temp;
   RETURN EXISTS (
     SELECT 1 
     FROM user_follows 
@@ -460,6 +459,7 @@ RETURNS TABLE (
   friends_count BIGINT
 ) AS $$
 BEGIN
+  SET search_path = public, pg_temp;
   RETURN QUERY
   SELECT 
     (SELECT COUNT(*) FROM user_follows WHERE follower_id = user_uuid) as following_count,
@@ -536,9 +536,27 @@ CREATE TABLE IF NOT EXISTS business_locations (
 GRANT SELECT, INSERT, UPDATE, DELETE ON business_locations TO authenticated;
 ALTER TABLE business_locations ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all to read business locations" ON business_locations FOR SELECT USING (true);
-CREATE POLICY "Users can create business locations" ON business_locations FOR INSERT WITH CHECK (auth.uid() = created_by);
+CREATE POLICY "Users can create business locations" ON business_locations FOR INSERT WITH CHECK (
+  auth.uid() = created_by OR (created_by IS NULL AND auth.uid() IS NOT NULL)
+);
 CREATE POLICY "Users can update their own business locations" ON business_locations FOR UPDATE USING (auth.uid() = created_by);
 CREATE POLICY "Users can delete their own business locations" ON business_locations FOR DELETE USING (auth.uid() = created_by);
+
+-- Trigger to automatically set created_by when it's NULL
+CREATE OR REPLACE FUNCTION set_business_location_created_by()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.created_by IS NULL THEN
+    NEW.created_by = auth.uid();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER business_locations_set_created_by
+  BEFORE INSERT ON business_locations
+  FOR EACH ROW
+  EXECUTE FUNCTION set_business_location_created_by();
 
 -- ========================================
 -- BUSINESS_LOCATION_TAGS TABLE
@@ -622,8 +640,16 @@ CREATE TABLE IF NOT EXISTS conversations (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   conversation_type TEXT NOT NULL DEFAULT 'direct' CHECK (conversation_type IN ('direct', 'group')),
   name TEXT, -- Only for group conversations
-  created_by UUID REFERENCES profiles(uuid) ON DELETE SET NULL
+  created_by UUID REFERENCES profiles(uuid) ON DELETE SET NULL,
+  -- Add computed columns for direct conversation uniqueness
+  user1_id UUID,
+  user2_id UUID
 );
+
+-- Create partial unique index for direct conversations to prevent duplicates
+CREATE UNIQUE INDEX unique_direct_conversation 
+ON conversations (conversation_type, user1_id, user2_id) 
+WHERE conversation_type = 'direct' AND user1_id IS NOT NULL AND user2_id IS NOT NULL;
 
 -- Enable RLS for conversations
 GRANT SELECT, INSERT, UPDATE, DELETE ON conversations TO authenticated;
@@ -762,6 +788,7 @@ CREATE POLICY "Users can mark messages as read" ON message_reads FOR INSERT WITH
 CREATE OR REPLACE FUNCTION get_unread_message_count(user_uuid UUID)
 RETURNS BIGINT AS $$
 BEGIN
+  SET search_path = public, pg_temp;
   RETURN (
     SELECT COUNT(*)
     FROM messages m
@@ -785,6 +812,7 @@ RETURNS TABLE (
   joined_at TIMESTAMP WITH TIME ZONE
 ) AS $$
 BEGIN
+  SET search_path = public, pg_temp;
   RETURN QUERY
   SELECT 
     p.uuid,
@@ -806,34 +834,57 @@ RETURNS UUID AS $$
 DECLARE
   existing_conversation_id UUID;
   new_conversation_id UUID;
+  sorted_user1 UUID;
+  sorted_user2 UUID;
 BEGIN
-  -- Check if direct conversation already exists
+  SET search_path = public, pg_temp;
+  
+  -- Sort user IDs to ensure consistent ordering for unique constraint
+  IF user1_uuid < user2_uuid THEN
+    sorted_user1 := user1_uuid;
+    sorted_user2 := user2_uuid;
+  ELSE
+    sorted_user1 := user2_uuid;
+    sorted_user2 := user1_uuid;
+  END IF;
+  
+  -- Check if direct conversation already exists using the new columns
   SELECT c.uuid INTO existing_conversation_id
   FROM conversations c
-  JOIN conversation_participants cp1 ON c.uuid = cp1.conversation_id
-  JOIN conversation_participants cp2 ON c.uuid = cp2.conversation_id
   WHERE c.conversation_type = 'direct'
-  AND cp1.user_id = user1_uuid
-  AND cp2.user_id = user2_uuid
-  AND cp1.user_id != cp2.user_id
+  AND c.user1_id = sorted_user1
+  AND c.user2_id = sorted_user2
   LIMIT 1;
 
   IF existing_conversation_id IS NOT NULL THEN
     RETURN existing_conversation_id;
   END IF;
 
-  -- Create new direct conversation
-  INSERT INTO conversations (conversation_type, created_by)
-  VALUES ('direct', user1_uuid)
-  RETURNING uuid INTO new_conversation_id;
+  -- Try to create new direct conversation with unique constraint
+  BEGIN
+    INSERT INTO conversations (conversation_type, created_by, user1_id, user2_id)
+    VALUES ('direct', user1_uuid, sorted_user1, sorted_user2)
+    RETURNING uuid INTO new_conversation_id;
 
-  -- Add both users as participants
-  INSERT INTO conversation_participants (conversation_id, user_id)
-  VALUES 
-    (new_conversation_id, user1_uuid),
-    (new_conversation_id, user2_uuid);
+    -- Add both users as participants
+    INSERT INTO conversation_participants (conversation_id, user_id)
+    VALUES 
+      (new_conversation_id, user1_uuid),
+      (new_conversation_id, user2_uuid);
 
-  RETURN new_conversation_id;
+    RETURN new_conversation_id;
+  EXCEPTION
+    WHEN unique_violation THEN
+      -- Another process created the conversation, get the existing one
+      SELECT c.uuid INTO existing_conversation_id
+      FROM conversations c
+      WHERE c.conversation_type = 'direct'
+      AND c.user1_id = sorted_user1
+      AND c.user2_id = sorted_user2
+      LIMIT 1;
+      
+      RETURN existing_conversation_id;
+  END;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -928,6 +979,7 @@ DECLARE
   follower_profile RECORD;
   notification_id UUID;
 BEGIN
+  SET search_path = public, pg_temp;
   -- Get follower profile information
   SELECT username, display_name, avatar_url INTO follower_profile
   FROM profiles WHERE uuid = follower_uuid;
@@ -960,6 +1012,7 @@ DECLARE
   post_content TEXT;
   notification_id UUID;
 BEGIN
+  SET search_path = public, pg_temp;
   -- Get liker profile information
   SELECT username, display_name, avatar_url INTO liker_profile
   FROM profiles WHERE uuid = liker_uuid;
@@ -1003,6 +1056,7 @@ DECLARE
   post_owner_uuid UUID;
   notification_id UUID;
 BEGIN
+  SET search_path = public, pg_temp;
   -- Get commenter profile information
   SELECT username, display_name, avatar_url INTO commenter_profile
   FROM profiles WHERE uuid = commenter_uuid;
@@ -1047,23 +1101,17 @@ CREATE OR REPLACE FUNCTION create_message_notification(sender_uuid UUID, convers
 RETURNS UUID AS $$
 DECLARE
   sender_profile RECORD;
-  recipient_uuid UUID;
   notification_id UUID;
 BEGIN
+  SET search_path = public, pg_temp;
   -- Get sender profile information
   SELECT username, display_name, avatar_url INTO sender_profile
   FROM profiles WHERE uuid = sender_uuid;
   
-  -- Get recipient (other participant in conversation)
-  SELECT user_id INTO recipient_uuid
-  FROM conversation_participants
-  WHERE conversation_id = conversation_uuid AND user_id != sender_uuid
-  LIMIT 1;
-  
-  -- Create notification
+  -- Create notifications for all conversation participants except the sender
   INSERT INTO notifications (user_id, type, title, message, data)
-  VALUES (
-    recipient_uuid,
+  SELECT 
+    cp.user_id,
     'message',
     'New Message',
     'New message from ' || COALESCE(sender_profile.display_name, sender_profile.username),
@@ -1074,7 +1122,10 @@ BEGIN
       'sender_avatar_url', sender_profile.avatar_url,
       'conversation_id', conversation_uuid
     )
-  ) RETURNING uuid INTO notification_id;
+  FROM conversation_participants cp
+  WHERE cp.conversation_id = conversation_uuid 
+    AND cp.user_id != sender_uuid
+  RETURNING uuid INTO notification_id;
   
   RETURN notification_id;
 END;
@@ -1084,6 +1135,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION get_unread_notification_count(user_uuid UUID)
 RETURNS BIGINT AS $$
 BEGIN
+  SET search_path = public, pg_temp;
   RETURN (
     SELECT COUNT(*)
     FROM notifications
@@ -1096,6 +1148,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION mark_notification_as_read(notification_uuid UUID, user_uuid UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
+  SET search_path = public, pg_temp;
   UPDATE notifications 
   SET is_read = TRUE, updated_at = NOW()
   WHERE uuid = notification_uuid AND user_id = user_uuid;
@@ -1110,6 +1163,7 @@ RETURNS INTEGER AS $$
 DECLARE
   updated_count INTEGER;
 BEGIN
+  SET search_path = public, pg_temp;
   UPDATE notifications 
   SET is_read = TRUE, updated_at = NOW()
   WHERE user_id = user_uuid AND is_read = FALSE;

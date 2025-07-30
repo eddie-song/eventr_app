@@ -213,7 +213,7 @@ const People = () => {
             </p>
             {people.length === 0 && (
               <button 
-                onClick={() => window.location.href = '/create'} 
+                onClick={() => navigate('/create')} 
                 style={{
                   background: '#007AFF',
                   color: 'white',
