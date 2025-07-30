@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './events.css';
 import LoadingScreen from './LoadingScreen.js';
 import { usePageCache } from '../context/PageCacheContext.js';
@@ -7,6 +8,7 @@ import EventImage from '../../components/eventImage';
 import { formatDateInTimezone, getUserTimezone, convertUTCToDatetimeLocal } from '../../utils/timezoneUtils';
 
 const Events = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
@@ -32,71 +34,19 @@ const Events = () => {
     }
   }, [isPageLoaded]);
 
-  // Recommended events based on user preferences
-  const recommendedEvents = [
-    {
-      id: 'rec1',
-      name: 'Wellness Workshop Series',
-      category: 'wellness',
-      date: '2024-07-10',
-      time: '6:30 PM',
-      location: 'Zen Wellness Center',
-      distance: '0.7 miles away',
-      image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&h=300&fit=crop',
-      description: 'Weekly wellness workshops covering meditation, nutrition, and mindfulness. Perfect for your wellness journey.',
-      price: '$20',
-      attendees: 45,
-      rating: 4.9,
-      reviews: 28,
-      tags: ['Wellness', 'Workshop', 'Meditation'],
-      reason: 'Based on your interest in wellness activities'
-    },
-    {
-      id: 'rec2',
-      name: 'Tech Innovation Summit',
-      category: 'networking',
-      date: '2024-07-12',
-      time: '9:00 AM',
-      location: 'Tech Conference Center',
-      distance: '1.4 miles away',
-      image: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=400&h=300&fit=crop',
-      description: 'Annual tech summit featuring keynote speakers, networking sessions, and startup showcases.',
-      price: '$75',
-      attendees: 320,
-      rating: 4.7,
-      reviews: 45,
-      tags: ['Tech', 'Networking', 'Innovation'],
-      reason: 'Matches your professional interests'
-    },
-    {
-      id: 'rec3',
-      name: 'Sunset Jazz Concert',
-      category: 'music',
-      date: '2024-07-14',
-      time: '7:00 PM',
-      location: 'Riverside Amphitheater',
-      distance: '1.1 miles away',
-      image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop',
-      description: 'Intimate jazz concert with local musicians. BYOB and picnic blankets welcome.',
-      price: '$25',
-      attendees: 120,
-      rating: 4.6,
-      reviews: 19,
-      tags: ['Jazz', 'Music', 'Outdoor'],
-      reason: 'Similar to events you\'ve attended'
-    }
-  ];
+  // Recommended events section - service coming soon
+  const recommendedEvents = [];
 
   const categories = [
-    { id: 'all', name: 'All Events', icon: '📅' },
-    { id: 'music', name: 'Music', icon: '🎵' },
-    { id: 'networking', name: 'Networking', icon: '🤝' },
-    { id: 'wellness', name: 'Wellness', icon: '🧘‍♀️' },
-    { id: 'culture', name: 'Arts & Culture', icon: '🎨' },
-    { id: 'food', name: 'Food & Dining', icon: '🍽️' },
-    { id: 'community', name: 'Community', icon: '👥' },
-    { id: 'outdoor', name: 'Outdoor', icon: '🌳' },
-    { id: 'entertainment', name: 'Entertainment', icon: '🎭' }
+    { id: 'all', name: 'All Events' },
+    { id: 'music', name: 'Music' },
+    { id: 'networking', name: 'Networking' },
+    { id: 'wellness', name: 'Wellness' },
+    { id: 'culture', name: 'Arts & Culture' },
+    { id: 'food', name: 'Food & Dining' },
+    { id: 'community', name: 'Community' },
+    { id: 'outdoor', name: 'Outdoor' },
+    { id: 'entertainment', name: 'Entertainment' }
   ];
 
   const filteredEvents = events.filter(event => {
@@ -149,7 +99,11 @@ const Events = () => {
   };
 
   const EventCard = ({ event }) => (
-    <div className="event-card">
+    <div 
+      className="event-card" 
+      onClick={() => navigate(`/dashboard/event/${event.uuid}`)}
+      style={{ cursor: 'pointer' }}
+    >
       <div className="event-image-container">
         {event.image_url ? (
           <EventImage 
@@ -206,8 +160,10 @@ const Events = () => {
         </div>
         {event.location && (
           <div className="event-location">
-            <span className="location-icon">📍</span>
-            <span className="location-name">{event.location}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16" style={{ color: 'currentColor', marginRight: '4px' }}>
+              <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
+            </svg>
+            {event.location || 'Location not specified'}
           </div>
         )}
         <p className="event-description">
@@ -237,7 +193,11 @@ const Events = () => {
   );
 
   const RecommendedEventCard = ({ event }) => (
-    <div className="recommended-event-card">
+    <div 
+      className="recommended-event-card"
+      onClick={() => navigate(`/dashboard/event/${event.uuid}`)}
+      style={{ cursor: 'pointer' }}
+    >
       <div className="event-image-container">
         <img 
           src={event.image} 
@@ -271,7 +231,9 @@ const Events = () => {
           <span className="event-distance">{event.distance}</span>
         </div>
         <div className="event-location">
-          <span className="location-icon">📍</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16" style={{ color: 'currentColor', marginRight: '4px' }}>
+            <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
+          </svg>
           <span className="location-name">{event.location}</span>
         </div>
         <p className="event-description">{event.description}</p>
@@ -326,7 +288,6 @@ const Events = () => {
               className={`category-btn ${selectedCategory === category.id ? 'active' : ''}`}
               onClick={() => setSelectedCategory(category.id)}
             >
-              <span className="category-icon">{category.icon}</span>
               <span className="category-name">{category.name}</span>
             </button>
           ))}
@@ -336,13 +297,15 @@ const Events = () => {
       <div className="recommended-section">
         <div className="recommended-header">
           <h2>Recommended For You</h2>
-          <span className="recommended-count">{recommendedEvents.length} personalized picks</span>
+          <span className="recommended-count">Service coming soon...</span>
         </div>
         
         <div className="recommended-grid">
-          {recommendedEvents.map(event => (
-            <RecommendedEventCard key={event.id} event={event} />
-          ))}
+          <div className="service-coming-soon">
+            <div className="coming-soon-icon">🚀</div>
+            <h3>Service Coming Soon...</h3>
+            <p>We're working on personalized recommendations just for you!</p>
+          </div>
         </div>
       </div>
 

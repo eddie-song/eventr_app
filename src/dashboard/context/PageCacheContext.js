@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const PageCacheContext = createContext();
 
@@ -17,8 +17,8 @@ export const PageCacheProvider = ({ children }) => {
   // Load cached data from localStorage on mount
   useEffect(() => {
     try {
-      const cachedLoadedPages = localStorage.getItem('eventr_loadedPages');
-      const cachedPageData = localStorage.getItem('eventr_pageData');
+      const cachedLoadedPages = localStorage.getItem('encounters_loadedPages');
+      const cachedPageData = localStorage.getItem('encounters_pageData');
       
       if (cachedLoadedPages) {
         setLoadedPages(new Set(JSON.parse(cachedLoadedPages)));
@@ -35,33 +35,33 @@ export const PageCacheProvider = ({ children }) => {
   // Save to localStorage whenever state changes
   useEffect(() => {
     try {
-      localStorage.setItem('eventr_loadedPages', JSON.stringify(Array.from(loadedPages)));
-      localStorage.setItem('eventr_pageData', JSON.stringify(pageData));
+      localStorage.setItem('encounters_loadedPages', JSON.stringify(Array.from(loadedPages)));
+      localStorage.setItem('encounters_pageData', JSON.stringify(pageData));
     } catch (error) {
       console.error('Error saving cached data:', error);
     }
   }, [loadedPages, pageData]);
 
-  const markPageAsLoaded = (pageName) => {
+  const markPageAsLoaded = useCallback((pageName) => {
     setLoadedPages(prev => new Set(prev).add(pageName));
-  };
+  }, []);
 
-  const isPageLoaded = (pageName) => {
+  const isPageLoaded = useCallback((pageName) => {
     return loadedPages.has(pageName);
-  };
+  }, [loadedPages]);
 
-  const cachePageData = (pageName, data) => {
+  const cachePageData = useCallback((pageName, data) => {
     setPageData(prev => ({
       ...prev,
       [pageName]: data
     }));
-  };
+  }, []);
 
-  const getPageData = (pageName) => {
+  const getPageData = useCallback((pageName) => {
     return pageData[pageName] || null;
-  };
+  }, [pageData]);
 
-  const clearPageCache = (pageName) => {
+  const clearPageCache = useCallback((pageName) => {
     if (pageName) {
       setLoadedPages(prev => {
         const newSet = new Set(prev);
@@ -78,10 +78,10 @@ export const PageCacheProvider = ({ children }) => {
       setLoadedPages(new Set());
       setPageData({});
       // Clear localStorage
-      localStorage.removeItem('eventr_loadedPages');
-      localStorage.removeItem('eventr_pageData');
+      localStorage.removeItem('encounters_loadedPages');
+      localStorage.removeItem('encounters_pageData');
     }
-  };
+  }, []);
 
   const value = {
     loadedPages,

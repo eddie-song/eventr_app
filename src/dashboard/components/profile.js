@@ -14,6 +14,20 @@ import { eventService } from '../../services/eventService';
 import { imageUploadService } from '../../services/imageUploadService';
 import EventImage from '../../components/eventImage';
 import { formatDateInTimezone, getUserTimezone, convertUTCToDatetimeLocal } from '../../utils/timezoneUtils';
+import { recommendService } from '../../services/recommendService';
+import RecommendationCard from './create-components/RecommendationCard';
+import RecommendationModal from './create-components/RecommendationModal';
+import ProfileAvatar from './ProfileAvatar';
+import EventCard from './EventCard';
+import EventModal from './EventModal';
+import { businessLocationService } from '../../services/businessLocationService';
+import BusinessLocationCard from './create-components/businessCard.tsx';
+import BusinessModal from './create-components/businessModal.tsx';
+import PostCard from '../profileComponents/postCard';
+import PostModal from '../profileComponents/postModal';
+import { personService } from '../../services/personService';
+import PersonCard from '../profileComponents/personCard';
+import PersonModal from '../profileComponents/personModal';
 
 const EditProfileModal = ({
   showEditModal,
@@ -452,110 +466,15 @@ const EditProfileModal = ({
   );
 };
 
-// Instagram-like Post Modal Component
-const PostModal = ({ post, onClose, userProfile, onCommentAdded }) => {
-  const [likeState, setLikeState] = React.useState({
-    liked: false,
-    likesCount: post.like_count || 0
-  });
-  const [commentText, setCommentText] = React.useState('');
-  const [showComments, setShowComments] = React.useState(true); // Show comments by default
-  const [comments, setComments] = React.useState([]);
-  const [commentsLoading, setCommentsLoading] = React.useState(false);
-  const [commentsError, setCommentsError] = React.useState(null);
-  const [addingComment, setAddingComment] = React.useState(false);
-
-  // On mount, check if the user has liked the post
-  React.useEffect(() => {
-    let isMounted = true;
-    async function checkLiked() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const liked = await likeService.hasUserLikedPost(post.uuid, user.id);
-        if (isMounted) {
-          setLikeState(prev => ({ ...prev, liked }));
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
-    checkLiked();
-    return () => { isMounted = false; };
-  }, [post.uuid]);
-
-  // Fetch comments when modal opens or post changes
-  React.useEffect(() => {
-    if (!showComments) return;
-    setCommentsLoading(true);
-    setCommentsError(null);
-    commentService.getCommentsForPost(post.uuid)
-      .then(setComments)
-      .catch(err => setCommentsError('Failed to load comments'))
-      .finally(() => setCommentsLoading(false));
-  }, [showComments, post.uuid]);
-
-  const handleLike = React.useCallback(async () => {
-    // Optimistic update
-    setLikeState(prev => {
-      const liked = !prev.liked;
-      const likesCount = liked ? prev.likesCount + 1 : Math.max(0, prev.likesCount - 1);
-      return { liked, likesCount };
-    });
-
-    try {
-      const result = await likeService.likePost(post.uuid);
-      // Update with actual result from server
-      setLikeState({ liked: result.liked, likesCount: result.likesCount });
-    } catch (e) {
-      console.error('Like error:', e);
-      // Revert on error
-      setLikeState(prev => ({
-        liked: !prev.liked,
-        likesCount: post.like_count || 0
-      }));
-    }
-  }, [post.uuid, post.like_count]);
-
-  const handleSubmitComment = async (e) => {
-    e.preventDefault();
-    if (!commentText.trim()) return;
-    setAddingComment(true);
-    try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-      // Optimistically add comment
-      const newComment = {
-        uuid: Math.random().toString(36).slice(2),
-        user_id: user.id,
-        comment_text: commentText,
-        created_at: new Date().toISOString(),
-        post_id: post.uuid,
-        parent_comment_id: null,
-        like_count: 0,
-        reply_count: 0
-      };
-      setComments(prev => [newComment, ...prev]);
-      setCommentText('');
-      await commentService.addComment({
-        postId: post.uuid,
-        userId: user.id,
-        commentText,
-      });
-      // Refetch to get real data (with uuid, etc)
-      const fresh = await commentService.getCommentsForPost(post.uuid);
-      setComments(fresh);
-      // Notify parent to update comment count in UI
-      if (onCommentAdded) onCommentAdded(post.uuid);
-    } catch (err) {
-      setCommentsError('Failed to add comment');
-    } finally {
-      setAddingComment(false);
-    }
-  };
-
-  if (!post) return null;
+const EditBusinessModal = ({
+  showEditBusinessModal,
+  setShowEditBusinessModal,
+  editBusinessFormData,
+  setEditBusinessFormData,
+  handleEditBusiness,
+  isEditingBusiness
+}) => {
+  if (!showEditBusinessModal) return null;
 
   return (
     <div style={{
@@ -564,534 +483,302 @@ const PostModal = ({ post, onClose, userProfile, onCommentAdded }) => {
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.9)',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
-      zIndex: 2000,
-      padding: '20px'
+      zIndex: 1000
     }}>
       <div style={{
         backgroundColor: 'white',
         borderRadius: '12px',
-        maxWidth: '900px',
-        width: '100%',
+        padding: '32px',
+        width: '95%',
+        maxWidth: '800px',
         maxHeight: '90vh',
-        display: 'flex',
-        overflow: 'hidden',
-        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
+        overflow: 'auto'
       }}>
-        {/* Left side - Image */}
         <div style={{
-          flex: '1',
-          backgroundColor: '#000',
           display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '400px'
+          marginBottom: '20px'
         }}>
-          {post.image ? (
-            <img
-              src={post.image}
-              alt="Post"
-              style={{
-                maxWidth: '100%',
-                maxHeight: '100%',
-                objectFit: 'contain'
-              }}
-              onError={(e) => {
-                e.target.style.display = 'none';
-              }}
-            />
-          ) : (
-            <div style={{
-              color: '#666',
-              fontSize: '18px',
-              textAlign: 'center'
-            }}>
-              No image
-            </div>
-          )}
-        </div>
-
-        {/* Right side - Content */}
-        <div style={{
-          flex: '1',
-          display: 'flex',
-          flexDirection: 'column',
-          maxWidth: '400px',
-          minWidth: '300px'
-        }}>
-          {/* Header */}
-          <div style={{
-            padding: '16px',
-            borderBottom: '1px solid #e1e5e9',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              backgroundColor: '#f0f0f0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '16px'
-            }}>
-              {userProfile?.avatar_url ? (
-                <img
-                  src={userProfile.avatar_url}
-                  alt="avatar"
-                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
-                  onError={e => (e.target.style.display = 'none')}
-                />
-              ) : (
-                '👤'
-              )}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: '600', fontSize: '14px' }}>
-                {userProfile?.display_name || userProfile?.username || 'User'}
-              </div>
-              <div style={{ fontSize: '12px', color: '#86868b' }}>
-                {post.location || 'Unknown location'}
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              style={{
-                background: 'none',
-                border: 'none',
-                fontSize: '20px',
-                cursor: 'pointer',
-                padding: '4px',
-                color: '#86868b'
-              }}
-            >
-              ×
-            </button>
-          </div>
-
-          {/* Content */}
-          <div style={{
-            flex: 1,
-            overflow: 'auto',
-            padding: '16px'
-          }}>
-            {/* Post text */}
-            <div style={{ marginBottom: '16px' }}>
-              <p style={{
-                fontSize: '14px',
-                lineHeight: '1.4',
-                margin: '0 0 12px 0',
-                color: '#1d1d1f'
-              }}>
-                {post.content}
-              </p>
-
-              {/* Tags */}
-              {post.tags && post.tags.length > 0 && (
-                <div style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '6px',
-                  marginBottom: '12px'
-                }}>
-                  {post.tags.map((tag, index) => (
-                    <span key={index} style={{
-                      backgroundColor: '#E3F2FD',
-                      color: '#1976D2',
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      fontWeight: '500'
-                    }}>
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* Location */}
-              {post.location && (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '12px',
-                  color: '#86868b',
-                  marginBottom: '12px'
-                }}>
-                  <span>📍</span>
-                  <span>{post.location}</span>
-                </div>
-              )}
-
-              {/* Timestamp */}
-              <div style={{
-                fontSize: '12px',
-                color: '#86868b',
-                marginBottom: '16px'
-              }}>
-                {post.timestamp}
-              </div>
-            </div>
-
-            {/* Comments section */}
-            <div style={{
-              borderTop: '1px solid #e1e5e9',
-              paddingTop: '16px',
-              minHeight: 120
-            }}>
-              <button
-                onClick={() => setShowComments(!showComments)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#86868b',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  marginBottom: '12px'
-                }}
-              >
-                {showComments ? 'Hide comments' : 'View comments'}
-              </button>
-
-              {showComments && (
-                <div style={{ marginBottom: '16px', maxHeight: 200, overflowY: 'auto' }}>
-                  {commentsLoading && <div style={{ color: '#86868b', textAlign: 'center', padding: 12 }}>Loading comments...</div>}
-                  {commentsError && <div style={{ color: 'red', textAlign: 'center', padding: 12 }}>{commentsError}</div>}
-                  {!commentsLoading && !commentsError && comments.length === 0 && (
-                    <div style={{ fontSize: '14px', color: '#86868b', textAlign: 'center', padding: 20 }}>No comments yet. Be the first to comment!</div>
-                  )}
-                  {!commentsLoading && !commentsError && comments.length > 0 && (
-                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                      {comments.map(comment => (
-                        <li key={comment.uuid} style={{ marginBottom: 12, borderBottom: '1px solid #f0f0f0', paddingBottom: 8 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontWeight: 600, fontSize: 13 }}>{comment.user_id === userProfile?.uuid ? (userProfile.display_name || userProfile.username || 'You') : 'User'}</span>
-                            <span style={{ color: '#86868b', fontSize: 11 }}>{new Date(comment.created_at).toLocaleString()}</span>
-                          </div>
-                          <div style={{ fontSize: 14 }}>{comment.comment_text}</div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div style={{
-            padding: '16px',
-            borderTop: '1px solid #e1e5e9'
-          }}>
-            {/* Action buttons */}
-            <div style={{
-              display: 'flex',
-              gap: '16px',
-              marginBottom: '12px'
-            }}>
-              <button
-                onClick={handleLike}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  color: likeState.liked ? '#ff3b30' : '#86868b',
-                  transition: 'color 0.2s ease'
-                }}
-              >
-                {likeState.liked ? '❤️' : '🤍'}
-              </button>
-              <button
-                onClick={() => setShowComments(true)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  color: '#86868b'
-                }}
-              >
-                💬
-              </button>
-              <button
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  color: '#86868b'
-                }}
-              >
-                📤
-              </button>
-              <button
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  color: '#86868b'
-                }}
-              >
-                🔖
-              </button>
-            </div>
-
-            {/* Like count */}
-            <div style={{
-              fontSize: '14px',
-              fontWeight: '600',
-              marginBottom: '8px'
-            }}>
-              {likeState.likesCount} like{likeState.likesCount !== 1 ? 's' : ''}
-            </div>
-
-            {/* Comment input */}
-            <form onSubmit={handleSubmitComment} style={{
-              display: 'flex',
-              gap: '8px',
-              alignItems: 'center',
-              marginTop: 8
-            }}>
-              <input
-                type="text"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Add a comment..."
-                style={{
-                  flex: 1,
-                  border: 'none',
-                  outline: 'none',
-                  fontSize: '14px',
-                  padding: '8px 0',
-                  background: '#f8f9fa',
-                  borderRadius: 6
-                }}
-                disabled={addingComment}
-              />
-              <button
-                type="submit"
-                disabled={!commentText.trim() || addingComment}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: commentText.trim() ? '#007AFF' : '#c1c1c1',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: commentText.trim() && !addingComment ? 'pointer' : 'default'
-                }}
-              >
-                {addingComment ? 'Posting...' : 'Post'}
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const EventModal = ({ event, onClose, userProfile }) => {
-  const [userTimezone, setUserTimezone] = useState('UTC');
-
-  // Get user's timezone on component mount
-  useEffect(() => {
-    const timezone = getUserTimezone();
-    setUserTimezone(timezone);
-  }, []);
-
-  if (!event) return null;
-
-  return (
-    <div className="event-modal-overlay" onClick={onClose}>
-      <div className="event-modal-container" onClick={e => e.stopPropagation()}>
-        {/* Header with close button */}
-        <div className="event-modal-header">
-          <button className="event-modal-close" onClick={onClose}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+          <h2 style={{ margin: 0 }}>Edit Business Location</h2>
+          <button
+            onClick={() => setShowEditBusinessModal(false)}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '24px',
+              cursor: 'pointer',
+              padding: '4px'
+            }}
+          >
+            ×
           </button>
         </div>
+        <form onSubmit={handleEditBusiness}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Business Name *</label>
+              <input
+                type="text"
+                value={editBusinessFormData.name}
+                onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, name: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '16px'
+                }}
+                required
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Business Type</label>
+              <input
+                type="text"
+                value={editBusinessFormData.business_type}
+                onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, business_type: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '16px'
+                }}
+                placeholder="e.g., Restaurant, Retail, Service"
+              />
+            </div>
+          </div>
+          
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Description</label>
+            <textarea
+              value={editBusinessFormData.description}
+              onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, description: e.target.value }))}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '16px',
+                minHeight: '100px',
+                resize: 'vertical'
+              }}
+              placeholder="Describe your business..."
+            />
+          </div>
 
-        {/* Hero section with event image and gradient */}
-        <div className="event-modal-hero">
-          <div className="event-modal-image">
-            {event.image_url ? (
-              <EventImage
-                imageUrl={event.image_url}
-                alt={event.event}
-                className="event-modal-hero-image"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'flex';
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Address</label>
+            <input
+              type="text"
+              value={editBusinessFormData.address}
+              onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, address: e.target.value }))}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '16px'
+              }}
+              placeholder="Street address"
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>City</label>
+              <input
+                type="text"
+                value={editBusinessFormData.city}
+                onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, city: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '16px'
                 }}
               />
-            ) : null}
-            <div className="event-modal-placeholder" style={{ display: event.image_url ? 'none' : 'flex' }}>
-              <span className="event-modal-icon">🎉</span>
             </div>
-            <div className="event-modal-gradient"></div>
-          </div>
-
-          {/* Event title overlay */}
-          <div className="event-modal-title-section">
-            <h1 className="event-modal-title">{event.event}</h1>
-            {event.location && (
-              <div className="event-modal-location">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 7.61305 3.94821 5.32387 5.63604 3.63604C7.32387 1.94821 9.61305 1 12 1C14.3869 1 16.6761 1.94821 18.364 3.63604C20.0518 5.32387 21 7.61305 21 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M12 13C13.6569 13 15 11.6569 15 10C15 8.34315 13.6569 7 12 7C10.3431 7 9 8.34315 9 10C9 11.6569 10.3431 13 12 13Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span>{event.location}</span>
-              </div>
-            )}
-            {event.scheduled_time && (
-              <div className="event-modal-time">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M12 6V12L16 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span>{formatDateInTimezone(event.scheduled_time, userTimezone, {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true
-                })}</span>
-              </div>
-            )}
-            {event.price !== null && (
-              <div className="event-modal-price">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 1V23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M17 5H9.5C8.57174 5 7.6815 5.36875 7.02513 6.02513C6.36875 6.6815 6 7.57174 6 8.5C6 9.42826 6.36875 10.3185 7.02513 10.9749C7.6815 11.6313 8.57174 12 9.5 12H14.5C15.4283 12 16.3185 12.3687 16.9749 13.0251C17.6313 13.6815 18 14.5717 18 15.5C18 16.4283 17.6313 17.3185 16.9749 17.9749C16.3185 18.6313 15.4283 19 14.5 19H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span>{event.price === 0 || isNaN(event.price) ? 'Free' : `$${parseFloat(event.price).toFixed(2)}`}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Content section */}
-        <div className="event-modal-content">
-          {/* Author info */}
-          <div className="event-modal-author">
-            <div className="event-modal-avatar">
-              <ProfileAvatar avatarPath={userProfile?.avatar_url} />
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>State</label>
+              <input
+                type="text"
+                value={editBusinessFormData.state}
+                onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, state: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '16px'
+                }}
+              />
             </div>
-            <div className="event-modal-author-info">
-              <div className="event-modal-author-name">
-                {userProfile?.display_name || userProfile?.username || 'User'}
-              </div>
-              <div className="event-modal-date">
-                {event.created_at ? new Date(event.created_at).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                }) : 'Recently'}
-              </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>ZIP Code</label>
+              <input
+                type="text"
+                value={editBusinessFormData.zip_code}
+                onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, zip_code: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '16px'
+                }}
+              />
             </div>
           </div>
 
-          {/* Tags */}
-          {event.tags && event.tags.length > 0 && (
-            <div className="event-modal-tags">
-              {event.tags.map((tag, index) => (
-                <span key={index} className="event-modal-tag">
-                  {tag}
-                </span>
-              ))}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Phone</label>
+              <input
+                type="tel"
+                value={editBusinessFormData.phone}
+                onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, phone: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '16px'
+                }}
+              />
             </div>
-          )}
-
-          {/* Stats grid */}
-          <div className="event-modal-stats">
-            <div className="event-modal-stat">
-              <div className="event-modal-stat-icon">👥</div>
-              <div className="event-modal-stat-content">
-                <div className="event-modal-stat-number">{event.attendeeCount || 0}</div>
-                <div className="event-modal-stat-label">Attendees</div>
-              </div>
-            </div>
-            <div className="event-modal-stat">
-              <div className="event-modal-stat-icon">⭐</div>
-              <div className="event-modal-stat-content">
-                <div className="event-modal-stat-number">{event.rating || 0.0}</div>
-                <div className="event-modal-stat-label">Rating</div>
-              </div>
-            </div>
-            <div className="event-modal-stat">
-              <div className="event-modal-stat-icon">💬</div>
-              <div className="event-modal-stat-content">
-                <div className="event-modal-stat-number">{event.review_count || 0}</div>
-                <div className="event-modal-stat-label">Reviews</div>
-              </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Email</label>
+              <input
+                type="email"
+                value={editBusinessFormData.email}
+                onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, email: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '16px'
+                }}
+              />
             </div>
           </div>
-        </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Website</label>
+            <input
+              type="url"
+              value={editBusinessFormData.website}
+              onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, website: e.target.value }))}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '16px'
+              }}
+              placeholder="https://..."
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Hours of Operation</label>
+              <input
+                type="text"
+                value={editBusinessFormData.hours_of_operation}
+                onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, hours_of_operation: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '16px'
+                }}
+                placeholder="e.g., Mon-Fri 9AM-5PM"
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Price Range</label>
+              <input
+                type="text"
+                value={editBusinessFormData.price_range}
+                onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, price_range: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '16px'
+                }}
+                placeholder="e.g., $, $$, $$$"
+              />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Image URL</label>
+            <input
+              type="url"
+              value={editBusinessFormData.image_url}
+              onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, image_url: e.target.value }))}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '16px'
+              }}
+              placeholder="https://..."
+            />
+          </div>
+
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '12px'
+          }}>
+            <button
+              type="button"
+              onClick={() => setShowEditBusinessModal(false)}
+              style={{
+                padding: '12px 24px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                background: 'white',
+                cursor: 'pointer',
+                fontSize: '16px'
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              style={{
+                padding: '12px 24px',
+                border: 'none',
+                borderRadius: '8px',
+                background: '#007AFF',
+                color: 'white',
+                cursor: isEditingBusiness ? 'not-allowed' : 'pointer',
+                fontSize: '16px',
+                opacity: isEditingBusiness ? 0.7 : 1
+              }}
+            >
+              {isEditingBusiness ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
 };
-
-function ProfileAvatar({ avatarPath }) {
-  const [signedUrl, setSignedUrl] = React.useState(null);
-  React.useEffect(() => {
-    let isMounted = true;
-    async function fetchUrl() {
-      if (!avatarPath || avatarPath.trim() === '') {
-        setSignedUrl(null);
-        return;
-      }
-      if (avatarPath.startsWith('http')) {
-        setSignedUrl(avatarPath);
-        return;
-      }
-      const { data, error } = await supabase.storage
-        .from('avatars')
-        .createSignedUrl(avatarPath, 3600);
-      if (isMounted) {
-        if (error) {
-          setSignedUrl(null);
-        } else {
-          setSignedUrl(data.signedUrl);
-        }
-      }
-    }
-    fetchUrl();
-    return () => { isMounted = false; };
-  }, [avatarPath]);
-  if (!signedUrl) return <span role="img" aria-label="avatar">👤</span>;
-  return (
-    <img
-      src={signedUrl}
-      alt="avatar"
-      style={{
-        width: '100%',
-        height: '100%',
-        borderRadius: '50%',
-        objectFit: 'cover',
-        display: 'block',
-        border: 'none',
-        background: 'none',
-        minWidth: 0,
-        minHeight: 0
-      }}
-    />
-  );
-}
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -1134,6 +821,39 @@ const Profile = () => {
   const [isEditingEvent, setIsEditingEvent] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [userRecommendations, setUserRecommendations] = useState([]);
+  const [showRecommendationModal, setShowRecommendationModal] = useState(false);
+  const [selectedRecommendation, setSelectedRecommendation] = useState(null);
+  const [deleteRecommendationModal, setDeleteRecommendationModal] = useState({ open: false, rec: null });
+  const [userBusinessLocations, setUserBusinessLocations] = useState([]);
+  const [deleteBusinessModal, setDeleteBusinessModal] = useState({ open: false, businessUuid: null });
+  const [isDeletingBusiness, setIsDeletingBusiness] = useState(false);
+  const [showBusinessModal, setShowBusinessModal] = useState(false);
+  const [selectedBusiness, setSelectedBusiness] = useState(null);
+  const [showEditBusinessModal, setShowEditBusinessModal] = useState(false);
+  const [businessToEdit, setBusinessToEdit] = useState(null);
+  const [editBusinessFormData, setEditBusinessFormData] = useState({
+    name: '',
+    description: '',
+    address: '',
+    city: '',
+    state: '',
+    zip_code: '',
+    country: 'USA',
+    phone: '',
+    email: '',
+    website: '',
+    business_type: '',
+    hours_of_operation: '',
+    price_range: '',
+    image_url: ''
+  });
+  const [isEditingBusiness, setIsEditingBusiness] = useState(false);
+  const [userPeople, setUserPeople] = useState([]);
+  const [deletePersonModal, setDeletePersonModal] = useState({ open: false, personUuid: null });
+  const [isDeletingPerson, setIsDeletingPerson] = useState(false);
+  const [showPersonModal, setShowPersonModal] = useState(false);
+  const [selectedPerson, setSelectedPerson] = useState(null);
 
   const { isPageLoaded, markPageAsLoaded } = usePageCache();
 
@@ -1192,199 +912,7 @@ const Profile = () => {
 
 
 
-  const PostCard = React.memo(({ post }) => {
-    const postUuid = post.uuid;
-    const isMenuOpen = showPostMenu === post.uuid;
-    const [likeState, handleLike] = useLikeState(postUuid, post.like_count || 0);
 
-    const handleMenuClick = React.useCallback((e) => {
-      e.stopPropagation();
-      setShowPostMenu(isMenuOpen ? null : post.uuid);
-    }, [isMenuOpen, post.uuid]);
-
-    const handleLikeClick = React.useCallback((e) => {
-      e.stopPropagation();
-      handleLike();
-    }, [handleLike]);
-
-    const handlePostClick = React.useCallback(() => {
-      setSelectedPostModal(post);
-    }, [post]);
-
-    return (
-      <div className="profile-post-card" onClick={handlePostClick}>
-        <div className="post-header">
-          <div className="post-author">
-            <div className="author-avatar">
-              {userProfile.avatar_url ? (
-                <img
-                  src={userProfile.avatar_url}
-                  alt="avatar"
-                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', display: 'block' }}
-                  onError={e => (e.target.style.display = 'none')}
-                />
-              ) : (
-                '👤'
-              )}
-            </div>
-            <div className="author-info">
-              <div className="author-name">{userProfile.display_name || userProfile.username || 'User'}</div>
-              <div className="post-timestamp">{post.timestamp}</div>
-            </div>
-          </div>
-          <div style={{ position: 'relative' }}>
-            <button className="post-menu" onClick={handleMenuClick}>
-              ⋯
-            </button>
-            {isMenuOpen && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                right: 0,
-                background: 'white',
-                border: '1px solid #e1e5e9',
-                borderRadius: '8px',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-                zIndex: 10,
-                minWidth: '160px',
-                padding: '4px 0'
-              }}>
-                <button
-                  style={{
-                    width: '100%',
-                    background: 'none',
-                    border: 'none',
-                    padding: '10px 16px',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '15px',
-                    color: '#1d1d1f',
-                    whiteSpace: 'nowrap'
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openEditModal(post);
-                    setShowPostMenu(null);
-                  }}
-                >
-                  ✏️ Edit Post
-                </button>
-                <button
-                  style={{
-                    width: '100%',
-                    background: 'none',
-                    border: 'none',
-                    padding: '10px 16px',
-                    textAlign: 'left',
-                    cursor: isDeleting ? 'not-allowed' : 'pointer',
-                    fontSize: '15px',
-                    color: '#ff3b30',
-                    opacity: isDeleting ? 0.6 : 1,
-                    whiteSpace: 'nowrap'
-                  }}
-                  disabled={isDeleting}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeleteModal({ open: true, postUuid: post.uuid });
-                    setShowPostMenu(null);
-                  }}
-                >
-                  🗑️ Delete Post
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="post-content">
-          <p>{post.content}</p>
-          {post.image && (
-            <div className="post-image-container">
-              <img
-                src={post.image}
-                alt={`${post.location}`}
-                className="post-image"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
-              />
-            </div>
-          )}
-          <div className="post-location">
-            <span className="location-icon">📍</span>
-            <span className="location-name">{post.location}</span>
-            <span className="location-distance">{post.distance}</span>
-          </div>
-          <div className="post-tags">
-            {post.tags.map((tag, index) => (
-              <span key={index} className="tag">{tag}</span>
-            ))}
-          </div>
-        </div>
-
-        <div className="post-actions">
-          <button className={`action-btn${likeState.liked ? ' active' : ''}`} onClick={handleLikeClick}>
-            <span>❤️</span>
-            <span className="action-count">{likeState.likesCount}</span>
-          </button>
-          <button className="action-btn">
-            <span>💬</span>
-            <span className="action-count">{post.comments || 0}</span>
-          </button>
-          <button className="action-btn">
-            <span>📤</span>
-          </button>
-          <button className="action-btn">
-            <span>🔖</span>
-          </button>
-          <button className="action-btn">
-            <span>🗺️</span>
-          </button>
-        </div>
-      </div>
-    );
-  });
-
-  const RecommendationCard = ({ rec }) => (
-    <div className="profile-rec-card">
-      <div className="rec-image-container">
-        <img
-          src={rec.image}
-          alt={rec.title}
-          className="rec-image"
-          onError={(e) => {
-            e.target.style.display = 'none';
-          }}
-        />
-        <div className="rec-type-badge">{rec.type}</div>
-      </div>
-      <div className="rec-content">
-        <div className="rec-header">
-          <h3 className="rec-title">{rec.title}</h3>
-          <span className="rec-distance">{rec.distance}</span>
-        </div>
-        <div className="rec-author">
-          <span className="author-avatar small">{userProfile.avatar_url ? '👤' : '👤'}</span>
-          <span>{userProfile.display_name || userProfile.username || 'User'}</span>
-          <span>•</span>
-          <span>{rec.timestamp}</span>
-        </div>
-        <p className="rec-description">{rec.description}</p>
-        <div className="rec-actions">
-          <button className="action-btn">
-            <span>❤️</span>
-            <span className="action-count">{rec.likes}</span>
-          </button>
-          <button className="action-btn">
-            <span>💬</span>
-          </button>
-          <button className="action-btn">
-            <span>📤</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 
   // Load user profile and posts
   useEffect(() => {
@@ -1460,6 +988,34 @@ const Profile = () => {
         } catch (error) {
           console.error('Error loading user events:', error);
           setUserEvents([]);
+        }
+
+        // Get recommendations
+        try {
+          const recommendations = await recommendService.getUserRecommendations(user.id);
+          setUserRecommendations(recommendations || []);
+        } catch (error) {
+          console.error('Error loading user recommendations:', error);
+          setUserRecommendations([]);
+        }
+
+        // Get user business locations
+        try {
+          const userBusinessLocationsData = await businessLocationService.getUserBusinessLocations();
+          setUserBusinessLocations(userBusinessLocationsData || []);
+        } catch (error) {
+          console.error('Error loading user business locations:', error);
+          setUserBusinessLocations([]);
+        }
+
+        // Get user people/services
+        try {
+          const userPeopleData = await personService.getUserPeople();
+          console.log('User people data:', userPeopleData);
+          setUserPeople(userPeopleData || []);
+        } catch (error) {
+          console.error('Error loading user people:', error);
+          setUserPeople([]);
         }
 
         setIsLoading(false);
@@ -1794,175 +1350,146 @@ const Profile = () => {
     }
   };
 
+  // Add handlers in the Profile component:
+  const openEditRecommendation = (rec) => {
+    // TODO: Implement edit modal logic
+    console.log('Edit recommendation:', rec);
+  };
+  const openDeleteRecommendation = (rec) => {
+    setDeleteRecommendationModal({ open: true, rec });
+  };
+  const handleDeleteRecommendation = async () => {
+    if (!deleteRecommendationModal.rec) return;
+    try {
+      await recommendService.deleteRecommendation(deleteRecommendationModal.rec.uuid);
+      setUserRecommendations(prev => prev.filter(r => r.uuid !== deleteRecommendationModal.rec.uuid));
+      setDeleteRecommendationModal({ open: false, rec: null });
+      showNotification('Recommendation deleted!', 'success');
+    } catch (error) {
+      showNotification('Failed to delete recommendation', 'error');
+    }
+  };
 
-  const EventCard = ({ event }) => {
-    const [userTimezone, setUserTimezone] = useState('UTC');
+  const openEditBusinessModal = (business) => {
+    setBusinessToEdit(business);
+    setEditBusinessFormData({
+      name: business.name || '',
+      description: business.description || '',
+      address: business.address || '',
+      city: business.city || '',
+      state: business.state || '',
+      zip_code: business.zip_code || '',
+      country: business.country || 'USA',
+      phone: business.phone || '',
+      email: business.email || '',
+      website: business.website || '',
+      business_type: business.business_type || '',
+      hours_of_operation: business.hours_of_operation || '',
+      price_range: business.price_range || '',
+      image_url: business.image_url || ''
+    });
+    setShowEditBusinessModal(true);
+  };
 
-    // Get user's timezone on component mount
-    useEffect(() => {
-      const timezone = getUserTimezone();
-      setUserTimezone(timezone);
-    }, []);
+  const handleEditBusiness = async (e) => {
+    e.preventDefault();
+    if (!editBusinessFormData.name.trim()) return;
 
-    const formatDate = (dateString) => {
-      if (!dateString) return null;
-      return formatDateInTimezone(dateString, userTimezone, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric'
+    setIsEditingBusiness(true);
+    try {
+      // Update business location
+      await businessLocationService.updateBusinessLocation(businessToEdit.uuid, editBusinessFormData);
+
+      // Update the business in the local state
+      setUserBusinessLocations(prev => prev.map(business =>
+        business.uuid === businessToEdit.uuid
+          ? {
+            ...business,
+            name: editBusinessFormData.name,
+            description: editBusinessFormData.description,
+            address: editBusinessFormData.address,
+            city: editBusinessFormData.city,
+            state: editBusinessFormData.state,
+            zip_code: editBusinessFormData.zip_code,
+            country: editBusinessFormData.country,
+            phone: editBusinessFormData.phone,
+            email: editBusinessFormData.email,
+            website: editBusinessFormData.website,
+            business_type: editBusinessFormData.business_type,
+            hours_of_operation: editBusinessFormData.hours_of_operation,
+            price_range: editBusinessFormData.price_range,
+            image_url: editBusinessFormData.image_url
+          }
+          : business
+      ));
+
+      setShowEditBusinessModal(false);
+      setBusinessToEdit(null);
+      setEditBusinessFormData({
+        name: '',
+        description: '',
+        address: '',
+        city: '',
+        state: '',
+        zip_code: '',
+        country: 'USA',
+        phone: '',
+        email: '',
+        website: '',
+        business_type: '',
+        hours_of_operation: '',
+        price_range: '',
+        image_url: ''
       });
-    };
+      setNotification({ open: true, message: 'Business location updated successfully!', type: 'success' });
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } catch (error) {
+      console.error('Error updating business location:', error);
+      setNotification({ open: true, message: 'Failed to update business location', type: 'error' });
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } finally {
+      setIsEditingBusiness(false);
+    }
+  };
 
-    const formatTime = (dateString) => {
-      if (!dateString) return null;
-      return formatDateInTimezone(dateString, userTimezone, {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      });
-    };
+  const handleDeleteBusiness = async (businessUuid) => {
+    setIsDeletingBusiness(true);
+    try {
+      await businessLocationService.deleteBusinessLocation(businessUuid);
 
-    return (
-      <div
-        className="event-card"
-        onClick={() => {
-          setSelectedEvent(event);
-          setShowEventModal(true);
-        }}
-        style={{ cursor: 'pointer' }}
-      >
-        <div className="event-image-container">
-          {event.image_url ? (
-            <EventImage
-              imageUrl={event.image_url}
-              alt={event.event}
-              className="event-image"
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'flex';
-              }}
-            />
-          ) : null}
-          <div className="event-placeholder" style={{ display: event.image_url ? 'none' : 'flex' }}>
-            <span className="event-icon">🎉</span>
-          </div>
+      // Update local state
+      setUserBusinessLocations(prev => prev.filter(business => business.uuid !== businessUuid));
+      setDeleteBusinessModal({ open: false, businessUuid: null });
+      setNotification({ open: true, message: 'Business location deleted successfully!', type: 'success' });
 
-          {/* Rating badge */}
-          <div className="event-rating">
-            <span className="rating-star">⭐</span>
-            <span className="rating-number">{event.rating || 0.0}</span>
-            <span className="rating-count">({event.review_count || 0})</span>
-          </div>
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } catch (error) {
+      console.error('Error deleting business location:', error);
+      setNotification({ open: true, message: 'Failed to delete business location', type: 'error' });
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } finally {
+      setIsDeletingBusiness(false);
+    }
+  };
 
-          {/* Date badge */}
-          <div className="event-date-badge">
-            <div className="event-date">
-              {event.scheduled_time ? formatDate(event.scheduled_time) : formatDate(event.created_at)}
-            </div>
-            <div className="event-time">
-              {event.scheduled_time ? formatTime(event.scheduled_time) : 'Created'}
-            </div>
-          </div>
+  const handleDeletePerson = async (personUuid) => {
+    setIsDeletingPerson(true);
+    try {
+      await personService.deletePerson(personUuid);
 
-          {/* Price badge */}
-          {event.price !== null && (
-            <div className="event-price">
-              <span className="price-text">
-                {event.price === 0 || isNaN(event.price) ? 'Free' : `$${parseFloat(event.price).toFixed(2)}`}
-              </span>
-            </div>
-          )}
+      // Update local state
+      setUserPeople(prev => prev.filter(person => person.uuid !== personUuid));
+      setDeletePersonModal({ open: false, personUuid: null });
+      setNotification({ open: true, message: 'Service deleted successfully!', type: 'success' });
 
-
-        </div>
-
-        <div className="event-content">
-          <div className="event-header">
-            <h3 className="event-name">{event.event}</h3>
-            <div className="event-header-details">
-              <span className="event-type-badge">
-                {event.event_type ? event.event_type.charAt(0).toUpperCase() + event.event_type.slice(1) : 'General'}
-              </span>
-            </div>
-          </div>
-
-          {event.location && (
-            <div className="event-location">
-              <span className="location-icon">📍</span>
-              <span className="location-name">{event.location}</span>
-            </div>
-          )}
-
-          <p className="event-description">
-            {event.description || 'No description available for this event.'}
-          </p>
-
-          <div className="event-footer">
-            <div className="event-tags">
-              {event.tags && event.tags.slice(0, 3).map((tag, index) => (
-                <span key={index} className="event-tag">{tag}</span>
-              ))}
-              {event.tags && event.tags.length > 3 && (
-                <span className="event-tag-more">+{event.tags.length - 3}</span>
-              )}
-            </div>
-            {/* Capacity badge */}
-            {event.capacity && (
-              <div className="event-capacity">
-                <span className="capacity-text">
-                  <span className="attendees-icon">👥</span>
-                  {event.attendeeCount || 0}/{event.capacity}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Action buttons */}
-          <div className="event-actions" style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-            <button
-              className="edit-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                openEditEventModal(event);
-              }}
-              style={{
-                background: '#007AFF',
-                color: 'white',
-                border: 'none',
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: '500',
-                cursor: 'pointer',
-                flex: 1
-              }}
-            >
-              Edit
-            </button>
-            <button
-              className="delete-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                setDeleteEventModal({ open: true, eventUuid: event.uuid });
-              }}
-              style={{
-                background: '#ff3b30',
-                color: 'white',
-                border: 'none',
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: '500',
-                cursor: 'pointer',
-                flex: 1
-              }}
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } catch (error) {
+      console.error('Error deleting person:', error);
+      setNotification({ open: true, message: 'Failed to delete service', type: 'error' });
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } finally {
+      setIsDeletingPerson(false);
+    }
   };
 
   return (
@@ -1981,18 +1508,31 @@ const Profile = () => {
           <p className="profile-bio">{userProfile.bio || 'No bio yet.'}</p>
           <div className="profile-details">
             <div className="detail-item">
-              <span className="detail-icon">📍</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16" style={{ color: 'currentColor' }}>
+                <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
+              </svg>
               <span>{userLocations.length > 0 ? userLocations[0].location_name : 'Location not set'}</span>
             </div>
             <div className="detail-item">
-              <span className="detail-icon">📅</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 24 24" style={{ color: 'currentColor' }}>
+                <path fill="currentColor" d="M7.75 2.5a.75.75 0 0 0-1.5 0v1.58c-1.44.115-2.384.397-3.078 1.092c-.695.694-.977 1.639-1.093 3.078h19.842c-.116-1.44-.398-2.384-1.093-3.078c-.694-.695-1.639-.977-3.078-1.093V2.5a.75.75 0 0 0-1.5 0v1.513C15.585 4 14.839 4 14 4h-4c-.839 0-1.585 0-2.25.013z"></path>
+                <path fill="currentColor" fillRule="evenodd" d="M2 12c0-.839 0-1.585.013-2.25h19.974C22 10.415 22 11.161 22 12v2c0 3.771 0 5.657-1.172 6.828S17.771 22 14 22h-4c-3.771 0-5.657 0-6.828-1.172S2 17.771 2 14zm15 2a1 1 0 1 0 0-2a1 1 0 0 0 0 2m0 4a1 1 0 1 0 0-2a1 1 0 0 0 0 2m-4-5a1 1 0 1 1-2 0a1 1 0 0 1 2 0m0 4a1 1 0 1 1-2 0a1 1 0 0 1 2 0m-6-3a1 1 0 1 0 0-2a1 1 0 0 0 0 2m0 4a1 1 0 1 0 0-2a1 1 0 0 0 0 2" clipRule="evenodd"></path>
+              </svg>
               <span>Joined {userProfile.created_at ? new Date(userProfile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Recently'}</span>
             </div>
           </div>
           <div className="profile-stats">
             <div className="stat-item">
-              <span className="stat-number">{userProfile.posts || 0}</span>
+              <span className="stat-number">
+                {userProfile.posts || 0}
+              </span>
               <span className="stat-label">Posts</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-number">
+                {(userProfile.posts || 0) + userEvents.length + userRecommendations.length + userBusinessLocations.length + userPeople.length}
+              </span>
+              <span className="stat-label">Total Content</span>
             </div>
             <div className="stat-item">
               <span className="stat-number">{userProfile.followers || 0}</span>
@@ -2024,19 +1564,19 @@ const Profile = () => {
           className={`tab-btn ${activeTab === 'posts' ? 'active' : ''}`}
           onClick={() => setActiveTab('posts')}
         >
-          Posts ({userProfile.posts || 0})
+          Posts ({(userProfile.posts || 0)})
         </button>
         <button
           className={`tab-btn ${activeTab === 'recommend' ? 'active' : ''}`}
           onClick={() => setActiveTab('recommend')}
         >
-          Recommendations (0)
+          Recommendations ({userRecommendations.length})
         </button>
         <button
           className={`tab-btn ${activeTab === 'listings' ? 'active' : ''}`}
           onClick={() => setActiveTab('listings')}
         >
-          Listings ({userEvents.length})
+          Listings ({userEvents.length + userBusinessLocations.length + userPeople.length})
         </button>
       </div>
 
@@ -2045,20 +1585,31 @@ const Profile = () => {
           <div className="posts-grid" style={{ width: '100%' }}>
             {userPosts.length > 0 ? (
               userPosts.map(post => (
-                <PostCard key={post.uuid} post={{
-                  ...post,
-                  content: post.post_body_text,
-                  image: post.image_url,
-                  tags: post.tags || [],
-                  timestamp: post.created_at ? new Date(post.created_at).toLocaleString() : '',
-                  location: post.location || '',
-                  likes: post.like_count || 0,
-                  comments: post.comment_count || 0,
-                  distance: '', // You can add logic for distance if needed
-                }} />
+                <PostCard 
+                  key={post.uuid} 
+                  post={{
+                    ...post,
+                    content: post.post_body_text,
+                    image: post.image_url,
+                    tags: post.tags || [],
+                    timestamp: post.created_at ? new Date(post.created_at).toLocaleString() : '',
+                    location: post.location || '',
+                    likes: post.like_count || 0,
+                    comments: post.comment_count || 0,
+                    distance: '',
+                  }}
+                  userProfile={userProfile}
+                  onPostClick={setSelectedPostModal}
+                  onEditPost={openEditModal}
+                  onDeletePost={(postUuid) => setDeleteModal({ open: true, postUuid })}
+                  isDeleting={isDeleting}
+                  showPostMenu={showPostMenu}
+                  setShowPostMenu={setShowPostMenu}
+                  useLikeState={useLikeState}
+                />
               ))
             ) : (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#666', width: '100%' }}>
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', margin: '0 auto', width: '100%', color: '#666', padding: '2rem' }}>
                 No posts yet. Start sharing your experiences!
               </div>
             )}
@@ -2066,14 +1617,84 @@ const Profile = () => {
         )}
 
         {activeTab === 'recommend' && (
-          <div className="recommend-grid" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            {userRecommend.length > 0 ? (
-              userRecommend.map(rec => (
-                <RecommendationCard key={rec.id} rec={rec} />
+          <div className="listings-grid">
+            {userRecommendations.length > 0 ? (
+              userRecommendations.map(rec => (
+                <div key={rec.uuid} onClick={() => { setSelectedRecommendation(rec); setShowRecommendationModal(true); }}>
+                  <RecommendationCard
+                    rec={{ ...rec, image: rec.image_url }}
+                    onEdit={openEditRecommendation}
+                    onDelete={openDeleteRecommendation}
+                  />
+                </div>
               ))
             ) : (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#666', width: '100%' }}>
-                No recommend yet. Start recommending places and events!
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', margin: '0 auto', width: '100%', color: '#666', padding: '2rem' }}>
+                No recommendations yet. Start recommending places and events!
+              </div>
+            )}
+            {showRecommendationModal && selectedRecommendation && (
+              <RecommendationModal
+                recommendation={selectedRecommendation}
+                onClose={() => { setShowRecommendationModal(false); setSelectedRecommendation(null); }}
+                userProfile={userProfile}
+              />
+            )}
+            {deleteRecommendationModal.open && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.4)',
+                zIndex: 3000,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <div style={{
+                  background: 'white',
+                  borderRadius: 16,
+                  padding: '32px 32px 24px 32px',
+                  minWidth: 320,
+                  maxWidth: '90vw',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+                  textAlign: 'center',
+                }}>
+                  <h2 style={{ margin: 0, marginBottom: 16 }}>Delete Recommendation?</h2>
+                  <p style={{ color: '#86868b', marginBottom: 32 }}>Are you sure you want to delete this recommendation? This action cannot be undone.</p>
+                  <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+                    <button
+                      style={{
+                        background: '#f0f0f0',
+                        color: '#1d1d1f',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '10px 24px',
+                        fontSize: 16,
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => setDeleteRecommendationModal({ open: false, rec: null })}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      style={{
+                        background: '#ff3b30',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '10px 24px',
+                        fontSize: 16,
+                        cursor: 'pointer',
+                      }}
+                      onClick={handleDeleteRecommendation}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -2081,14 +1702,74 @@ const Profile = () => {
 
         {activeTab === 'listings' && (
           <div className="listings-grid">
-            {userEvents.length > 0 ? (
-              userEvents.map(event => (
-                <EventCard key={event.uuid} event={event} />
-              ))
+            {userEvents.length > 0 || userBusinessLocations.length > 0 || userPeople.length > 0 ? (
+              <>
+                {userEvents.map(event => (
+                  <EventCard
+                    key={event.uuid}
+                    event={event}
+                    openEditEventModal={openEditEventModal}
+                    setDeleteEventModal={setDeleteEventModal}
+                    setSelectedEvent={setSelectedEvent}
+                    setShowEventModal={setShowEventModal}
+                  />
+                ))}
+                {userBusinessLocations.map(business => (
+                  <BusinessLocationCard
+                    key={business.uuid}
+                    business={business}
+                    openEditBusinessModal={openEditBusinessModal}
+                    setDeleteBusinessModal={setDeleteBusinessModal}
+                    setSelectedBusiness={setSelectedBusiness}
+                    setShowBusinessModal={setShowBusinessModal}
+                  />
+                ))}
+                {userPeople.map(person => (
+                  <PersonCard
+                    key={person.uuid}
+                    person={person}
+                    onDelete={(personUuid) => setDeletePersonModal({ open: true, personUuid })}
+                    onView={(person) => {
+                      setSelectedPerson(person);
+                      setShowPersonModal(true);
+                    }}
+                  />
+                ))}
+              </>
             ) : (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#666', gridColumn: '1 / -1' }}>
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', margin: '0 auto', width: '100%', color: '#666', padding: '2rem' }}>
                 No listings yet. Start creating your own listings!
               </div>
+            )}
+            {showEventModal && selectedEvent && (
+              <EventModal
+                event={selectedEvent}
+                onClose={() => {
+                  setShowEventModal(false);
+                  setSelectedEvent(null);
+                }}
+                userProfile={userProfile}
+              />
+            )}
+            {showBusinessModal && selectedBusiness && (
+              <BusinessModal
+                business={selectedBusiness}
+                onClose={() => {
+                  setShowBusinessModal(false);
+                  setSelectedBusiness(null);
+                }}
+                userProfile={userProfile}
+              />
+            )}
+            {showPersonModal && selectedPerson && (
+              <PersonModal
+                person={selectedPerson}
+                onClose={() => {
+                  setShowPersonModal(false);
+                  setSelectedPerson(null);
+                }}
+                userProfile={userProfile}
+              />
             )}
           </div>
         )}
@@ -2100,6 +1781,14 @@ const Profile = () => {
         setEditFormData={setEditFormData}
         handleSaveProfile={handleSaveProfile}
         isSaving={isSaving}
+      />
+      <EditBusinessModal
+        showEditBusinessModal={showEditBusinessModal}
+        setShowEditBusinessModal={setShowEditBusinessModal}
+        editBusinessFormData={editBusinessFormData}
+        setEditBusinessFormData={setEditBusinessFormData}
+        handleEditBusiness={handleEditBusiness}
+        isEditingBusiness={isEditingBusiness}
       />
       {/* Notification */}
       {notification.open && (
@@ -2236,6 +1925,130 @@ const Profile = () => {
                 disabled={isDeletingEvent}
               >
                 {isDeletingEvent ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Business Confirmation Modal */}
+      {deleteBusinessModal.open && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.4)',
+          zIndex: 3000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: '32px 32px 24px 32px',
+            minWidth: 320,
+            maxWidth: '90vw',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            textAlign: 'center',
+          }}>
+            <h2 style={{ margin: 0, marginBottom: 16 }}>Delete Business Location?</h2>
+            <p style={{ color: '#86868b', marginBottom: 32 }}>Are you sure you want to delete this business location? This action cannot be undone.</p>
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+              <button
+                style={{
+                  background: '#f0f0f0',
+                  color: '#1d1d1f',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '10px 24px',
+                  fontSize: 16,
+                  cursor: 'pointer',
+                }}
+                onClick={() => setDeleteBusinessModal({ open: false, businessUuid: null })}
+                disabled={isDeletingBusiness}
+              >
+                Cancel
+              </button>
+              <button
+                style={{
+                  background: '#ff3b30',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '10px 24px',
+                  fontSize: 16,
+                  cursor: isDeletingBusiness ? 'not-allowed' : 'pointer',
+                  opacity: isDeletingBusiness ? 0.7 : 1,
+                }}
+                onClick={() => handleDeleteBusiness(deleteBusinessModal.businessUuid)}
+                disabled={isDeletingBusiness}
+              >
+                {isDeletingBusiness ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Person Confirmation Modal */}
+      {deletePersonModal.open && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.4)',
+          zIndex: 3000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: '32px 32px 24px 32px',
+            minWidth: 320,
+            maxWidth: '90vw',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            textAlign: 'center',
+          }}>
+            <h2 style={{ margin: 0, marginBottom: 16 }}>Delete Service?</h2>
+            <p style={{ color: '#86868b', marginBottom: 32 }}>Are you sure you want to delete this service? This action cannot be undone.</p>
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+              <button
+                style={{
+                  background: '#f0f0f0',
+                  color: '#1d1d1f',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '10px 24px',
+                  fontSize: 16,
+                  cursor: 'pointer',
+                }}
+                onClick={() => setDeletePersonModal({ open: false, personUuid: null })}
+                disabled={isDeletingPerson}
+              >
+                Cancel
+              </button>
+              <button
+                style={{
+                  background: '#ff3b30',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '10px 24px',
+                  fontSize: 16,
+                  cursor: isDeletingPerson ? 'not-allowed' : 'pointer',
+                  opacity: isDeletingPerson ? 0.7 : 1,
+                }}
+                onClick={() => handleDeletePerson(deletePersonModal.personUuid)}
+                disabled={isDeletingPerson}
+              >
+                {isDeletingPerson ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>

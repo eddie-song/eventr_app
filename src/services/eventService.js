@@ -673,6 +673,68 @@ export const eventService = {
     }
   },
 
+  // Get events for a specific user ID
+  async getUserEventsById(userId) {
+    try {
+      // Get events where the specified user is a host
+      const { data: hostedEvents, error: hostedError } = await supabase
+        .from('event_hosts')
+        .select(`
+          event_id,
+          events (*)
+        `)
+        .eq('user_id', userId);
+
+      if (hostedError) throw hostedError;
+
+      const events = hostedEvents.map(item => item.events);
+
+      // Get tags for all events
+      const eventIds = events.map(event => event.uuid);
+      const { data: tags, error: tagsError } = await supabase
+        .from('event_tags')
+        .select('event_id, tag')
+        .in('event_id', eventIds);
+
+      if (tagsError) throw tagsError;
+
+      // Group tags by event_id
+      const tagsByEvent = {};
+      tags.forEach(tag => {
+        if (!tagsByEvent[tag.event_id]) {
+          tagsByEvent[tag.event_id] = [];
+        }
+        tagsByEvent[tag.event_id].push(tag.tag);
+      });
+
+      // Get attendee counts for all events
+      const { data: attendeeCounts, error: attendeeError } = await supabase
+        .from('event_attendees')
+        .select('event_id')
+        .in('event_id', eventIds);
+
+      if (attendeeError) throw attendeeError;
+
+      // Count attendees per event
+      const attendeeCountByEvent = {};
+      attendeeCounts.forEach(attendee => {
+        attendeeCountByEvent[attendee.event_id] = (attendeeCountByEvent[attendee.event_id] || 0) + 1;
+      });
+
+      // Combine events with their tags and attendee counts
+      const eventsWithTags = events.map(event => ({
+        ...event,
+        tags: tagsByEvent[event.uuid] || [],
+        attendeeCount: attendeeCountByEvent[event.uuid] || 0
+      }));
+
+      return eventsWithTags;
+    } catch (error) {
+      console.error('Error fetching user events by ID:', error);
+      throw error;
+    }
+  },
+
   // Get events the current user is attending
   async getUserAttendingEvents() {
     try {

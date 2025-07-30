@@ -2,6 +2,50 @@ import { supabase } from '../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 
 export const postService = {
+  // Get all posts with tags and author information - OPTIMIZED VERSION
+  async getAllPosts(page = 1, limit = 20) {
+    try {
+      const offset = (page - 1) * limit;
+      
+      // Use a single query with joins to get all data at once
+      const { data: posts, error: postsError } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          profiles!posts_user_id_fkey(
+            uuid,
+            username,
+            display_name,
+            avatar_url
+          ),
+          post_tags(
+            tag
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (postsError) throw postsError;
+
+      // If no posts, return empty array
+      if (!posts || posts.length === 0) {
+        return [];
+      }
+
+      // Transform the data to match the expected format
+      const postsWithDetails = posts.map(post => ({
+        ...post,
+        profiles: post.profiles,
+        tags: post.post_tags ? post.post_tags.map(tag => tag.tag) : []
+      }));
+
+      return postsWithDetails;
+    } catch (error) {
+      console.error('Error fetching all posts:', error);
+      throw error;
+    }
+  },
+
   // Get posts with tags for a user
   async getUserPosts(userId) {
     try {

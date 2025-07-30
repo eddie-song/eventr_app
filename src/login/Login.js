@@ -17,7 +17,7 @@ function Login() {
       const { data: { user } } = await authService.getCurrentUser();
       if (user) {
         // User is already logged in, redirect to dashboard
-        navigate('/dashboard');
+        navigate('/dashboard?service=home');
       }
     };
     
@@ -48,7 +48,7 @@ function Login() {
     try {
       const { data, error } = await authService.signIn(email, password);
       
-      navigate('/dashboard');
+      navigate('/dashboard?service=home');
     } catch (err) {
       setErrors({ general: 'An unexpected error occurred. Please try again.' });
       console.error('Login error:', err);
@@ -60,9 +60,9 @@ function Login() {
   return (
     <div id="login-page-container">
       <div id="header">
-        <div className="logo-text" onClick={() => navigate('/')}>
+        <div className="logo-text" onClick={() => navigate('/')} style={{ paddingLeft: '20px' }}>
           <h1>
-            eventr
+            encounters
           </h1>
         </div>
       </div>
