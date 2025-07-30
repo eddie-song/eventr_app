@@ -20,6 +20,7 @@ import BusinessLocationCard from './create-components/businessCard';
 import BusinessModal from './create-components/businessModal';
 import PersonCard from '../profileComponents/personCard';
 import PersonModal from '../profileComponents/personModal';
+import { getAvatarEmoji, formatDate, formatProfileDate } from '../utils/userHelpers';
 
 interface User {
   uuid: string;
@@ -104,8 +105,7 @@ const UserProfile: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   
-  console.log('UserProfile component rendered with userId:', userId);
-  console.log('Current URL:', window.location.href);
+
   
   const [activeTab, setActiveTab] = useState('posts');
   const [isLoading, setIsLoading] = useState(true);
@@ -179,64 +179,38 @@ const UserProfile: React.FC = () => {
     return [likeState, handleLike];
   };
 
-  // Generate avatar emoji based on display name or username
-  const getAvatarEmoji = (name: string | undefined, username: string) => {
-    const displayName = name || username;
-    const firstChar = displayName.charAt(0).toLowerCase();
-    
-    const emojiMap: { [key: string]: string } = {
-      'a': '👨‍💻', 'b': '👩‍🎨', 'c': '👨‍🍳', 'd': '👩‍🏫', 'e': '👨‍🎤',
-      'f': '👩‍⚕️', 'g': '👨‍🔬', 'h': '👩‍💼', 'i': '👨', 'j': '👩‍🚀',
-      'k': '👨‍🏭', 'l': '👩‍🌾', 'm': '👨', 'n': '👩‍🎓', 'o': '👨‍💼',
-      'p': '👩‍🔧', 'q': '👨‍🎨', 'r': '👩‍🏭', 's': '👨‍⚕️', 't': '👩',
-      'u': '👨‍🌾', 'v': '👩', 'w': '👨‍🚀', 'x': '👩‍💻', 'y': '👨‍🎓',
-      'z': '👩‍🔬'
-    };
-    
-    return emojiMap[firstChar] || '👤';
-  };
 
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-    if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`;
-    return date.toLocaleDateString();
-  };
 
   // Load user profile and data
   useEffect(() => {
+    let isMounted = true;
+
     const loadUserProfile = async () => {
-      console.log('Loading user profile for userId:', userId);
       
       if (!userId) {
         console.error('No userId provided');
-        setError('User ID is required');
-        setIsLoading(false);
+        if (isMounted) {
+          setError('User ID is required');
+          setIsLoading(false);
+        }
         return;
       }
 
       try {
-        setIsLoading(true);
-        setError(null);
+        if (isMounted) {
+          setIsLoading(true);
+          setError(null);
+        }
 
         // Get current user to check if we're viewing our own profile
         const { data: { user: currentUser } } = await supabase.auth.getUser();
-        console.log('Current user:', currentUser?.id);
         
         // Get user profile
-        console.log('Fetching profile for userId:', userId);
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('uuid', userId)
           .single();
-
-        console.log('Profile query result:', { profile, profileError });
 
         if (profileError) {
           console.error('Profile error:', profileError);
@@ -251,24 +225,29 @@ const UserProfile: React.FC = () => {
           throw new Error(`User with ID ${userId} not found`);
         }
 
-        console.log('Found profile:', profile);
-        setUser(profile);
+        if (isMounted) {
+          setUser(profile);
+        }
 
         // Check follow status and counts
         if (currentUser && currentUser.id !== userId) {
           try {
             const following = await followService.isFollowing(userId);
-            setIsFollowing(following);
+            if (isMounted) {
+              setIsFollowing(following);
+            }
           } catch (error) {
             console.error('Error checking follow status:', error);
           }
 
           try {
             const counts = await followService.getUserFollowCounts(userId);
-            setFollowCounts({
-              followers: counts.followers_count || 0,
-              following: counts.following_count || 0
-            });
+            if (isMounted) {
+              setFollowCounts({
+                followers: counts.followers_count || 0,
+                following: counts.following_count || 0
+              });
+            }
           } catch (error) {
             console.error('Error getting follow counts:', error);
           }
@@ -282,7 +261,9 @@ const UserProfile: React.FC = () => {
             content: post.post_body_text || '',
             timestamp: post.created_at ? new Date(post.created_at).toLocaleString() : ''
           }));
-          setUserPosts(transformedPosts);
+          if (isMounted) {
+            setUserPosts(transformedPosts);
+          }
         } catch (error) {
           console.error('Error loading posts:', error);
         }
@@ -305,7 +286,9 @@ const UserProfile: React.FC = () => {
             rating: event.rating || 0,
             review_count: event.review_count || 0
           }));
-          setUserEvents(transformedEvents);
+          if (isMounted) {
+            setUserEvents(transformedEvents);
+          }
         } catch (error) {
           console.error('Error loading events:', error);
         }
@@ -313,7 +296,9 @@ const UserProfile: React.FC = () => {
         // Load user recommendations
         try {
           const recommendationsData = await recommendService.getUserRecommendations(userId);
-          setUserRecommendations(recommendationsData || []);
+          if (isMounted) {
+            setUserRecommendations(recommendationsData || []);
+          }
         } catch (error) {
           console.error('Error loading recommendations:', error);
         }
@@ -321,7 +306,9 @@ const UserProfile: React.FC = () => {
         // Load user business locations
         try {
           const businessData = await businessLocationService.getUserBusinessLocationsById(userId);
-          setUserBusinessLocations(businessData || []);
+          if (isMounted) {
+            setUserBusinessLocations(businessData || []);
+          }
         } catch (error) {
           console.error('Error loading business locations:', error);
         }
@@ -329,20 +316,31 @@ const UserProfile: React.FC = () => {
         // Load user people
         try {
           const peopleData = await personService.getUserPeopleById(userId);
-          setUserPeople(peopleData || []);
+          if (isMounted) {
+            setUserPeople(peopleData || []);
+          }
         } catch (error) {
           console.error('Error loading people:', error);
         }
 
       } catch (error) {
         console.error('Error loading user profile:', error);
-        setError('Failed to load user profile');
+        if (isMounted) {
+          setError('Failed to load user profile');
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     loadUserProfile();
+
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted = false;
+    };
   }, [userId]);
 
   const handleFollowToggle = async () => {

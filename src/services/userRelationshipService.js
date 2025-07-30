@@ -139,29 +139,70 @@ export const userRelationshipService = {
 
       if (updateError) throw updateError;
 
-      // Create mutual follow relationships
-      const { error: followError1 } = await supabase
-        .from('user_follows')
-        .insert({
-          follower_id: requesterId,
-          following_id: user.id,
-          relationship_type: 'follow',
-          status: 'active'
-        });
+      // Create mutual follow relationships with proper error handling
+      let firstFollowCreated = false;
+      let firstFollowId = null;
 
-      const { error: followError2 } = await supabase
-        .from('user_follows')
-        .insert({
-          follower_id: user.id,
-          following_id: requesterId,
-          relationship_type: 'follow',
-          status: 'active'
-        });
+      try {
+        // Create first follow relationship
+        const { data: followData1, error: followError1 } = await supabase
+          .from('user_follows')
+          .insert({
+            follower_id: requesterId,
+            following_id: user.id,
+            relationship_type: 'follow',
+            status: 'active'
+          })
+          .select('uuid')
+          .single();
 
-      if (followError1 || followError2) {
-        // Rollback if there's an error
-        await this.rejectFriendRequest(requesterId);
-        throw new Error('Failed to create mutual follow relationship');
+        if (followError1) {
+          throw new Error(`Failed to create first follow relationship: ${followError1.message}`);
+        }
+
+        firstFollowCreated = true;
+        firstFollowId = followData1.uuid;
+
+        // Create second follow relationship
+        const { error: followError2 } = await supabase
+          .from('user_follows')
+          .insert({
+            follower_id: user.id,
+            following_id: requesterId,
+            relationship_type: 'follow',
+            status: 'active'
+          });
+
+        if (followError2) {
+          // Clean up the first follow relationship if second fails
+          await supabase
+            .from('user_follows')
+            .delete()
+            .eq('uuid', firstFollowId);
+
+          throw new Error(`Failed to create second follow relationship: ${followError2.message}`);
+        }
+      } catch (error) {
+        // If we created the first follow but second failed, clean up
+        if (firstFollowCreated && firstFollowId) {
+          try {
+            await supabase
+              .from('user_follows')
+              .delete()
+              .eq('uuid', firstFollowId);
+          } catch (cleanupError) {
+            console.error('Failed to cleanup first follow relationship:', cleanupError);
+          }
+        }
+
+        // Reject the friend request to maintain consistency
+        try {
+          await this.rejectFriendRequest(requesterId);
+        } catch (rejectError) {
+          console.error('Failed to reject friend request during cleanup:', rejectError);
+        }
+
+        throw new Error(`Failed to create mutual follow relationship: ${error.message}`);
       }
 
       return { success: true, message: 'Friend request accepted' };
@@ -235,9 +276,7 @@ export const userRelationshipService = {
   async getFollowers(userId) {
     try {
       const { data, error } = await supabase
-        .from('user_followers')
-        .select('*')
-        .eq('following_id', userId);
+        .rpc('get_followers', { user_uuid: userId });
 
       if (error) throw error;
       return data || [];
@@ -255,9 +294,7 @@ export const userRelationshipService = {
   async getFollowing(userId) {
     try {
       const { data, error } = await supabase
-        .from('user_following')
-        .select('*')
-        .eq('follower_id', userId);
+        .rpc('get_following_users', { user_uuid: userId });
 
       if (error) throw error;
       return data || [];
@@ -275,9 +312,7 @@ export const userRelationshipService = {
   async getMutualFriends(userId) {
     try {
       const { data, error } = await supabase
-        .from('user_mutual_friends')
-        .select('*')
-        .eq('follower_id', userId);
+        .rpc('get_mutual_friends', { user_uuid: userId });
 
       if (error) throw error;
       return data || [];
@@ -295,9 +330,19 @@ export const userRelationshipService = {
   async getReceivedFriendRequests(userId) {
     try {
       const { data, error } = await supabase
-        .from('user_friend_requests_received')
-        .select('*')
-        .eq('following_id', userId);
+        .from('user_follows')
+        .select(`
+          *,
+          profiles:follower_id (
+            uuid,
+            username,
+            display_name,
+            avatar_url
+          )
+        `)
+        .eq('following_id', userId)
+        .eq('relationship_type', 'friend_request')
+        .eq('status', 'pending');
 
       if (error) throw error;
       return data || [];
@@ -315,9 +360,19 @@ export const userRelationshipService = {
   async getSentFriendRequests(userId) {
     try {
       const { data, error } = await supabase
-        .from('user_friend_requests_sent')
-        .select('*')
-        .eq('follower_id', userId);
+        .from('user_follows')
+        .select(`
+          *,
+          profiles:following_id (
+            uuid,
+            username,
+            display_name,
+            avatar_url
+          )
+        `)
+        .eq('follower_id', userId)
+        .eq('relationship_type', 'friend_request')
+        .eq('status', 'pending');
 
       if (error) throw error;
       return data || [];
@@ -364,7 +419,7 @@ export const userRelationshipService = {
   async areMutualFriends(user1Id, user2Id) {
     try {
       const { data, error } = await supabase
-        .rpc('are_mutual_friends', {
+        .rpc('are_friends', {
           user1_uuid: user1Id,
           user2_uuid: user2Id
         });
@@ -389,10 +444,10 @@ export const userRelationshipService = {
   async getFollowerCount(userId) {
     try {
       const { data, error } = await supabase
-        .rpc('get_follower_count', { user_uuid: userId });
+        .rpc('get_follow_counts', { user_uuid: userId });
 
       if (error) throw error;
-      return data || 0;
+      return data?.follower_count || 0;
     } catch (error) {
       console.error('Error getting follower count:', error);
       return 0;
@@ -407,10 +462,10 @@ export const userRelationshipService = {
   async getFollowingCount(userId) {
     try {
       const { data, error } = await supabase
-        .rpc('get_following_count', { user_uuid: userId });
+        .rpc('get_follow_counts', { user_uuid: userId });
 
       if (error) throw error;
-      return data || 0;
+      return data?.following_count || 0;
     } catch (error) {
       console.error('Error getting following count:', error);
       return 0;
@@ -425,10 +480,10 @@ export const userRelationshipService = {
   async getMutualFriendsCount(userId) {
     try {
       const { data, error } = await supabase
-        .rpc('get_mutual_friends_count', { user_uuid: userId });
+        .rpc('get_follow_counts', { user_uuid: userId });
 
       if (error) throw error;
-      return data || 0;
+      return data?.mutual_friends_count || 0;
     } catch (error) {
       console.error('Error getting mutual friends count:', error);
       return 0;
@@ -449,6 +504,11 @@ export const userRelationshipService = {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Prevent users from blocking themselves
+      if (user.id === userToBlockId) {
+        return { success: false, message: 'Cannot block yourself' };
+      }
+
       // Check if already blocked
       const { data: existingBlock } = await supabase
         .from('user_follows')
@@ -462,28 +522,11 @@ export const userRelationshipService = {
         return { success: false, message: 'User is already blocked' };
       }
 
-      // Remove any existing follow relationships
-      await supabase
-        .from('user_follows')
-        .delete()
-        .eq('follower_id', user.id)
-        .eq('following_id', userToBlockId);
-
-      await supabase
-        .from('user_follows')
-        .delete()
-        .eq('follower_id', userToBlockId)
-        .eq('following_id', user.id);
-
-      // Create block relationship
-      const { error } = await supabase
-        .from('user_follows')
-        .insert({
-          follower_id: user.id,
-          following_id: userToBlockId,
-          relationship_type: 'blocked',
-          status: 'blocked'
-        });
+      // Use a database transaction to ensure atomicity
+      const { data, error } = await supabase.rpc('block_user_transaction', {
+        blocker_uuid: user.id,
+        blocked_uuid: userToBlockId
+      });
 
       if (error) throw error;
 

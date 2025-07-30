@@ -466,7 +466,319 @@ const EditProfileModal = ({
   );
 };
 
+const EditBusinessModal = ({
+  showEditBusinessModal,
+  setShowEditBusinessModal,
+  editBusinessFormData,
+  setEditBusinessFormData,
+  handleEditBusiness,
+  isEditingBusiness
+}) => {
+  if (!showEditBusinessModal) return null;
 
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1000
+    }}>
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        padding: '32px',
+        width: '95%',
+        maxWidth: '800px',
+        maxHeight: '90vh',
+        overflow: 'auto'
+      }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '20px'
+        }}>
+          <h2 style={{ margin: 0 }}>Edit Business Location</h2>
+          <button
+            onClick={() => setShowEditBusinessModal(false)}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '24px',
+              cursor: 'pointer',
+              padding: '4px'
+            }}
+          >
+            ×
+          </button>
+        </div>
+        <form onSubmit={handleEditBusiness}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Business Name *</label>
+              <input
+                type="text"
+                value={editBusinessFormData.name}
+                onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, name: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '16px'
+                }}
+                required
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Business Type</label>
+              <input
+                type="text"
+                value={editBusinessFormData.business_type}
+                onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, business_type: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '16px'
+                }}
+                placeholder="e.g., Restaurant, Retail, Service"
+              />
+            </div>
+          </div>
+          
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Description</label>
+            <textarea
+              value={editBusinessFormData.description}
+              onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, description: e.target.value }))}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '16px',
+                minHeight: '100px',
+                resize: 'vertical'
+              }}
+              placeholder="Describe your business..."
+            />
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Address</label>
+            <input
+              type="text"
+              value={editBusinessFormData.address}
+              onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, address: e.target.value }))}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '16px'
+              }}
+              placeholder="Street address"
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>City</label>
+              <input
+                type="text"
+                value={editBusinessFormData.city}
+                onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, city: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '16px'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>State</label>
+              <input
+                type="text"
+                value={editBusinessFormData.state}
+                onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, state: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '16px'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>ZIP Code</label>
+              <input
+                type="text"
+                value={editBusinessFormData.zip_code}
+                onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, zip_code: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '16px'
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Phone</label>
+              <input
+                type="tel"
+                value={editBusinessFormData.phone}
+                onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, phone: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '16px'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Email</label>
+              <input
+                type="email"
+                value={editBusinessFormData.email}
+                onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, email: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '16px'
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Website</label>
+            <input
+              type="url"
+              value={editBusinessFormData.website}
+              onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, website: e.target.value }))}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '16px'
+              }}
+              placeholder="https://..."
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Hours of Operation</label>
+              <input
+                type="text"
+                value={editBusinessFormData.hours_of_operation}
+                onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, hours_of_operation: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '16px'
+                }}
+                placeholder="e.g., Mon-Fri 9AM-5PM"
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Price Range</label>
+              <input
+                type="text"
+                value={editBusinessFormData.price_range}
+                onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, price_range: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '16px'
+                }}
+                placeholder="e.g., $, $$, $$$"
+              />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Image URL</label>
+            <input
+              type="url"
+              value={editBusinessFormData.image_url}
+              onChange={(e) => setEditBusinessFormData(prev => ({ ...prev, image_url: e.target.value }))}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '16px'
+              }}
+              placeholder="https://..."
+            />
+          </div>
+
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '12px'
+          }}>
+            <button
+              type="button"
+              onClick={() => setShowEditBusinessModal(false)}
+              style={{
+                padding: '12px 24px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                background: 'white',
+                cursor: 'pointer',
+                fontSize: '16px'
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              style={{
+                padding: '12px 24px',
+                border: 'none',
+                borderRadius: '8px',
+                background: '#007AFF',
+                color: 'white',
+                cursor: isEditingBusiness ? 'not-allowed' : 'pointer',
+                fontSize: '16px',
+                opacity: isEditingBusiness ? 0.7 : 1
+              }}
+            >
+              {isEditingBusiness ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -518,6 +830,25 @@ const Profile = () => {
   const [isDeletingBusiness, setIsDeletingBusiness] = useState(false);
   const [showBusinessModal, setShowBusinessModal] = useState(false);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
+  const [showEditBusinessModal, setShowEditBusinessModal] = useState(false);
+  const [businessToEdit, setBusinessToEdit] = useState(null);
+  const [editBusinessFormData, setEditBusinessFormData] = useState({
+    name: '',
+    description: '',
+    address: '',
+    city: '',
+    state: '',
+    zip_code: '',
+    country: 'USA',
+    phone: '',
+    email: '',
+    website: '',
+    business_type: '',
+    hours_of_operation: '',
+    price_range: '',
+    image_url: ''
+  });
+  const [isEditingBusiness, setIsEditingBusiness] = useState(false);
   const [userPeople, setUserPeople] = useState([]);
   const [deletePersonModal, setDeletePersonModal] = useState({ open: false, personUuid: null });
   const [isDeletingPerson, setIsDeletingPerson] = useState(false);
@@ -660,8 +991,13 @@ const Profile = () => {
         }
 
         // Get recommendations
-        const recommendations = await recommendService.getUserRecommendations(user.id);
-        setUserRecommendations(recommendations || []);
+        try {
+          const recommendations = await recommendService.getUserRecommendations(user.id);
+          setUserRecommendations(recommendations || []);
+        } catch (error) {
+          console.error('Error loading user recommendations:', error);
+          setUserRecommendations([]);
+        }
 
         // Get user business locations
         try {
@@ -1034,6 +1370,88 @@ const Profile = () => {
     }
   };
 
+  const openEditBusinessModal = (business) => {
+    setBusinessToEdit(business);
+    setEditBusinessFormData({
+      name: business.name || '',
+      description: business.description || '',
+      address: business.address || '',
+      city: business.city || '',
+      state: business.state || '',
+      zip_code: business.zip_code || '',
+      country: business.country || 'USA',
+      phone: business.phone || '',
+      email: business.email || '',
+      website: business.website || '',
+      business_type: business.business_type || '',
+      hours_of_operation: business.hours_of_operation || '',
+      price_range: business.price_range || '',
+      image_url: business.image_url || ''
+    });
+    setShowEditBusinessModal(true);
+  };
+
+  const handleEditBusiness = async (e) => {
+    e.preventDefault();
+    if (!editBusinessFormData.name.trim()) return;
+
+    setIsEditingBusiness(true);
+    try {
+      // Update business location
+      await businessLocationService.updateBusinessLocation(businessToEdit.uuid, editBusinessFormData);
+
+      // Update the business in the local state
+      setUserBusinessLocations(prev => prev.map(business =>
+        business.uuid === businessToEdit.uuid
+          ? {
+            ...business,
+            name: editBusinessFormData.name,
+            description: editBusinessFormData.description,
+            address: editBusinessFormData.address,
+            city: editBusinessFormData.city,
+            state: editBusinessFormData.state,
+            zip_code: editBusinessFormData.zip_code,
+            country: editBusinessFormData.country,
+            phone: editBusinessFormData.phone,
+            email: editBusinessFormData.email,
+            website: editBusinessFormData.website,
+            business_type: editBusinessFormData.business_type,
+            hours_of_operation: editBusinessFormData.hours_of_operation,
+            price_range: editBusinessFormData.price_range,
+            image_url: editBusinessFormData.image_url
+          }
+          : business
+      ));
+
+      setShowEditBusinessModal(false);
+      setBusinessToEdit(null);
+      setEditBusinessFormData({
+        name: '',
+        description: '',
+        address: '',
+        city: '',
+        state: '',
+        zip_code: '',
+        country: 'USA',
+        phone: '',
+        email: '',
+        website: '',
+        business_type: '',
+        hours_of_operation: '',
+        price_range: '',
+        image_url: ''
+      });
+      setNotification({ open: true, message: 'Business location updated successfully!', type: 'success' });
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } catch (error) {
+      console.error('Error updating business location:', error);
+      setNotification({ open: true, message: 'Failed to update business location', type: 'error' });
+      setTimeout(() => setNotification({ open: false, message: '', type: '' }), 3000);
+    } finally {
+      setIsEditingBusiness(false);
+    }
+  };
+
   const handleDeleteBusiness = async (businessUuid) => {
     setIsDeletingBusiness(true);
     try {
@@ -1106,9 +1524,15 @@ const Profile = () => {
           <div className="profile-stats">
             <div className="stat-item">
               <span className="stat-number">
-                {(userProfile.posts || 0) + userEvents.length + userRecommendations.length + userBusinessLocations.length + userPeople.length}
+                {userProfile.posts || 0}
               </span>
               <span className="stat-label">Posts</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-number">
+                {(userProfile.posts || 0) + userEvents.length + userRecommendations.length + userBusinessLocations.length + userPeople.length}
+              </span>
+              <span className="stat-label">Total Content</span>
             </div>
             <div className="stat-item">
               <span className="stat-number">{userProfile.followers || 0}</span>
@@ -1140,7 +1564,7 @@ const Profile = () => {
           className={`tab-btn ${activeTab === 'posts' ? 'active' : ''}`}
           onClick={() => setActiveTab('posts')}
         >
-          Posts ({(userProfile.posts || 0) + userEvents.length + userRecommendations.length + userBusinessLocations.length + userPeople.length})
+          Posts ({(userProfile.posts || 0)})
         </button>
         <button
           className={`tab-btn ${activeTab === 'recommend' ? 'active' : ''}`}
@@ -1294,7 +1718,7 @@ const Profile = () => {
                   <BusinessLocationCard
                     key={business.uuid}
                     business={business}
-                    openEditBusinessModal={() => {}} // TODO: Implement edit modal
+                    openEditBusinessModal={openEditBusinessModal}
                     setDeleteBusinessModal={setDeleteBusinessModal}
                     setSelectedBusiness={setSelectedBusiness}
                     setShowBusinessModal={setShowBusinessModal}
@@ -1357,6 +1781,14 @@ const Profile = () => {
         setEditFormData={setEditFormData}
         handleSaveProfile={handleSaveProfile}
         isSaving={isSaving}
+      />
+      <EditBusinessModal
+        showEditBusinessModal={showEditBusinessModal}
+        setShowEditBusinessModal={setShowEditBusinessModal}
+        editBusinessFormData={editBusinessFormData}
+        setEditBusinessFormData={setEditBusinessFormData}
+        handleEditBusiness={handleEditBusiness}
+        isEditingBusiness={isEditingBusiness}
       />
       {/* Notification */}
       {notification.open && (

@@ -1,148 +1,130 @@
 import { supabase } from '../lib/supabaseClient';
-import { v4 as uuidv4 } from 'uuid';
+import { businessLocationTagService } from './businessLocationTagService';
+
+// Note: This service now works with business_locations and business_location_tags
+// instead of recommendations and recommendation_tags
 
 export const recommendService = {
-  // Get recommendations for a user
+  // Get business locations for a user (replacing recommendations)
   async getUserRecommendations(userId) {
     try {
-      const { data: recs, error: recsError } = await supabase
-        .from('recommendations')
+      const { data: businessLocations, error: blError } = await supabase
+        .from('business_locations')
         .select('*')
-        .eq('user_id', userId)
+        .eq('created_by', userId)
         .order('created_at', { ascending: false });
 
-      if (recsError) throw recsError;
-      const recIds = recs.map(rec => rec.uuid);
-      if (recIds.length === 0) return recs;
-      const { data: tags, error: tagsError } = await supabase
-        .from('recommendation_tags')
-        .select('recommendation_id, tag')
-        .in('recommendation_id', recIds);
-      if (tagsError) throw tagsError;
-      const tagsByRec = {};
-      tags.forEach(tag => {
-        if (!tagsByRec[tag.recommendation_id]) tagsByRec[tag.recommendation_id] = [];
-        tagsByRec[tag.recommendation_id].push(tag.tag);
-      });
-      return recs.map(rec => ({ ...rec, tags: tagsByRec[rec.uuid] || [] }));
+      if (blError) throw blError;
+      
+      // Get tags for each business location
+      const businessLocationsWithTags = await Promise.all(
+        businessLocations.map(async (bl) => {
+          const tags = await businessLocationTagService.getBusinessLocationTags(bl.uuid);
+          return { ...bl, tags };
+        })
+      );
+
+      return businessLocationsWithTags;
     } catch (error) {
-      console.error('Error fetching user recommendations:', error);
+      console.error('Error fetching user business locations:', error);
       throw error;
     }
   },
 
-  // Get a single recommendation
-  async getRecommendation(recId) {
+  // Get a single business location (replacing recommendation)
+  async getRecommendation(businessLocationId) {
     try {
-      const { data: rec, error: recError } = await supabase
-        .from('recommendations')
+      const { data: businessLocation, error: blError } = await supabase
+        .from('business_locations')
         .select('*')
-        .eq('uuid', recId)
+        .eq('uuid', businessLocationId)
         .single();
-      if (recError) throw recError;
-      const { data: tags, error: tagsError } = await supabase
-        .from('recommendation_tags')
-        .select('tag')
-        .eq('recommendation_id', recId);
-      if (tagsError) throw tagsError;
-      return { ...rec, tags: tags.map(tag => tag.tag) };
+      
+      if (blError) throw blError;
+      
+      const tags = await businessLocationTagService.getBusinessLocationTags(businessLocationId);
+      return { ...businessLocation, tags };
     } catch (error) {
-      console.error('Error fetching recommendation:', error);
+      console.error('Error fetching business location:', error);
       throw error;
     }
   },
 
-  // Create a new recommendation
-  async createRecommendation(recData) {
+  // Create a new business location (replacing recommendation)
+  async createRecommendation(businessData) {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('Could not get current user');
-      const userId = user.id;
-      const recUuid = crypto.randomUUID?.() ?? uuidv4();
-      const now = new Date().toISOString();
-      const tagsArray = recData.tags ? recData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
-      const { error: recError } = await supabase
-        .from('recommendations')
+      
+      const tagsArray = businessData.tags ? businessData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+      
+      // Create business location
+      const { data: businessLocation, error: blError } = await supabase
+        .from('business_locations')
         .insert([{
-          uuid: recUuid,
-          created_at: now,
-          user_id: userId,
-          image_url: recData.imageUrl || null,
-          title: recData.title,
-          description: recData.description,
-          location: recData.location || '',
-          type: recData.type || 'place',
-          rating: recData.rating ? parseFloat(recData.rating) : null
-        }]);
-      if (recError) throw recError;
+          name: businessData.title,
+          description: businessData.description,
+          address: businessData.location || '',
+          image_url: businessData.imageUrl || null,
+          created_by: user.id
+        }])
+        .select()
+        .single();
+      
+      if (blError) throw blError;
+      
+      // Add tags if provided
       if (tagsArray.length > 0) {
-        const tagRecords = tagsArray.map(tag => ({
-          recommendation_id: recUuid,
-          tag: tag,
-          created_at: now
-        }));
-        const { error: tagsError } = await supabase
-          .from('recommendation_tags')
-          .insert(tagRecords);
-        if (tagsError) throw tagsError;
+        await businessLocationTagService.addBusinessLocationTags(businessLocation.uuid, tagsArray);
       }
-      return { recommendationId: recUuid };
+      
+      return { recommendationId: businessLocation.uuid };
     } catch (error) {
-      console.error('Error creating recommendation:', error);
+      console.error('Error creating business location:', error);
       throw error;
     }
   },
 
-  // Update a recommendation
-  async updateRecommendation(recId, recData) {
+  // Update a business location (replacing recommendation)
+  async updateRecommendation(businessLocationId, businessData) {
     try {
-      const tagsArray = recData.tags ? recData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+      const tagsArray = businessData.tags ? businessData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+      
+      // Update business location
       const { error: updateError } = await supabase
-        .from('recommendations')
+        .from('business_locations')
         .update({
-          title: recData.title,
-          description: recData.description,
-          location: recData.location,
-          image_url: recData.imageUrl,
-          type: recData.type,
-          rating: recData.rating ? parseFloat(recData.rating) : null
+          name: businessData.title,
+          description: businessData.description,
+          address: businessData.location,
+          image_url: businessData.imageUrl
         })
-        .eq('uuid', recId);
+        .eq('uuid', businessLocationId);
+      
       if (updateError) throw updateError;
-      const { error: deleteTagsError } = await supabase
-        .from('recommendation_tags')
-        .delete()
-        .eq('recommendation_id', recId);
-      if (deleteTagsError) throw deleteTagsError;
-      if (tagsArray.length > 0) {
-        const tagRecords = tagsArray.map(tag => ({
-          recommendation_id: recId,
-          tag: tag,
-          created_at: new Date().toISOString()
-        }));
-        const { error: insertTagsError } = await supabase
-          .from('recommendation_tags')
-          .insert(tagRecords);
-        if (insertTagsError) throw insertTagsError;
-      }
+      
+      // Update tags
+      await businessLocationTagService.updateBusinessLocationTags(businessLocationId, tagsArray);
+      
       return { success: true };
     } catch (error) {
-      console.error('Error updating recommendation:', error);
+      console.error('Error updating business location:', error);
       throw error;
     }
   },
 
-  // Delete a recommendation
-  async deleteRecommendation(recId) {
+  // Delete a business location (replacing recommendation)
+  async deleteRecommendation(businessLocationId) {
     try {
       const { error } = await supabase
-        .from('recommendations')
+        .from('business_locations')
         .delete()
-        .eq('uuid', recId);
+        .eq('uuid', businessLocationId);
+      
       if (error) throw error;
       return { success: true };
     } catch (error) {
-      console.error('Error deleting recommendation:', error);
+      console.error('Error deleting business location:', error);
       throw error;
     }
   }

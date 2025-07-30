@@ -79,7 +79,35 @@ const CreateService = () => {
   };
 
   const handleRecommendInputChange = (field, value) => {
-    setRecommendFormData(prev => ({ ...prev, [field]: value }));
+    // Add validation for rating field
+    if (field === 'rating') {
+      const numValue = parseFloat(value);
+      
+      // If the value is not a valid number, don't update
+      if (isNaN(numValue) && value !== '') {
+        return;
+      }
+      
+      // If the value is empty, allow it (for clearing the field)
+      if (value === '') {
+        setRecommendFormData(prev => ({ ...prev, [field]: value }));
+        return;
+      }
+      
+      // Clamp the value between 0 and 5
+      const clampedValue = Math.max(0, Math.min(5, numValue));
+      
+      // Only update if the value is within the valid range or if it's being cleared
+      if (clampedValue === numValue || value === '') {
+        setRecommendFormData(prev => ({ ...prev, [field]: value }));
+      } else {
+        // If the value was clamped, update with the clamped value
+        setRecommendFormData(prev => ({ ...prev, [field]: clampedValue.toString() }));
+      }
+    } else {
+      // For non-rating fields, update normally
+      setRecommendFormData(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -107,12 +135,20 @@ const CreateService = () => {
     };
   }, [imagePreview]);
 
-  const handleImageFileChange = (e) => {
+  // Reusable image file handling function
+  const handleImageFileChange = (e, options) => {
+    const { 
+      setSelectedFile, 
+      setImagePreview, 
+      setFormData, 
+      formDataKey = 'imageUrl' 
+    } = options;
+    
     const file = e.target.files[0];
     if (file) {
       try {
         imageUploadService.validateImageFile(file);
-        setSelectedImageFile(file);
+        setSelectedFile(file);
         
         // Create preview
         const reader = new FileReader();
@@ -120,7 +156,7 @@ const CreateService = () => {
         reader.readAsDataURL(file);
         
         // Clear URL input when file is selected
-        setEventFormData(prev => ({ ...prev, imageUrl: '' }));
+        setFormData(prev => ({ ...prev, [formDataKey]: '' }));
       } catch (error) {
         showNotification(error.message, 'error');
         e.target.value = '';
@@ -186,8 +222,8 @@ const CreateService = () => {
   const handlePersonSubmit = async (e) => {
     e.preventDefault();
     // Validate required fields
-    if (!personFormData.service.trim()) {
-      showNotification('Service name is required.', 'error');
+    if (!personFormData.serviceType.trim()) {
+      showNotification('Service type is required.', 'error');
       return;
     }
     if (!personFormData.location.trim()) {
@@ -216,7 +252,6 @@ const CreateService = () => {
       
       // Reset form
       setPersonFormData({ 
-        service: '', 
         description: '', 
         location: '', 
         contactInfo: '', 
@@ -236,22 +271,7 @@ const CreateService = () => {
     }
   };
 
-  const handleRecommendImageFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      try {
-        imageUploadService.validateImageFile(file);
-        setSelectedRecommendImageFile(file);
-        const reader = new FileReader();
-        reader.onload = (e) => setRecommendImagePreview(e.target.result);
-        reader.readAsDataURL(file);
-        setRecommendFormData(prev => ({ ...prev, imageUrl: '' }));
-      } catch (error) {
-        showNotification(error.message, 'error');
-        e.target.value = '';
-      }
-    }
-  };
+
 
   const handleRecommendSubmit = async (e) => {
     e.preventDefault();
@@ -557,7 +577,12 @@ const CreateService = () => {
                     type="file"
                     id="eventImage"
                     accept="image/*"
-                    onChange={handleImageFileChange}
+                    onChange={(e) => handleImageFileChange(e, {
+                      setSelectedFile: setSelectedImageFile,
+                      setImagePreview: setImagePreview,
+                      setFormData: setEventFormData,
+                      formDataKey: 'imageUrl'
+                    })}
                     className="image-upload-input"
                   />
                   <label htmlFor="eventImage" className="image-upload-label">
@@ -607,17 +632,7 @@ const CreateService = () => {
         {activeTab === 'people' && (
           <div style={{ maxWidth: 900, width: '100%', margin: '0 auto' }}>
             <form onSubmit={handlePersonSubmit} className="create-post-form">
-              <div className="form-group">
-                <label htmlFor="personService">Service Name</label>
-                <input
-                  type="text"
-                  id="personService"
-                  value={personFormData.service}
-                  onChange={(e) => handlePersonInputChange('service', e.target.value)}
-                  placeholder="What service do you provide?"
-                  required
-                />
-              </div>
+
               <div className="form-group">
                 <label htmlFor="personDescription">Service Description</label>
                 <textarea
@@ -695,22 +710,12 @@ const CreateService = () => {
                     type="file"
                     id="personImage"
                     accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        try {
-                          imageUploadService.validateImageFile(file);
-                          setSelectedPeopleImageFile(file);
-                          const reader = new FileReader();
-                          reader.onload = (e) => setPeopleImagePreview(e.target.result);
-                          reader.readAsDataURL(file);
-                          setPersonFormData(prev => ({ ...prev, imageUrl: '' }));
-                        } catch (error) {
-                          showNotification(error.message, 'error');
-                          e.target.value = '';
-                        }
-                      }
-                    }}
+                    onChange={(e) => handleImageFileChange(e, {
+                      setSelectedFile: setSelectedPeopleImageFile,
+                      setImagePreview: setPeopleImagePreview,
+                      setFormData: setPersonFormData,
+                      formDataKey: 'imageUrl'
+                    })}
                     className="image-upload-input"
                   />
                   <label htmlFor="personImage" className="image-upload-label">
@@ -749,7 +754,7 @@ const CreateService = () => {
               )}
 
               <div className="form-actions">
-                <button type="submit" className="submit-btn" disabled={!personFormData.service.trim() || isSubmitting}>
+                <button type="submit" className="submit-btn" disabled={!personFormData.serviceType.trim() || isSubmitting}>
                   {isSubmitting ? 'Creating...' : 'Create Service'}
                 </button>
               </div>
@@ -836,7 +841,12 @@ const CreateService = () => {
                     type="file"
                     id="recommendImage"
                     accept="image/*"
-                    onChange={handleRecommendImageFileChange}
+                    onChange={(e) => handleImageFileChange(e, {
+                      setSelectedFile: setSelectedRecommendImageFile,
+                      setImagePreview: setRecommendImagePreview,
+                      setFormData: setRecommendFormData,
+                      formDataKey: 'imageUrl'
+                    })}
                     className="image-upload-input"
                   />
                   <label htmlFor="recommendImage" className="image-upload-label">

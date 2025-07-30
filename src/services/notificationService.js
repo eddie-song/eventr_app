@@ -190,31 +190,15 @@ export const notificationService = {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('type, is_read, created_at')
-        .eq('user_id', user.id);
+      // Use database function to calculate statistics efficiently
+      const { data, error } = await supabase.rpc('get_notification_stats', {
+        user_uuid: user.id
+      });
 
       if (error) throw error;
 
-      const stats = {
-        total: data.length,
-        unread: data.filter(n => !n.is_read).length,
-        byType: {
-          follow: data.filter(n => n.type === 'follow').length,
-          message: data.filter(n => n.type === 'message').length,
-          like: data.filter(n => n.type === 'like').length,
-          comment: data.filter(n => n.type === 'comment').length
-        },
-        recent: data.filter(n => {
-          const createdAt = new Date(n.created_at);
-          const oneWeekAgo = new Date();
-          oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-          return createdAt > oneWeekAgo;
-        }).length
-      };
-
-      return stats;
+      // Return the statistics directly from the database
+      return data;
     } catch (error) {
       console.error('Error getting notification stats:', error);
       throw error;

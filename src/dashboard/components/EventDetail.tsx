@@ -167,10 +167,7 @@ const EventDetail: React.FC<EventDetailProps> = ({ eventId }) => {
                    imageUrl={event.image_url}
                    alt={event.event}
                    className="w-full h-full object-cover"
-                                       onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                    }}
+                   onError={() => {}} // Empty handler since EventImage handles errors internally
                  />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">

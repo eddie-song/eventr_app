@@ -48,6 +48,7 @@ const PostCard: React.FC<PostCardProps> = ({
   const postUuid = post.uuid;
   const isMenuOpen = showPostMenu === post.uuid;
   const [likeState, handleLike] = useLikeState(postUuid, post.like_count || 0);
+  const [imageError, setImageError] = useState(false);
 
   const handleMenuClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -87,14 +88,16 @@ const PostCard: React.FC<PostCardProps> = ({
             {userProfile.avatar_url ? (
               <img
                 src={userProfile.avatar_url}
-                alt="avatar"
+                alt={`${userProfile.display_name || userProfile.username || 'User'}'s profile picture`}
                 className="w-full h-full rounded-full object-cover ring-2 ring-white/20"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
                 }}
               />
             ) : (
-              '👤'
+              <span role="img" aria-label={`${userProfile.display_name || userProfile.username || 'User'}'s profile avatar`}>
+                👤
+              </span>
             )}
           </div>
           <div className="flex flex-col gap-1">
@@ -148,14 +151,22 @@ const PostCard: React.FC<PostCardProps> = ({
         {/* Post Image */}
         {post.image && (
           <div className="my-4 rounded-2xl overflow-hidden bg-gray-50 shadow-inner">
-            <img
-              src={post.image}
-              alt={post.location || 'Post image'}
-              className="w-full h-72 object-cover block transition-transform duration-500 cursor-pointer hover:scale-[1.02]"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
-            />
+            {!imageError ? (
+              <img
+                src={post.image}
+                alt={post.location || 'Post image'}
+                className="w-full h-72 object-cover block transition-transform duration-500 cursor-pointer hover:scale-[1.02]"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <div className="w-full h-72 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                <div className="text-center">
+                  <div className="text-4xl mb-2">📷</div>
+                  <p className="text-gray-500 text-sm font-medium">Image unavailable</p>
+                  <p className="text-gray-400 text-xs mt-1">Failed to load image</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
         

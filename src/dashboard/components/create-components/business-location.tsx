@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { businessLocationService } from '../../../services/businessLocationService';
 import { imageUploadService } from '../../../services/imageUploadService';
 
@@ -88,11 +88,8 @@ const BusinessLocationForm: React.FC = () => {
         // Clear URL input when file is selected
         setFormData(prev => ({ ...prev, imageUrl: '' }));
       } catch (error: any) {
--        showNotification(error.message, 'error');
-+        showNotification('Invalid image file. Please check the file type and size.', 'error');
-+        console.error('Image validation error:', error);
-        e.target.value = '';
-      }
+        showNotification('Invalid image file. Please check the file type and size.', 'error');
+        console.error('Image validation error:', error);
         e.target.value = '';
       }
     }
@@ -163,7 +160,7 @@ const BusinessLocationForm: React.FC = () => {
   };
 
   // Cleanup for imagePreview blob URLs
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       if (
         imagePreview &&
@@ -171,7 +168,6 @@ const BusinessLocationForm: React.FC = () => {
         /^blob:/i.test(imagePreview)
       ) {
         URL.revokeObjectURL(imagePreview);
-      }
       }
     };
   }, [imagePreview]);
@@ -435,8 +431,9 @@ const BusinessLocationForm: React.FC = () => {
             src={imagePreview || formData.imageUrl}
             alt="Preview"
             onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.style.display = 'none';
+              if (e.target instanceof HTMLImageElement) {
+                e.target.style.display = 'none';
+              }
             }}
           />
         </div>

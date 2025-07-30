@@ -12,13 +12,18 @@ import { supabase } from '../../lib/supabaseClient.js';
 const Social = () => {
   const [activeTab, setActiveTab] = useState('posts'); // 'posts', 'recommendations', 'users'
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [recommendations, setRecommendations] = useState([]);
   const [recommendationsError, setRecommendationsError] = useState(null);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+  const [recommendationsPage, setRecommendationsPage] = useState(1);
+  const [hasMoreRecommendations, setHasMoreRecommendations] = useState(true);
   const [users, setUsers] = useState([]);
   const [usersError, setUsersError] = useState(null);
   const [usersLoading, setUsersLoading] = useState(false);
+  const [usersPage, setUsersPage] = useState(1);
+  const [hasMoreUsers, setHasMoreUsers] = useState(true);
   const [posts, setPosts] = useState([]);
   const [postsError, setPostsError] = useState(null);
   const [postsLoading, setPostsLoading] = useState(false);
@@ -46,44 +51,73 @@ const Social = () => {
     { id: 'entertainment', name: 'Entertainment' }
   ];
 
+  // Filter posts by category only
   const filteredPosts = posts.filter(post => {
-    return selectedCategory === 'all' || post.category === selectedCategory;
+    const matchesCategory = selectedCategory === 'all' || post.category === selectedCategory;
+    const matchesSearch = searchQuery === '' || 
+                         post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         post.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (post.location && post.location.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesCategory && matchesSearch;
   });
 
-
-
+  // Filter recommendations by category only, with separate text search
   const filteredRecommendations = recommendations.filter(rec => {
-    return selectedCategory === 'all' || 
-           rec.type === selectedCategory ||
-           rec.title.toLowerCase().includes(selectedCategory) ||
-           rec.description.toLowerCase().includes(selectedCategory) ||
-           rec.location?.toLowerCase().includes(selectedCategory);
+    const matchesCategory = selectedCategory === 'all' || rec.type === selectedCategory;
+    const matchesSearch = searchQuery === '' || 
+                         rec.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         rec.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (rec.location && rec.location.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesCategory && matchesSearch;
   });
 
+  // Filter users by category only, with separate text search
   const filteredUsers = users.filter(user => {
-    return selectedCategory === 'all' || 
-           user.display_name?.toLowerCase().includes(selectedCategory) ||
-           user.username.toLowerCase().includes(selectedCategory) ||
-           user.bio?.toLowerCase().includes(selectedCategory);
+    const matchesCategory = selectedCategory === 'all'; // Users don't have categories, so show all when category is 'all'
+    const matchesSearch = searchQuery === '' || 
+                         (user.display_name && user.display_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                         user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (user.bio && user.bio.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesCategory && matchesSearch;
   });
 
 
 
-  // Fetch recommendations from database
-  const fetchRecommendations = async () => {
-    setRecommendationsLoading(true);
+  // Fetch recommendations from database with pagination
+  const fetchRecommendations = useCallback(async (page = 1, append = false) => {
+    if (page === 1) {
+      setRecommendationsLoading(true);
+    }
     setRecommendationsError(null);
     try {
-      const data = await recommendationService.getAllRecommendations();
-      setRecommendations(data || []);
+      const data = await recommendationService.getAllRecommendations(page, 20);
+      
+      if (append) {
+        setRecommendations(prevRecommendations => [...prevRecommendations, ...(data || [])]);
+      } else {
+        setRecommendations(data || []);
+      }
+      
+      // Check if there are more recommendations to load
+      setHasMoreRecommendations((data || []).length === 20);
+      setRecommendationsPage(page);
     } catch (error) {
       console.error('Error fetching recommendations:', error);
       setRecommendationsError('Failed to load recommendations');
-      setRecommendations([]);
+      if (!append) {
+        setRecommendations([]);
+      }
     } finally {
       setRecommendationsLoading(false);
     }
-  };
+  }, []);
+
+  // Load more recommendations
+  const loadMoreRecommendations = useCallback(() => {
+    if (!recommendationsLoading && hasMoreRecommendations) {
+      fetchRecommendations(recommendationsPage + 1, true);
+    }
+  }, [recommendationsLoading, hasMoreRecommendations, recommendationsPage, fetchRecommendations]);
 
   // Fetch posts from database
   const fetchPosts = useCallback(async (page = 1, append = false) => {
@@ -95,21 +129,69 @@ const Social = () => {
       const postsData = await postService.getAllPosts(page, 20);
       
       // Transform posts data to match the SocialPost component interface
-      const transformedPosts = (postsData || []).map(post => ({
-        id: post.uuid,
-        author: post.profiles?.display_name || post.profiles?.username || 'Anonymous',
-        avatar: '👤', // Default avatar emoji
-        content: post.post_body_text || '',
-        location: post.location || '',
-        distance: '', // Not available in posts table
-        image: post.image_url || null,
-        timestamp: post.created_at ? new Date(post.created_at).toLocaleString() : '',
-        likes: post.like_count || 0,
-        comments: post.comment_count || 0,
-        rating: 0, // Not available in posts table
-        tags: post.tags || [],
-        category: 'general' // Default category
-      }));
+      const transformedPosts = (postsData || []).map(post => {
+        // Determine category based on post content or tags
+        const determineCategory = (post) => {
+          const content = (post.post_body_text || '').toLowerCase();
+          const tags = (post.tags || []).map(tag => tag.toLowerCase());
+          
+          // Check for category indicators in content and tags
+          if (content.includes('food') || content.includes('restaurant') || content.includes('dining') || 
+              tags.some(tag => tag.includes('food') || tag.includes('restaurant'))) {
+            return 'food';
+          }
+          if (content.includes('outdoor') || content.includes('hiking') || content.includes('nature') || 
+              tags.some(tag => tag.includes('outdoor') || tag.includes('hiking'))) {
+            return 'outdoor';
+          }
+          if (content.includes('art') || content.includes('culture') || content.includes('museum') || 
+              tags.some(tag => tag.includes('art') || tag.includes('culture'))) {
+            return 'culture';
+          }
+          if (content.includes('wellness') || content.includes('fitness') || content.includes('health') || 
+              tags.some(tag => tag.includes('wellness') || tag.includes('fitness'))) {
+            return 'wellness';
+          }
+          if (content.includes('work') || content.includes('business') || content.includes('professional') || 
+              tags.some(tag => tag.includes('work') || tag.includes('business'))) {
+            return 'work';
+          }
+          if (content.includes('network') || content.includes('meeting') || content.includes('connect') || 
+              tags.some(tag => tag.includes('network') || tag.includes('meeting'))) {
+            return 'networking';
+          }
+          if (content.includes('entertainment') || content.includes('movie') || content.includes('music') || 
+              tags.some(tag => tag.includes('entertainment') || tag.includes('movie'))) {
+            return 'entertainment';
+          }
+          return 'general';
+        };
+
+        // Handle avatar URL with fallback
+        const getAvatarUrl = (post) => {
+          if (post.profiles?.avatar_url) {
+            return post.profiles.avatar_url;
+          }
+          // Return a default avatar emoji if no avatar URL is available
+          return '👤';
+        };
+
+        return {
+          id: post.uuid,
+          author: post.profiles?.display_name || post.profiles?.username || 'Anonymous',
+          avatar: getAvatarUrl(post),
+          content: post.post_body_text || '',
+          location: post.location || '',
+          distance: '', // Not available in posts table
+          image: post.image_url || null,
+          timestamp: post.created_at ? new Date(post.created_at).toLocaleString() : '',
+          likes: post.like_count || 0,
+          comments: post.comment_count || 0,
+          rating: 0, // Not available in posts table
+          tags: post.tags || [],
+          category: determineCategory(post)
+        };
+      });
       
       if (append) {
         setPosts(prevPosts => [...prevPosts, ...transformedPosts]);
@@ -138,70 +220,98 @@ const Social = () => {
     }
   }, [postsLoading, hasMorePosts, postsPage, fetchPosts]);
 
-  // Fetch users from database (first 10, excluding current user)
-  const fetchUsers = async () => {
-    setUsersLoading(true);
+  // Fetch users from database with pagination
+  const fetchUsers = useCallback(async (page = 1, append = false) => {
+    if (page === 1) {
+      setUsersLoading(true);
+    }
     setUsersError(null);
     try {
       // Get current user first
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) throw userError;
       
-      // Fetch profiles from database
+      const pageSize = 20;
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      
+      // Fetch profiles from database with pagination
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('uuid, username, display_name, avatar_url, bio, phone, created_at, updated_at')
         .neq('uuid', user?.id) // Exclude current user
         .order('created_at', { ascending: false })
-        .limit(10);
+        .range(from, to);
       
       if (profilesError) {
         console.error('Profiles query error:', profilesError);
-        // If RLS is blocking the query, use mock data for now
-        const mockProfiles = [
-          {
-            uuid: 'mock-1',
-            username: 'john_doe',
-            display_name: 'John Doe',
-            avatar_url: null,
-            bio: 'Software developer and coffee enthusiast',
-            phone: '+1234567890',
-            created_at: '2024-01-15T10:00:00Z',
-            updated_at: '2024-01-15T10:00:00Z'
-          },
-          {
-            uuid: 'mock-2', 
-            username: 'jane_smith',
-            display_name: 'Jane Smith',
-            avatar_url: null,
-            bio: 'Designer and art lover',
-            phone: '+1234567891',
-            created_at: '2024-01-14T10:00:00Z',
-            updated_at: '2024-01-14T10:00:00Z'
-          },
-          {
-            uuid: 'mock-3',
-            username: 'mike_wilson',
-            display_name: 'Mike Wilson',
-            avatar_url: null,
-            bio: 'Photographer and travel enthusiast',
-            phone: '+1234567892',
-            created_at: '2024-01-13T10:00:00Z',
-            updated_at: '2024-01-13T10:00:00Z'
+        
+        // Check if we're in development and mock data is enabled
+        const isDevelopment = process.env.NODE_ENV === 'development';
+        const useMockData = process.env.REACT_APP_USE_MOCK_DATA === 'true';
+        
+        if (isDevelopment && useMockData) {
+          console.warn('Using mock data for development. Set REACT_APP_USE_MOCK_DATA=false to disable.');
+          
+          const mockProfiles = [
+            {
+              uuid: 'mock-1',
+              username: 'john_doe',
+              display_name: 'John Doe',
+              avatar_url: null,
+              bio: 'Software developer and coffee enthusiast',
+              phone: '+1234567890',
+              created_at: '2024-01-15T10:00:00Z',
+              updated_at: '2024-01-15T10:00:00Z'
+            },
+            {
+              uuid: 'mock-2', 
+              username: 'jane_smith',
+              display_name: 'Jane Smith',
+              avatar_url: null,
+              bio: 'Designer and art lover',
+              phone: '+1234567891',
+              created_at: '2024-01-14T10:00:00Z',
+              updated_at: '2024-01-14T10:00:00Z'
+            },
+            {
+              uuid: 'mock-3',
+              username: 'mike_wilson',
+              display_name: 'Mike Wilson',
+              avatar_url: null,
+              bio: 'Photographer and travel enthusiast',
+              phone: '+1234567892',
+              created_at: '2024-01-13T10:00:00Z',
+              updated_at: '2024-01-13T10:00:00Z'
+            }
+          ];
+          
+          const mockUsers = mockProfiles.map(profile => ({
+            uuid: profile.uuid,
+            username: profile.username,
+            email: '',
+            display_name: profile.display_name,
+            phone: profile.phone || '',
+            bio: profile.bio || '',
+            avatar_url: profile.avatar_url,
+            created_at: profile.created_at,
+            updated_at: profile.updated_at || profile.created_at
+          }));
+          
+          if (append) {
+            setUsers(prevUsers => [...prevUsers, ...mockUsers]);
+          } else {
+            setUsers(mockUsers);
           }
-        ];
-        setUsers(mockProfiles.map(profile => ({
-          uuid: profile.uuid,
-          username: profile.username,
-          email: '',
-          display_name: profile.display_name,
-          phone: profile.phone || '',
-          bio: profile.bio || '',
-          avatar_url: profile.avatar_url,
-          created_at: profile.created_at,
-          updated_at: profile.updated_at || profile.created_at
-        })));
-        return;
+          
+          // Check if there are more users to load (mock data is limited)
+          setHasMoreUsers(false);
+          setUsersPage(page);
+          return;
+        } else {
+          // In production or when mock data is disabled, rethrow the error
+          throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
+        }
       }
       
       // Transform profiles data to user data format
@@ -218,38 +328,77 @@ const Social = () => {
       }));
       
       console.log('Found real users from database:', transformedUsers);
-      setUsers(transformedUsers);
+      
+      if (append) {
+        setUsers(prevUsers => [...prevUsers, ...transformedUsers]);
+      } else {
+        setUsers(transformedUsers);
+      }
+      
+      // Check if there are more users to load
+      setHasMoreUsers((profiles || []).length === pageSize);
+      setUsersPage(page);
     } catch (error) {
       console.error('Error fetching users:', error);
       setUsersError('Failed to load users');
-      setUsers([]);
+      if (!append) {
+        setUsers([]);
+      }
     } finally {
       setUsersLoading(false);
     }
-  };
+  }, []);
+
+  // Load more users
+  const loadMoreUsers = useCallback(() => {
+    if (!usersLoading && hasMoreUsers) {
+      fetchUsers(usersPage + 1, true);
+    }
+  }, [usersLoading, hasMoreUsers, usersPage, fetchUsers]);
 
   // Check if page is already loaded
   useEffect(() => {
+    let isMounted = true;
+    let timer = null;
+
+    const loadData = () => {
+      if (!isMounted) return;
+      
+      setIsLoading(false);
+      markPageAsLoaded('social');
+      
+      // Fetch posts, recommendations and users after page loads
+      fetchPosts(1, false);
+      fetchRecommendations(1, false);
+      fetchUsers(1, false);
+    };
+
     if (isPageLoaded('social')) {
       setIsLoading(false);
       // Still fetch posts, recommendations and users even if page is cached
-      fetchPosts();
-      fetchRecommendations();
-      fetchUsers();
+      if (isMounted) {
+        fetchPosts(1, false);
+        fetchRecommendations(1, false);
+        fetchUsers(1, false);
+      }
     } else {
-      // Simulate loading time
-      const loadingTime = Math.random() * 1000 + 1000; // Random time between 1-2 seconds
-      const timer = setTimeout(() => {
-        setIsLoading(false);
-        markPageAsLoaded('social');
-        // Fetch posts, recommendations and users after page loads
-        fetchPosts();
-        fetchRecommendations();
-        fetchUsers();
+      // Use fixed loading time for consistent UX
+      const loadingTime = 1500; // Fixed 1.5 seconds for consistent experience
+      timer = setTimeout(() => {
+        if (isMounted) {
+          loadData();
+        }
       }, loadingTime);
-      return () => clearTimeout(timer);
     }
-  }, []);
+
+    // Cleanup function to prevent state updates on unmounted component
+    return () => {
+      isMounted = false;
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [fetchPosts, fetchRecommendations, fetchUsers, markPageAsLoaded]);
 
   // Show loading screen
   if (isLoading) {
@@ -284,6 +433,19 @@ const Social = () => {
           >
             <span className="tab-name">Users</span>
           </button>
+        </div>
+      </div>
+
+      <div className="search-section">
+        <div className="search-container">
+          <span className="search-icon">🔍</span>
+          <input
+            type="text"
+            placeholder="Search posts, recommendations, or users..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+          />
         </div>
       </div>
 
@@ -370,7 +532,7 @@ const Social = () => {
               <div className="error-message">
                 <p>{recommendationsError}</p>
                 <button 
-                  onClick={fetchRecommendations}
+                  onClick={() => fetchRecommendations(1, false)}
                   className="retry-button"
                 >
                   Try Again
@@ -401,6 +563,17 @@ const Social = () => {
                     onSave={(uuid) => console.log('Save recommendation:', uuid)}
                   />
                 ))}
+                {hasMoreRecommendations && (
+                  <div className="load-more-container">
+                    <button 
+                      onClick={loadMoreRecommendations}
+                      disabled={recommendationsLoading}
+                      className="load-more-button"
+                    >
+                      {recommendationsLoading ? 'Loading...' : 'Load More Recommendations'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -419,7 +592,7 @@ const Social = () => {
               <div className="error-message">
                 <p>{usersError}</p>
                 <button 
-                  onClick={fetchUsers}
+                  onClick={() => fetchUsers(1, false)}
                   className="retry-button"
                 >
                   Try Again
@@ -450,6 +623,17 @@ const Social = () => {
                     }}
                   />
                 ))}
+                {hasMoreUsers && (
+                  <div className="load-more-container">
+                    <button 
+                      onClick={loadMoreUsers}
+                      disabled={usersLoading}
+                      className="load-more-button"
+                    >
+                      {usersLoading ? 'Loading...' : 'Load More Users'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

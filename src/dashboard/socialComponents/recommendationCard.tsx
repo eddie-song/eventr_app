@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface Recommendation {
   uuid: string;
@@ -36,28 +36,47 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
   onShare, 
   onSave 
 }) => {
+  const [imageError, setImageError] = useState(false);
+
+  const handleCardClick = () => {
+    // Handle card click - could open detail view or modal
+    console.log('Card clicked:', recommendation.title);
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleCardClick();
+    }
+  };
+
   return (
-    <div className="bg-white rounded-xl overflow-hidden shadow-lg border border-gray-200 transition-all duration-300 cursor-pointer hover:shadow-xl hover:scale-[1.02]">
+    <div 
+      className="bg-white rounded-xl overflow-hidden shadow-lg border border-gray-200 transition-all duration-300 cursor-pointer hover:shadow-xl hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+      onClick={handleCardClick}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="button"
+      aria-label={`View details for ${recommendation.title}`}
+    >
       {/* Image Container */}
       <div className="relative h-48 overflow-hidden">
-        {recommendation.image_url ? (
+        {recommendation.image_url && !imageError ? (
           <img
             src={recommendation.image_url}
             alt={recommendation.title}
             className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
+            onError={() => setImageError(true)}
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-            <span className="text-4xl text-gray-400">⭐</span>
+            <span role="img" aria-label="Star rating placeholder" className="text-4xl text-gray-400">⭐</span>
           </div>
         )}
         
         {/* Rating Badge */}
         <div className="absolute top-3 right-3 bg-white/90 text-gray-800 px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
-          <span className="text-yellow-500">⭐</span>
+          <span role="img" aria-label="Star rating" className="text-yellow-500">⭐</span>
           <span>{recommendation.rating?.toFixed(1) || '0.0'}</span>
         </div>
       </div>
@@ -107,7 +126,68 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
           </div>
         )}
         
-        {/* Action Buttons */}
+        {/* Social Action Buttons */}
+        {(onLike || onComment || onShare || onSave) && (
+          <div className="flex items-center gap-4 mt-4 pt-4 border-t border-gray-100">
+            {onLike && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onLike(recommendation.uuid);
+                }}
+                aria-label="Like this recommendation"
+                className="flex items-center gap-1 text-gray-600 hover:text-red-500 transition-colors duration-200"
+              >
+                <span role="img" aria-label="Heart icon" className="text-lg">❤️</span>
+                <span className="text-xs font-medium">Like</span>
+              </button>
+            )}
+            
+            {onComment && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onComment(recommendation.uuid);
+                }}
+                aria-label="Comment on this recommendation"
+                className="flex items-center gap-1 text-gray-600 hover:text-blue-500 transition-colors duration-200"
+              >
+                <span role="img" aria-label="Comment icon" className="text-lg">💬</span>
+                <span className="text-xs font-medium">Comment</span>
+              </button>
+            )}
+            
+            {onShare && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShare(recommendation.uuid);
+                }}
+                aria-label="Share this recommendation"
+                className="flex items-center gap-1 text-gray-600 hover:text-green-500 transition-colors duration-200"
+              >
+                <span role="img" aria-label="Share icon" className="text-lg">📤</span>
+                <span className="text-xs font-medium">Share</span>
+              </button>
+            )}
+            
+            {onSave && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSave(recommendation.uuid);
+                }}
+                aria-label="Save this recommendation"
+                className="flex items-center gap-1 text-gray-600 hover:text-yellow-500 transition-colors duration-200"
+              >
+                <span role="img" aria-label="Bookmark icon" className="text-lg">🔖</span>
+                <span className="text-xs font-medium">Save</span>
+              </button>
+            )}
+          </div>
+        )}
+        
+        {/* Edit/Delete Action Buttons */}
         {(onEdit || onDelete) && (
           <div className="flex gap-2 mt-4">
             {onEdit && (
@@ -116,6 +196,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
                   e.stopPropagation();
                   onEdit(recommendation);
                 }}
+                aria-label={`Edit ${recommendation.title}`}
                 className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg font-medium text-sm transition-all duration-200 hover:bg-blue-600 hover:shadow-md active:scale-95"
               >
                 Edit
@@ -127,6 +208,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
                   e.stopPropagation();
                   onDelete(recommendation);
                 }}
+                aria-label={`Delete ${recommendation.title}`}
                 className="flex-1 bg-red-500 text-white py-2 px-4 rounded-lg font-medium text-sm transition-all duration-200 hover:bg-red-600 hover:shadow-md active:scale-95"
               >
                 Delete

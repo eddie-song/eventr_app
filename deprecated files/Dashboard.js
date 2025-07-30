@@ -29,41 +29,35 @@ function Dashboard({ service }) {
     const saved = localStorage.getItem('dashboard_selected_service');
     return saved || 'social';
   };
-  
-  // Check if we're on a place, event, person, or user profile detail URL
-  const isPlaceDetailUrl = location.pathname.startsWith('/dashboard/place/');
-  const isEventDetailUrl = location.pathname.startsWith('/dashboard/event/');
-  const isPersonDetailUrl = location.pathname.startsWith('/dashboard/person/');
-  const isUserProfileUrl = location.pathname.startsWith('/dashboard/user/');
+
+  // Helper function to determine service based on current URL
+  const getServiceFromUrl = (pathname) => {
+    if (pathname.startsWith('/dashboard/place/')) {
+      return 'place-detail';
+    } else if (pathname.startsWith('/dashboard/event/')) {
+      return 'event-detail';
+    } else if (pathname.startsWith('/dashboard/person/')) {
+      return 'person-detail';
+    } else if (pathname.startsWith('/dashboard/user/')) {
+      return 'user-profile';
+    } else {
+      return getInitialService();
+    }
+  };
   
   const [selectedService, setSelectedService] = useState(
-    isPlaceDetailUrl ? 'place-detail' : 
-    isEventDetailUrl ? 'event-detail' : 
-    isPersonDetailUrl ? 'person-detail' : 
-    isUserProfileUrl ? 'user-profile' : 
-    getInitialService()
+    getServiceFromUrl(location.pathname)
   );
 
   // Update selectedService when URL changes
   useEffect(() => {
-    const isPlaceDetailUrl = location.pathname.startsWith('/dashboard/place/');
-    const isEventDetailUrl = location.pathname.startsWith('/dashboard/event/');
-    const isPersonDetailUrl = location.pathname.startsWith('/dashboard/person/');
-    const isUserProfileUrl = location.pathname.startsWith('/dashboard/user/');
+    const newService = getServiceFromUrl(location.pathname);
     
-    if (isPlaceDetailUrl) {
-      setSelectedService('place-detail');
-    } else if (isEventDetailUrl) {
-      setSelectedService('event-detail');
-    } else if (isPersonDetailUrl) {
-      setSelectedService('person-detail');
-    } else if (isUserProfileUrl) {
-      setSelectedService('user-profile');
-    } else if (location.pathname === '/dashboard' && (selectedService === 'place-detail' || selectedService === 'event-detail' || selectedService === 'person-detail' || selectedService === 'user-profile')) {
-      // Reset to default service when on main dashboard
-      setSelectedService(getInitialService());
+    // Only update if the service has actually changed
+    if (newService !== selectedService) {
+      setSelectedService(newService);
     }
-  }, [location.pathname]);
+  }, [location.pathname, selectedService]);
   const [exploreDropdownOpen, setExploreDropdownOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -177,84 +171,69 @@ function Dashboard({ service }) {
   useEffect(() => {
     if (isCheckingAuth) return; // Don't subscribe until auth is checked
 
+    let subscription = null;
+
     const setupNotificationSubscription = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-      // Subscribe to notification changes
-      const subscription = supabase
-        .channel('notifications')
-        .on('postgres_changes', 
-          { 
-            event: '*', 
-            schema: 'public', 
-            table: 'notifications',
-            filter: `user_id=eq.${user.id}`
-          }, 
-          async () => {
-            // Refresh notification count when notifications change
-            try {
-              const counts = await notificationService.getNotificationCount();
-              setNotificationCount(counts.total);
-            } catch (error) {
-              console.error('Error updating notification count:', error);
+        // Subscribe to notification changes
+        subscription = supabase
+          .channel('notifications')
+          .on('postgres_changes', 
+            { 
+              event: '*', 
+              schema: 'public', 
+              table: 'notifications',
+              filter: `user_id=eq.${user.id}`
+            }, 
+            async () => {
+              // Refresh notification count when notifications change
+              try {
+                const counts = await notificationService.getNotificationCount();
+                setNotificationCount(counts.total);
+              } catch (error) {
+                console.error('Error updating notification count:', error);
+              }
             }
-          }
-        )
-        .subscribe();
+          )
+          .subscribe();
 
-      return subscription;
+        console.log('Notification subscription established successfully');
+      } catch (error) {
+        console.error('Error setting up notification subscription:', error);
+      }
     };
 
-    setupNotificationSubscription().then(subscription => {
-      return () => {
-        if (subscription) {
+    setupNotificationSubscription();
+
+    // Return cleanup function
+    return () => {
+      if (subscription) {
+        try {
           subscription.unsubscribe();
+          console.log('Notification subscription cleaned up successfully');
+        } catch (error) {
+          console.error('Error cleaning up notification subscription:', error);
         }
-      };
-    });
+      }
+    };
   }, [isCheckingAuth]);
 
-  // Extract placeId or eventId from URL path
-  const extractPlaceId = () => {
+  // Extract ID from URL path based on the specified segment
+  const extractIdFromPath = (segment) => {
     const pathParts = location.pathname.split('/');
-    const placeIndex = pathParts.indexOf('place');
-    if (placeIndex !== -1 && placeIndex + 1 < pathParts.length) {
-      return pathParts[placeIndex + 1];
-    }
-    return null;
-  };
-
-  const extractEventId = () => {
-    const pathParts = location.pathname.split('/');
-    const eventIndex = pathParts.indexOf('event');
-    if (eventIndex !== -1 && eventIndex + 1 < pathParts.length) {
-      return pathParts[eventIndex + 1];
-    }
-    return null;
-  };
-
-  const extractPersonId = () => {
-    const pathParts = location.pathname.split('/');
-    const personIndex = pathParts.indexOf('person');
-    if (personIndex !== -1 && personIndex + 1 < pathParts.length) {
-      return pathParts[personIndex + 1];
-    }
-    return null;
-  };
-
-  const extractUserId = () => {
-    const pathParts = location.pathname.split('/');
-    const userIndex = pathParts.indexOf('user');
-    if (userIndex !== -1 && userIndex + 1 < pathParts.length) {
-      return pathParts[userIndex + 1];
+    const segmentIndex = pathParts.indexOf(segment);
+    if (segmentIndex !== -1 && segmentIndex + 1 < pathParts.length) {
+      return pathParts[segmentIndex + 1];
     }
     return null;
   };
 
   const renderServiceContent = () => {
     if (selectedService === 'place-detail') {
-      const placeId = extractPlaceId();
+      const placeId = extractIdFromPath('place');
       // Only render PlaceDetail if we have a valid placeId
       if (placeId) {
         return <PlaceDetail key="place-detail" placeId={placeId} />;
@@ -266,7 +245,7 @@ function Dashboard({ service }) {
     }
     
     if (selectedService === 'event-detail') {
-      const eventId = extractEventId();
+      const eventId = extractIdFromPath('event');
       // Only render EventDetail if we have a valid eventId
       if (eventId) {
         return <EventDetail key="event-detail" eventId={eventId} />;
@@ -278,7 +257,7 @@ function Dashboard({ service }) {
     }
     
     if (selectedService === 'person-detail') {
-      const personId = extractPersonId();
+      const personId = extractIdFromPath('person');
       // Only render PersonDetail if we have a valid personId
       if (personId) {
         return <PersonDetail key="person-detail" personId={personId} />;
@@ -290,10 +269,10 @@ function Dashboard({ service }) {
     }
     
     if (selectedService === 'user-profile') {
-      const userId = extractUserId();
+      const userId = extractIdFromPath('user');
       // Only render UserProfile if we have a valid userId
       if (userId) {
-        return <UserProfile key="user-profile" />;
+        return <UserProfile key="user-profile" userId={userId} />;
       } else {
         // If no userId, fall back to default service
         const defaultService = getInitialService();

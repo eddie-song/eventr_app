@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { followService } from '../../services/followService';
 import { messagingService } from '../../services/messagingService';
@@ -33,21 +33,19 @@ const Notifications: React.FC = () => {
     likes: 0,
     comments: 0
   });
-  const [subscription, setSubscription] = useState<any>(null);
+  const subscriptionRef = useRef<any>(null);
 
   useEffect(() => {
     const initializeComponent = async () => {
       await getCurrentUser();
-      await fetchNotifications();
-      await getNotificationCounts();
       await setupRealtimeSubscription();
     };
 
     initializeComponent();
 
     return () => {
-      if (subscription) {
-        notificationService.unsubscribeFromNotifications(subscription);
+      if (subscriptionRef.current) {
+        notificationService.unsubscribeFromNotifications(subscriptionRef.current);
       }
     };
   }, []);
@@ -119,7 +117,7 @@ const Notifications: React.FC = () => {
       });
       
       if (sub) {
-        setSubscription(sub);
+        subscriptionRef.current = sub;
       }
     } catch (error) {
       console.error('Error setting up real-time subscription:', error);
@@ -132,8 +130,10 @@ const Notifications: React.FC = () => {
         // Accept follow by creating mutual follow relationship
         await followService.followUser(followerId);
       }
-      // Remove the notification
-      setNotifications(prev => prev.filter(n => n.uuid !== `follow-${followerId}`));
+      // Remove the notification by finding the one with matching follower_id in data
+      setNotifications(prev => prev.filter(n => 
+        !(n.type === 'follow' && n.data?.follower_id === followerId)
+      ));
     } catch (error) {
       console.error('Error handling follow response:', error);
     }

@@ -2,9 +2,50 @@ import React, { useState, useEffect } from 'react';
 import { followService } from '../../services/followService';
 import { supabase } from '../../lib/supabaseClient';
 
+// Interface for the current authenticated user from Supabase Auth
+interface CurrentUser {
+  id: string;
+  email?: string;
+  created_at?: string;
+  updated_at?: string;
+  aud?: string;
+  role?: string;
+  email_confirmed_at?: string;
+  phone_confirmed_at?: string;
+  confirmed_at?: string;
+  last_sign_in_at?: string;
+  app_metadata?: {
+    provider?: string;
+    providers?: string[];
+  };
+  user_metadata?: Record<string, any>;
+  identities?: Array<{
+    id: string;
+    user_id: string;
+    identity_data?: { [key: string]: any };
+    provider: string;
+    last_sign_in_at?: string;
+    created_at?: string;
+    updated_at?: string;
+  }>;
+}
+
+// Interface for profile users from the profiles table
+interface ProfileUser {
+  uuid: string;
+  username: string;
+  display_name: string | null;
+  email?: string;
+  phone?: string | null;
+  bio?: string | null;
+  avatar_url?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 const FollowTest: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [testUsers, setTestUsers] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [testUsers, setTestUsers] = useState<ProfileUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 

@@ -43,25 +43,13 @@ const Home = memo(() => {
   // Fetch friends and following users
   const fetchFriendsAndFollowing = async () => {
     try {
-      console.log('Fetching friends and following...');
-      
       const [friendsData, followingData] = await Promise.all([
         followService.getMutualFriends(),
         followService.getFollowingUsers()
       ]);
       
-      console.log('Raw data received:', { friendsData, followingData });
-      
       setFriends(friendsData || []);
       setFollowing(followingData || []);
-      
-      // Debug logging
-      console.log('Friends and Following loaded:', {
-        friends: (friendsData || []).length,
-        following: (followingData || []).length,
-        friendsData: friendsData || [],
-        followingData: followingData || []
-      });
       
     } catch (error) {
       console.error('Error fetching friends and following:', error);
@@ -83,17 +71,8 @@ const Home = memo(() => {
       const followingIds = following.map(f => f.user_id);
       const allUserIds = [...friendIds, ...followingIds, user.id];
 
-      console.log('Fetching posts for users:', {
-        friendIds,
-        followingIds,
-        allUserIds,
-        friendsCount: friends.length,
-        followingCount: following.length
-      });
-
       // If no friends or following, show all posts as a fallback
       if (allUserIds.length === 1 && allUserIds[0] === user.id) {
-        console.log('No friends or following found, showing all posts as fallback');
         const { data: posts, error } = await supabase
           .from('posts')
           .select(`
@@ -240,7 +219,7 @@ const Home = memo(() => {
       console.log('Home page not loaded, fetching data...');
       loadData();
     }
-  }, []); // Empty dependency array since we're checking isPageLoaded inside
+  }, [markPageAsLoaded]); // Include markPageAsLoaded in dependency array to prevent stale closures
 
   // Refresh posts when friends/following change
   useEffect(() => {
@@ -762,7 +741,7 @@ const Home = memo(() => {
         
         <div className="feed-content-container">
           {activeSection === 'all' && (
-            <div className="section-content scrollable" onScroll={() => setShowBackToTop(document.documentElement.scrollTop > 300)}>
+            <div className="section-content scrollable" onScroll={(e) => setShowBackToTop(e.target.scrollTop > 300)}>
               {allPosts.filter(post => 
                 selectedActivityType === 'all' || post.activityType === selectedActivityType
               ).length > 0 ? (
@@ -780,7 +759,7 @@ const Home = memo(() => {
           )}
           
           {activeSection === 'friends' && (
-            <div className="section-content scrollable" onScroll={() => setShowBackToTop(document.documentElement.scrollTop > 300)}>
+            <div className="section-content scrollable" onScroll={(e) => setShowBackToTop(e.target.scrollTop > 300)}>
               {friendsPosts.filter(post => 
                 selectedActivityType === 'all' || post.activityType === selectedActivityType
               ).length > 0 ? (
@@ -798,7 +777,7 @@ const Home = memo(() => {
           )}
           
           {activeSection === 'following' && (
-            <div className="section-content scrollable" onScroll={() => setShowBackToTop(document.documentElement.scrollTop > 300)}>
+            <div className="section-content scrollable" onScroll={(e) => setShowBackToTop(e.target.scrollTop > 300)}>
               {followingPosts.filter(post => 
                 selectedActivityType === 'all' || post.activityType === selectedActivityType
               ).length > 0 ? (

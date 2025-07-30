@@ -2,31 +2,31 @@ import React from 'react';
 
 const RecommendationCard = ({ rec, onEdit, onDelete }) => {
   return (
-    <div className="event-card">
-      <div className="event-image-container">
+    <div className="rec-card">
+      <div className="rec-image-container">
         {rec.image ? (
           <img
             src={rec.image}
             alt={rec.title}
-            className="event-image"
+            className="rec-image"
             onError={e => (e.target.style.display = 'none')}
           />
         ) : (
-          <div className="event-placeholder" style={{ display: 'flex' }}>
-            <span className="event-icon">⭐</span>
+          <div className="rec-placeholder" style={{ display: 'flex' }}>
+            <span className="rec-icon">⭐</span>
           </div>
         )}
         {/* Rating badge */}
-        <div className="event-rating">
+        <div className="rec-rating">
           <span className="rating-star">⭐</span>
           <span className="rating-number">{rec.rating || 0.0}</span>
         </div>
       </div>
-      <div className="event-content">
-        <div className="event-header">
-          <h3 className="event-name">{rec.title}</h3>
-          <div className="event-header-details">
-            <span className="event-type-badge">
+      <div className="rec-content">
+        <div className="rec-header">
+          <h3 className="rec-name">{rec.title}</h3>
+          <div className="rec-header-details">
+            <span className="rec-type-badge">
               {rec.type ? rec.type.charAt(0).toUpperCase() + rec.type.slice(1) : 'General'}
             </span>
           </div>
@@ -39,22 +39,22 @@ const RecommendationCard = ({ rec, onEdit, onDelete }) => {
             {rec.location || 'Location not specified'}
           </div>
         )}
-        <p className="event-description">
+        <p className="rec-description">
           {rec.description || 'No description available.'}
         </p>
-        <div className="event-footer">
-          <div className="event-tags">
+        <div className="rec-footer">
+          <div className="rec-tags">
             {rec.tags && rec.tags.slice(0, 3).map((tag, index) => (
-              <span key={index} className="event-tag">{tag}</span>
+              <span key={index} className="rec-tag">{tag}</span>
             ))}
             {rec.tags && rec.tags.length > 3 && (
-              <span className="event-tag-more">+{rec.tags.length - 3}</span>
+              <span className="rec-tag-more">+{rec.tags.length - 3}</span>
             )}
           </div>
         </div>
         {/* Action buttons */}
         {(onEdit || onDelete) && (
-          <div className="event-actions" style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+          <div className="rec-actions" style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
             {onEdit && (
               <button
                 className="edit-btn"

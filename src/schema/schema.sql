@@ -60,15 +60,14 @@
 -- Columns:
 --   uuid: UUID (PRIMARY KEY) - Unique person identifier
 --   user_id: UUID - Associated user UUID
---   service: TEXT (NOT NULL) - Type of service provided
 --   review_count: INTEGER - Number of reviews (default: 0)
 --   rating: NUMERIC(3,2) - Average rating (default: 0.00)
 --   created_at: TIMESTAMP WITH TIME ZONE - Person creation time
 --   contact_info: TEXT - Contact information for the person
---   description: TEXT - Description of the person
+--   description: TEXT - Detailed description of the person's services and expertise
 --   hourly_rate: NUMERIC(10,2) - Hourly rate for the person
 --   location: TEXT - Location of the person
---   service_type: TEXT - Type of service provided
+--   service_type: TEXT (NOT NULL) - Category/type of service provided (e.g., 'photography', 'catering', 'music')
 
 -- ========================================
 -- POSTS TABLE
@@ -124,13 +123,13 @@ CREATE POLICY "Users can delete their own recommendations" ON recommendations FO
 -- ========================================
 -- RECOMMENDATION_TAGS TABLE
 -- ========================================
--- Junction table for recommendation tags
+-- Junction table for business location tags (renamed from recommendation tags)
 --
 -- Columns:
---   recommendation_id: UUID (NOT NULL) - UUID of the recommendation
+--   business_location_id: UUID (NOT NULL) - UUID of the business location
 --   tag: TEXT (NOT NULL) - Tag name
 --   created_at: TIMESTAMP WITH TIME ZONE - When the tag was added
---   PRIMARY KEY: (recommendation_id, tag)
+--   PRIMARY KEY: (business_location_id, tag)
 
 CREATE TABLE IF NOT EXISTS recommendation_tags (
   recommendation_id UUID NOT NULL REFERENCES recommendations(uuid) ON DELETE CASCADE,
@@ -1180,21 +1179,4 @@ CREATE TRIGGER create_message_notification_trigger
   FOR EACH ROW
   EXECUTE FUNCTION trigger_message_notification();
 
--- ========================================
--- UPDATE RECOMMENDATION_TAGS TABLE
--- ========================================
--- Update the existing recommendation_tags table to reference business_locations
--- This allows recommendations to be linked to specific business locations
-
--- Drop existing foreign key constraint if it exists
-ALTER TABLE recommendation_tags DROP CONSTRAINT IF EXISTS recommendation_tags_recommendation_id_fkey;
-
--- Add new foreign key constraint to reference business_locations
-ALTER TABLE recommendation_tags ADD CONSTRAINT recommendation_tags_recommendation_id_fkey 
-  FOREIGN KEY (recommendation_id) REFERENCES business_locations(uuid) ON DELETE CASCADE;
-
--- Update the policy to work with business_locations
-DROP POLICY IF EXISTS "Users can manage their own recommendation tags" ON recommendation_tags;
-CREATE POLICY "Users can manage their own recommendation tags" ON recommendation_tags FOR ALL USING (
-  EXISTS (SELECT 1 FROM business_locations WHERE business_locations.uuid = recommendation_tags.recommendation_id AND business_locations.created_by = auth.uid())
-); 
+ 

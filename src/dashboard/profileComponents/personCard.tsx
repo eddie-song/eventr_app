@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getServiceTypeColor, formatPrice, formatRating } from '../utils/personHelpers';
 
 interface Person {
   uuid: string;
@@ -34,31 +35,6 @@ const PersonCard: React.FC<PersonCardProps> = ({
   onView 
 }) => {
   const navigate = useNavigate();
-  console.log('PersonCard received person data:', person);
-  const getServiceTypeColor = (serviceType: string) => {
-    const colors: { [key: string]: string } = {
-      professional: 'bg-blue-100 text-blue-800',
-      creative: 'bg-purple-100 text-purple-800',
-      technical: 'bg-green-100 text-green-800',
-      healthcare: 'bg-red-100 text-red-800',
-      education: 'bg-yellow-100 text-yellow-800',
-      consulting: 'bg-indigo-100 text-indigo-800',
-      maintenance: 'bg-gray-100 text-gray-800',
-      transportation: 'bg-orange-100 text-orange-800',
-      general: 'bg-gray-100 text-gray-800'
-    };
-    return colors[serviceType] || colors.general;
-  };
-
-  const formatPrice = (price?: number) => {
-    if (!price) return 'Negotiable';
-    return `$${price.toFixed(2)}/hr`;
-  };
-
-  const formatRating = (rating?: number) => {
-    if (!rating || rating === 0) return null;
-    return rating.toFixed(1);
-  };
 
     return (
     <div 
@@ -73,11 +49,11 @@ const PersonCard: React.FC<PersonCardProps> = ({
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-              {person.service[0]?.toUpperCase() || 'S'}
+              {(person.service_type || 'S')[0]?.toUpperCase() || 'S'}
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-gray-900 truncate">
-                {person.service}
+                {person.service_type || 'Service'}
               </h3>
               <p className="text-sm text-gray-500 truncate">
                 {person.profiles?.display_name || `@${person.profiles?.username}` || 'Your Service'}

@@ -3,9 +3,16 @@ import ProfileAvatar from '../ProfileAvatar';
 
 const RecommendationModal = ({ recommendation, onClose, userProfile }) => {
   if (!recommendation) return null;
-  const createdDate = recommendation.created_at ? new Date(recommendation.created_at).toLocaleDateString('en-US', {
-    year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-  }) : 'Recently';
+  let createdDate = 'Recently';
+  if (recommendation.created_at) {
+    try {
+      createdDate = new Date(recommendation.created_at).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Invalid date format:', recommendation.created_at);
+    }
+  }
   return (
     <div className="event-modal-overlay" onClick={onClose}>
       <div className="event-modal-container" onClick={e => e.stopPropagation()}>
@@ -25,10 +32,13 @@ const RecommendationModal = ({ recommendation, onClose, userProfile }) => {
                 src={recommendation.image}
                 alt={recommendation.title}
                 className="event-modal-hero-image"
-                onError={e => (e.target.style.display = 'none')}
+                onError={e => {
+                  e.target.style.display = 'none';
+                  e.target.parentElement.querySelector('.event-modal-placeholder').style.display = 'flex';
+                }}
               />
             ) : null}
-            <div className="event-modal-placeholder" style={{ display: recommendation.image ? 'none' : 'flex' }}>
+            <div className="event-modal-placeholder" style={{ display: 'none' }}>
               <span className="event-modal-icon">⭐</span>
             </div>
             <div className="event-modal-gradient"></div>

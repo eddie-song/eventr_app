@@ -200,10 +200,14 @@ CREATE POLICY "Users can manage their own comment likes" ON comment_likes FOR AL
 -- USER_FOLLOWS TABLE
 -- ========================================
 CREATE TABLE IF NOT EXISTS user_follows (
+  uuid UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   follower_id UUID NOT NULL REFERENCES profiles(uuid) ON DELETE CASCADE,
   following_id UUID NOT NULL REFERENCES profiles(uuid) ON DELETE CASCADE,
+  relationship_type VARCHAR(20) NOT NULL DEFAULT 'follow' CHECK (relationship_type IN ('follow', 'friend_request', 'blocked')),
+  status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'pending', 'accepted', 'rejected', 'blocked')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  PRIMARY KEY (follower_id, following_id),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(follower_id, following_id, relationship_type),
   CHECK (follower_id != following_id) -- Prevent self-following
 );
 
@@ -644,23 +648,31 @@ AFTER DELETE ON comments
 FOR EACH ROW EXECUTE FUNCTION decrement_post_comment_count();
 
 -- ========================================
--- UPDATE RECOMMENDATION_TAGS TABLE
+-- BUSINESS LOCATION TAGS (REPLACING RECOMMENDATION TAGS)
 -- ========================================
--- Update the existing recommendation_tags table to reference business_locations
--- This allows recommendations to be linked to specific business locations
+-- The recommendation_tags table has been migrated to business_location_tags
+-- This provides better organization and consistency with the business_locations table
 
--- Drop existing foreign key constraint if it exists
-ALTER TABLE recommendation_tags DROP CONSTRAINT IF EXISTS recommendation_tags_recommendation_id_fkey;
-
--- Add new foreign key constraint to reference business_locations
-ALTER TABLE recommendation_tags ADD CONSTRAINT recommendation_tags_recommendation_id_fkey 
-  FOREIGN KEY (recommendation_id) REFERENCES business_locations(uuid) ON DELETE CASCADE;
-
--- Update the policy to work with business_locations
-DROP POLICY IF EXISTS "Users can manage their own recommendation tags" ON recommendation_tags;
-CREATE POLICY "Users can manage their own recommendation tags" ON recommendation_tags FOR ALL USING (
-  EXISTS (SELECT 1 FROM business_locations WHERE business_locations.uuid = recommendation_tags.recommendation_id AND business_locations.created_by = auth.uid())
+-- Create business_location_tags table if it doesn't exist
+CREATE TABLE IF NOT EXISTS business_location_tags (
+  business_location_id UUID NOT NULL REFERENCES business_locations(uuid) ON DELETE CASCADE,
+  tag TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (business_location_id, tag)
 );
+
+-- Enable RLS for business_location_tags
+GRANT SELECT, INSERT, UPDATE, DELETE ON business_location_tags TO authenticated;
+ALTER TABLE business_location_tags ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for business_location_tags
+CREATE POLICY "Allow all to read business location tags" ON business_location_tags FOR SELECT USING (true);
+CREATE POLICY "Users can manage their own business location tags" ON business_location_tags FOR ALL USING (
+  EXISTS (SELECT 1 FROM business_locations WHERE business_locations.uuid = business_location_tags.business_location_id AND business_locations.created_by = auth.uid())
+);
+
+-- Drop the old recommendation_tags table if it exists (after migration)
+-- DROP TABLE IF EXISTS recommendation_tags;
 
 -- ========================================
 -- SAMPLE DATA (OPTIONAL)

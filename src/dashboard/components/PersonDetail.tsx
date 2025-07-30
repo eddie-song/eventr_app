@@ -44,7 +44,14 @@ const PersonDetail: React.FC<PersonDetailProps> = ({ personId }) => {
       try {
         setLoading(true);
         const data = await personService.getPerson(personId);
-        setPerson(data);
+        
+        // Check if person data is null or undefined
+        if (!data) {
+          setError('Person not found');
+          setPerson(null);
+        } else {
+          setPerson(data);
+        }
       } catch (err) {
         console.error('Error fetching person details:', err);
         setError('Failed to load person details');
@@ -155,7 +162,7 @@ const PersonDetail: React.FC<PersonDetailProps> = ({ personId }) => {
                 <div className="flex items-start">
                   <span className="text-gray-500 mr-3 mt-1">💼</span>
                   <div>
-                    <p className="text-gray-900 font-medium">{person.service}</p>
+                    <p className="text-gray-900 font-medium">{person.service_type}</p>
                     <p className="text-gray-600 text-sm">Service Type: {person.service_type}</p>
                   </div>
                 </div>

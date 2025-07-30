@@ -2,11 +2,19 @@ import { supabase } from '../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 
 export const commentService = {
-  // Get all comments for a post (flat, newest first)
+  // Get all comments for a post with user profile data (flat, newest first)
   async getCommentsForPost(postId) {
     const { data, error } = await supabase
       .from('comments')
-      .select('*')
+      .select(`
+        *,
+        profiles:user_id (
+          uuid,
+          username,
+          display_name,
+          avatar_url
+        )
+      `)
       .eq('post_id', postId)
       .order('created_at', { ascending: false });
     if (error) throw error;

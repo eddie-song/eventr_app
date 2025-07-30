@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDateInTimezone } from '../../../utils/timezoneUtils';
+import { getBusinessTypeLabel, getPriceRangeLabel } from '../../../utils/businessUtils';
 
 interface BusinessLocationTag {
   tag: string;
@@ -63,59 +64,32 @@ const BusinessLocationCard: React.FC<BusinessLocationCardProps> = ({
     setDeleteBusinessModal({ open: true, businessUuid: business.uuid });
   };
 
-  const getBusinessTypeLabel = (type: string): string => {
-    const typeLabels: Record<string, string> = {
-      'general': 'General',
-      'restaurant': 'Restaurant',
-      'retail': 'Retail',
-      'service': 'Service',
-      'entertainment': 'Entertainment',
-      'healthcare': 'Healthcare',
-      'fitness': 'Fitness',
-      'beauty': 'Beauty & Spa',
-      'professional': 'Professional Services',
-      'other': 'Other'
-    };
-    return typeLabels[type] || type;
-  };
-
-  const getPriceRangeLabel = (range?: string): string => {
-    if (!range) return 'Not specified';
-    const rangeLabels: Record<string, string> = {
-      '$': '$ (Inexpensive)',
-      '$$': '$$ (Moderate)',
-      '$$$': '$$$ (Expensive)',
-      '$$$$': '$$$$ (Very Expensive)'
-    };
-    return rangeLabels[range] || range;
-  };
-
   return (
-    <div className="event-card" onClick={handleCardClick}>
-      <div className="event-image-container">
+    <div className="business-card" onClick={handleCardClick}>
+      <div className="business-image-container">
         {business.image_url ? (
           <img
             src={business.image_url}
             alt={business.name}
-            className="event-image"
+            className="business-image"
             onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
               e.currentTarget.style.display = 'none';
             }}
           />
         ) : (
-          <div className="event-image-placeholder">
+          <div className="business-image-placeholder">
             <span>🏢</span>
           </div>
         )}
       </div>
 
-      <div className="event-content">
-        <div className="event-header">
-          <h3 className="event-title">{business.name}</h3>
-          <div className="event-type">{getBusinessTypeLabel(business.business_type)}</div>
+      <div className="business-content">
+        <div className="business-header">
+          <h3 className="business-title">{business.name}</h3>
+          <div className="business-type">{getBusinessTypeLabel(business.business_type)}</div>
         </div>
 
-        <div className="event-details">
+        <div className="business-details">
           <div className="business-location">
             <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16" style={{ color: 'currentColor', marginRight: '4px' }}>
               <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
@@ -124,14 +98,14 @@ const BusinessLocationCard: React.FC<BusinessLocationCardProps> = ({
           </div>
 
           {business.price_range && (
-            <div className="event-price">
+            <div className="business-price">
               <span className="price-icon">💰</span>
               <span>{getPriceRangeLabel(business.price_range)}</span>
             </div>
           )}
 
           {business.hours_of_operation && (
-            <div className="event-time">
+            <div className="business-time">
               <span className="time-icon">🕒</span>
               <span>{business.hours_of_operation}</span>
             </div>
@@ -139,7 +113,7 @@ const BusinessLocationCard: React.FC<BusinessLocationCardProps> = ({
         </div>
 
         {business.description && (
-          <p className="event-description">
+          <p className="business-description">
             {business.description.length > 100 
               ? `${business.description.substring(0, 100)}...` 
               : business.description}
@@ -147,7 +121,7 @@ const BusinessLocationCard: React.FC<BusinessLocationCardProps> = ({
         )}
 
         {business.amenities && business.amenities.length > 0 && (
-          <div className="event-tags">
+          <div className="business-tags">
             {business.amenities.slice(0, 3).map((amenity, index) => (
               <span key={index} className="tag">
                 {amenity}
@@ -160,7 +134,7 @@ const BusinessLocationCard: React.FC<BusinessLocationCardProps> = ({
         )}
 
         {business.business_location_tags && business.business_location_tags.length > 0 && (
-          <div className="event-tags">
+          <div className="business-tags">
             {business.business_location_tags.slice(0, 3).map((tagItem, index) => (
               <span key={index} className="tag">
                 #{tagItem.tag}
@@ -172,14 +146,14 @@ const BusinessLocationCard: React.FC<BusinessLocationCardProps> = ({
           </div>
         )}
 
-        <div className="event-footer">
-          <div className="event-date">
+        <div className="business-footer">
+          <div className="business-date">
             Created {formatDateInTimezone(business.created_at, 'MMM d, yyyy')}
           </div>
         </div>
 
         {/* Action buttons - only at the bottom, never overlay */}
-        <div className="event-actions" style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+        <div className="business-actions" style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
           <button
             className="edit-btn"
             onClick={handleEditClick}

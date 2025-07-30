@@ -16,6 +16,7 @@ const Messaging = () => {
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [groupName, setGroupName] = useState('');
   const [isGroupChat, setIsGroupChat] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -29,10 +30,25 @@ const Messaging = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Get current user
+  const getCurrentUser = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+    } catch (error) {
+      console.error('Error getting current user:', error);
+    }
+  };
+
   // Load conversations on mount
   useEffect(() => {
+    getCurrentUser();
     loadConversations();
     loadUnreadCount();
+
+    // TODO: Cleanup function to unsubscribe from any active subscriptions
+    return () => {
+    };
   }, []);
 
   // Load conversations
@@ -165,9 +181,50 @@ const Messaging = () => {
     }
   };
 
+  // File validation constants
+  const ALLOWED_FILE_TYPES = [
+    // Images
+    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+    // Documents
+    'application/pdf', 'application/msword', 
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain', 'text/csv',
+    // Archives
+    'application/zip', 'application/x-rar-compressed'
+  ];
+  
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
+
+  // Validate file before upload
+  const validateFile = (file) => {
+    // Check file type
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+      throw new Error(`File type not allowed. Allowed types: ${ALLOWED_FILE_TYPES.map(type => type.split('/')[1]).join(', ')}`);
+    }
+
+    // Check file size
+    if (file.size > MAX_FILE_SIZE) {
+      throw new Error(`File too large. Maximum size: ${MAX_FILE_SIZE / (1024 * 1024)}MB`);
+    }
+
+    // Check for potentially dangerous file extensions
+    const dangerousExtensions = ['.exe', '.bat', '.cmd', '.com', '.pif', '.scr', '.vbs', '.js'];
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+    if (dangerousExtensions.includes(fileExtension)) {
+      throw new Error('Executable files are not allowed for security reasons.');
+    }
+
+    return true;
+  };
+
   // Handle file upload
   const handleFileUpload = async (file) => {
     try {
+      // Validate file before upload
+      validateFile(file);
+
       const { data: { user } } = await supabase.auth.getUser();
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
@@ -193,6 +250,8 @@ const Messaging = () => {
       setMessages(prev => [...prev, message]);
     } catch (error) {
       console.error('Error uploading file:', error);
+      // Show user-friendly error message
+      alert(`Upload failed: ${error.message}`);
     }
   };
 
@@ -315,13 +374,13 @@ const Messaging = () => {
               </div>
             </div>
 
-            {/* Messages */}
-            <div className="messages-container">
-              {messages.map(message => (
-                <MessageBubble key={message.uuid} message={message} />
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
+                         {/* Messages */}
+             <div className="messages-container">
+               {messages.map(message => (
+                 <MessageBubble key={message.uuid} message={message} currentUser={currentUser} />
+               ))}
+               <div ref={messagesEndRef} />
+             </div>
 
             {/* Message Input */}
             <form className="message-input-container" onSubmit={handleSendMessage}>
@@ -475,9 +534,8 @@ const Messaging = () => {
 };
 
 // Message Bubble Component
-const MessageBubble = ({ message }) => {
-  const { data: { user } } = supabase.auth.getUser();
-  const isOwnMessage = message.sender_id === user?.id;
+const MessageBubble = ({ message, currentUser }) => {
+  const isOwnMessage = message.sender_id === currentUser?.id;
 
   return (
     <div className={`message-bubble ${isOwnMessage ? 'own' : 'other'}`}>

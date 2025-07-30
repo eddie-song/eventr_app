@@ -1,6 +1,77 @@
 import { supabase } from '../lib/supabaseClient';
 
 class FollowService {
+  // Private helper method to handle common database error codes
+  _handleDatabaseError(error, operation) {
+    if (!error || !error.code) {
+      throw error;
+    }
+
+    switch (error.code) {
+      case '23505': // Unique constraint violation
+        if (operation === 'follow') {
+          throw new Error('Already following this user');
+        } else if (operation === 'unfollow') {
+          throw new Error('Not following this user');
+        }
+        throw new Error('Duplicate entry detected');
+        
+      case '23503': // Foreign key constraint violation
+        throw new Error('Referenced user does not exist');
+        
+      case '23502': // Not null constraint violation
+        throw new Error('Required field is missing');
+        
+      case '23514': // Check constraint violation
+        throw new Error('Data validation failed');
+        
+      case '42P01': // Undefined table
+        throw new Error('Database table not found');
+        
+      case '42P02': // Undefined column
+        throw new Error('Database column not found');
+        
+      case '42703': // Undefined column (PostgreSQL)
+        throw new Error('Database column not found');
+        
+      case 'PGRST116': // No rows returned
+        if (operation === 'unfollow') {
+          throw new Error('Not following this user');
+        } else if (operation === 'check') {
+          return false; // Return false for existence checks
+        } else if (operation === 'query') {
+          return []; // Return empty array for query operations
+        }
+        throw new Error('No matching record found');
+        
+      case 'PGRST301': // Multiple rows returned
+        throw new Error('Multiple records found - data inconsistency');
+        
+      case 'PGRST302': // Invalid response
+        throw new Error('Invalid database response');
+        
+      case '42501': // Insufficient privilege
+        throw new Error('Insufficient database permissions');
+        
+      case '28P01': // Invalid password
+        throw new Error('Database authentication failed');
+        
+      case '08001': // Connection failure
+        throw new Error('Database connection failed');
+        
+      case '08003': // Connection does not exist
+        throw new Error('Database connection lost');
+        
+      case '08006': // Connection failure
+        throw new Error('Database connection terminated');
+        
+      default:
+        // Log unexpected error codes for debugging
+        console.warn(`Unexpected database error code: ${error.code}`, error);
+        throw new Error(`Database operation failed: ${error.message || 'Unknown error'}`);
+    }
+  }
+
   // Follow a user
   async followUser(userToFollowId) {
     try {
@@ -19,10 +90,7 @@ class FollowService {
         .single();
 
       if (error) {
-        if (error.code === '23505') { // Unique constraint violation
-          throw new Error('Already following this user');
-        }
-        throw error;
+        this._handleDatabaseError(error, 'follow');
       }
 
       return data;
@@ -49,7 +117,7 @@ class FollowService {
         .single();
 
       if (error) {
-        throw error;
+        this._handleDatabaseError(error, 'unfollow');
       }
 
       return data;
@@ -140,7 +208,10 @@ class FollowService {
         });
 
       if (error) {
-        throw error;
+        const result = this._handleDatabaseError(error, 'check');
+        if (result === false) {
+          return false; // Return false for existence checks
+        }
       }
 
       return data;
@@ -222,7 +293,7 @@ class FollowService {
         throw new Error('No authenticated user found');
       }
 
-      // Get users that the current user is not following
+      // Get users that the current user is not following using a safe parameterized approach
       const { data, error } = await supabase
         .from('profiles')
         .select('uuid, username, display_name, avatar_url, created_at')
@@ -230,13 +301,13 @@ class FollowService {
         .not('uuid', 'in', `(
           SELECT following_id 
           FROM user_follows 
-          WHERE follower_id = '${user.id}'
-        )`)
+          WHERE follower_id = $1
+        )`, [user.id])
         .order('created_at', { ascending: false })
         .limit(limit);
 
       if (error) {
-        throw error;
+        this._handleDatabaseError(error, 'query');
       }
 
       return data || [];

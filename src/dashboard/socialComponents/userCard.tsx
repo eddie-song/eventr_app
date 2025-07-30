@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { followService } from '../../services/followService';
+import { getAvatarEmoji, formatDate } from '../utils/userHelpers';
 
 interface User {
   uuid: string;
@@ -77,46 +78,18 @@ const UserCard: React.FC<UserCardProps> = ({ user, onFollowChange }) => {
       if (errorMessage === 'Already following this user') {
         setIsFollowing(true);
       } else if (errorMessage === 'No authenticated user found') {
-        // Redirect to login or show login modal
-        console.log('User not authenticated');
+        // Redirect to login page when user is not authenticated
+        navigate('/login');
       } else {
         // Show generic error message
-        console.log('Failed to update follow status');
+        console.error('Failed to update follow status:', errorMessage);
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Generate avatar emoji based on display name or username
-  const getAvatarEmoji = (name: string | null, username: string) => {
-    const displayName = name || username;
-    const firstChar = displayName.charAt(0).toLowerCase();
-    
-    // Simple emoji mapping based on first character
-    const emojiMap: { [key: string]: string } = {
-      'a': '👨‍💻', 'b': '👩‍🎨', 'c': '👨‍🍳', 'd': '👩‍🏫', 'e': '👨‍🎤',
-      'f': '👩‍⚕️', 'g': '👨‍🔬', 'h': '👩‍💼', 'i': '👨', 'j': '👩‍🚀',
-      'k': '👨‍🏭', 'l': '👩‍🌾', 'm': '👨', 'n': '👩‍🎓', 'o': '👨‍💼',
-      'p': '👩‍🔧', 'q': '👨‍🎨', 'r': '👩‍🏭', 's': '👨‍⚕️', 't': '👩',
-      'u': '👨‍🌾', 'v': '👩', 'w': '👨‍🚀', 'x': '👩‍💻', 'y': '👨‍🎓',
-      'z': '👩‍🔬'
-    };
-    
-    return emojiMap[firstChar] || '👤';
-  };
 
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-    if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`;
-    return date.toLocaleDateString();
-  };
 
   const avatarEmoji = getAvatarEmoji(user.display_name, user.username);
   const displayName = user.display_name || user.username;

@@ -1,4 +1,5 @@
 import React from 'react';
+import { getBusinessTypeLabel, getPriceRangeLabel } from '../../../utils/businessUtils';
 import { formatDateInTimezone } from '../../../utils/timezoneUtils';
 
 interface BusinessLocationTag {
@@ -44,49 +45,104 @@ interface BusinessModalProps {
 }
 
 const BusinessModal: React.FC<BusinessModalProps> = ({ business, onClose, userProfile }) => {
+  const modalRef = React.useRef<HTMLDivElement>(null);
+  const previousActiveElement = React.useRef<HTMLElement | null>(null);
+
+  // Handle escape key to close modal
+  React.useEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscapeKey);
+    return () => document.removeEventListener('keydown', handleEscapeKey);
+  }, [onClose]);
+
+  // Handle focus trapping
+  React.useEffect(() => {
+    const modal = modalRef.current;
+    if (!modal) return;
+
+    // Store the element that had focus before the modal opened
+    previousActiveElement.current = document.activeElement as HTMLElement;
+
+    // Focus the modal
+    modal.focus();
+
+    // Get all focusable elements within the modal
+    const focusableElements = modal.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const firstElement = focusableElements[0] as HTMLElement;
+    const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+    const handleTabKey = (event: KeyboardEvent) => {
+      if (event.key === 'Tab') {
+        if (event.shiftKey) {
+          // Shift + Tab: move to previous element
+          if (document.activeElement === firstElement) {
+            event.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          // Tab: move to next element
+          if (document.activeElement === lastElement) {
+            event.preventDefault();
+            firstElement.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleTabKey);
+    return () => document.removeEventListener('keydown', handleTabKey);
+  }, []);
+
+  // Prevent background scrolling and restore focus on unmount
+  React.useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      // Restore focus to the previous element
+      if (previousActiveElement.current) {
+        previousActiveElement.current.focus();
+      }
+    };
+  }, []);
+
   if (!business) return null;
 
-  const getBusinessTypeLabel = (type: string): string => {
-    const typeLabels: Record<string, string> = {
-      'general': 'General',
-      'restaurant': 'Restaurant',
-      'retail': 'Retail',
-      'service': 'Service',
-      'entertainment': 'Entertainment',
-      'healthcare': 'Healthcare',
-      'fitness': 'Fitness',
-      'beauty': 'Beauty & Spa',
-      'professional': 'Professional Services',
-      'other': 'Other'
-    };
-    return typeLabels[type] || type;
-  };
-
-  const getPriceRangeLabel = (range?: string): string => {
-    if (!range) return 'Not specified';
-    const rangeLabels: Record<string, string> = {
-      '$': '$ (Inexpensive)',
-      '$$': '$$ (Moderate)',
-      '$$$': '$$$ (Expensive)',
-      '$$$$': '$$$$ (Very Expensive)'
-    };
-    return rangeLabels[range] || range;
-  };
-
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.9)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 2000,
-      padding: '20px'
-    }}>
+    <div 
+      ref={modalRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="business-modal-title"
+      tabIndex={-1}
+      onClick={(e) => {
+        // Close modal when clicking on the backdrop
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 2000,
+        padding: '20px'
+      }}
+    >
       <div style={{
         backgroundColor: 'white',
         borderRadius: '12px',
@@ -179,6 +235,7 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ business, onClose, userPr
             </div>
             <button
               onClick={onClose}
+              aria-label="Close modal"
               style={{
                 background: 'none',
                 border: 'none',
@@ -200,12 +257,15 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ business, onClose, userPr
           }}>
             {/* Business name and type */}
             <div style={{ marginBottom: '16px' }}>
-              <h2 style={{
-                fontSize: '20px',
-                fontWeight: '600',
-                margin: '0 0 8px 0',
-                color: '#1d1d1f'
-              }}>
+              <h2 
+                id="business-modal-title"
+                style={{
+                  fontSize: '20px',
+                  fontWeight: '600',
+                  margin: '0 0 8px 0',
+                  color: '#1d1d1f'
+                }}
+              >
                 {business.name}
               </h2>
               <div style={{

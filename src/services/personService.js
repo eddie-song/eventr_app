@@ -2,6 +2,30 @@ import { supabase } from '../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 
 export const personService = {
+  // Private helper method to fetch and map profiles by user IDs
+  async _getProfilesMap(userIds) {
+    if (!userIds || userIds.length === 0) {
+      return {};
+    }
+
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('uuid, username, display_name, avatar_url')
+      .in('uuid', userIds);
+
+    if (profilesError) throw profilesError;
+
+    // Create a map of profiles by user ID
+    const profilesMap = {};
+    if (profiles) {
+      profiles.forEach(profile => {
+        profilesMap[profile.uuid] = profile;
+      });
+    }
+
+    return profilesMap;
+  },
+
   // Create a new person/service provider
   async createPerson(personData) {
     try {
@@ -10,7 +34,6 @@ export const personService = {
       
       const userId = user.id;
       const personUuid = crypto?.randomUUID?.() ?? uuidv4();
-      const now = new Date().toISOString();
 
       // Insert person
       const { error: personError } = await supabase
@@ -18,11 +41,10 @@ export const personService = {
         .insert([{
           uuid: personUuid,
           user_id: userId,
-          service: personData.service,
           description: personData.description || null,
           location: personData.location || null,
           contact_info: personData.contactInfo || null,
-          service_type: personData.serviceType || 'general',
+          service_type: personData.service_type || personData.serviceType || 'general',
           hourly_rate: personData.hourlyRate ? parseFloat(personData.hourlyRate) : null,
           image_url: personData.imageUrl || null
         }]);
@@ -55,21 +77,8 @@ export const personService = {
       // Get user IDs from people
       const userIds = people.map(person => person.user_id).filter(id => id);
 
-      // Get profiles for these users
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('uuid, username, display_name, avatar_url')
-        .in('uuid', userIds);
-
-      if (profilesError) throw profilesError;
-
-      // Create a map of profiles by user ID
-      const profilesMap = {};
-      if (profiles) {
-        profiles.forEach(profile => {
-          profilesMap[profile.uuid] = profile;
-        });
-      }
+      // Get profiles for these users using the helper method
+      const profilesMap = await this._getProfilesMap(userIds);
 
       // Combine people with their profiles
       const peopleWithProfiles = people.map(person => ({
@@ -124,11 +133,10 @@ export const personService = {
     try {
       // Assign all relevant fields directly
       const updateObj = {
-        service: personData.service,
         description: personData.description,
         location: personData.location,
         contact_info: personData.contactInfo,
-        service_type: personData.serviceType,
+        service_type: personData.service_type || personData.serviceType,
         hourly_rate: personData.hourlyRate ? parseFloat(personData.hourlyRate) : null
       };
       // Remove undefined fields
@@ -266,21 +274,8 @@ export const personService = {
       // Get user IDs from people
       const userIds = people.map(person => person.user_id).filter(id => id);
 
-      // Get profiles for these users
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('uuid, username, display_name, avatar_url')
-        .in('uuid', userIds);
-
-      if (profilesError) throw profilesError;
-
-      // Create a map of profiles by user ID
-      const profilesMap = {};
-      if (profiles) {
-        profiles.forEach(profile => {
-          profilesMap[profile.uuid] = profile;
-        });
-      }
+      // Get profiles for these users using the helper method
+      const profilesMap = await this._getProfilesMap(userIds);
 
       // Combine people with their profiles
       const peopleWithProfiles = people.map(person => ({

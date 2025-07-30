@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './people.css';
 import LoadingScreen from './LoadingScreen.js';
 import { usePageCache } from '../context/PageCacheContext.js';
 import { personService } from '../../services/personService';
+import PersonCard from './PersonCard';
+import RecommendedPersonCard from './RecommendedPersonCard';
 
 const People = () => {
   const navigate = useNavigate();
@@ -18,31 +20,25 @@ const People = () => {
   // Fetch people from database
   useEffect(() => {
     const fetchPeople = async () => {
+      setIsLoading(true);
+      setError(null);
+      
       try {
         const peopleData = await personService.getAllPeople();
-        // Handle null/undefined data gracefully
         setPeople(peopleData || []);
       } catch (err) {
         console.error('Error fetching people:', err);
         setError('Failed to load people');
-        // Set empty array to prevent crashes
         setPeople([]);
+      } finally {
+        setIsLoading(false);
+        if (!isPageLoaded('people')) {
+          markPageAsLoaded('people');
+        }
       }
     };
 
-    if (isPageLoaded('people')) {
-      setIsLoading(false);
-      fetchPeople();
-    } else {
-      // Simulate loading time
-      const loadingTime = Math.random() * 1000 + 1000; // Random time between 1-2 seconds
-      const timer = setTimeout(async () => {
-        await fetchPeople();
-        setIsLoading(false);
-        markPageAsLoaded('people');
-      }, loadingTime);
-      return () => clearTimeout(timer);
-    }
+    fetchPeople();
   }, [isPageLoaded, markPageAsLoaded]);
 
   // Recommended people section - service coming soon
@@ -63,162 +59,51 @@ const People = () => {
   ];
 
   // Transform database people to match the expected format
-  const transformPersonData = (person) => {
-    // Handle null/undefined person data
-    if (!person) return null;
-    
-    const profile = person.profiles || {};
-    
-    // Use service image if available, otherwise fall back to avatar or default
-    let imageUrl = person.image_url || profile.avatar_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop';
-    
-    return {
-      id: person.uuid || `person-${Math.random()}`,
-      name: profile.display_name || profile.username || 'Anonymous',
-      title: person.service || 'Service not specified',
-      category: person.service_type || 'general',
-      location: person.location || 'Location not specified',
-      distance: 'Distance not available', // Could be calculated later with geolocation
-      image: imageUrl,
-      description: person.description || 'No description available.',
-      rate: person.hourly_rate ? `$${person.hourly_rate}/hour` : 'Rate not specified',
-      rating: person.rating || 0.0,
-      reviews: person.review_count || 0,
-      tags: [person.service_type || 'General'],
-      availability: 'Contact for availability',
-      contactInfo: person.contact_info,
-      serviceType: person.service_type,
+  // Memoized data transformation to optimize performance
+  const transformedPeople = useMemo(() => {
+    const transformPersonData = (person) => {
+      // Handle null/undefined person data
+      if (!person) return null;
+      
+      const profile = person.profiles || {};
+      
+      // Use service image if available, otherwise fall back to avatar or default
+      let imageUrl = person.image_url || profile.avatar_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop';
+      
+      return {
+        id: person.uuid || `person-${Math.random()}`,
+        name: profile.display_name || profile.username || 'Anonymous',
+        title: person.service_type || 'Service not specified',
+        category: person.service_type || 'general',
+        location: person.location || 'Location not specified',
+        distance: 'Distance not available', // Could be calculated later with geolocation
+        image: imageUrl,
+        description: person.description || 'No description available.',
+        rate: person.hourly_rate ? `$${person.hourly_rate}/hour` : 'Rate not specified',
+        rating: person.rating || 0.0,
+        reviews: person.review_count || 0,
+        tags: [person.service_type || 'General'],
+        availability: 'Contact for availability',
+        contactInfo: person.contact_info,
+        serviceType: person.service_type,
+      };
     };
-  };
 
-  const filteredPeople = people
-    .map(transformPersonData)
-    .filter(person => person !== null) // Filter out null/undefined transformed data
-    .filter(person => {
+    return people
+      .map(transformPersonData)
+      .filter(person => person !== null); // Filter out null/undefined transformed data
+  }, [people]);
+
+  // Memoized filtered people to avoid recalculation on every render
+  const filteredPeople = useMemo(() => {
+    return transformedPeople.filter(person => {
       const matchesSearch = person.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            person.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            person.description.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = selectedCategory === 'all' || person.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });
-
-  const PersonCard = ({ person }) => (
-    <div 
-      className="person-card" 
-      onClick={() => navigate(`/dashboard/person/${person.id}`)}
-      style={{ cursor: 'pointer' }}
-    >
-      <div className="person-image-container">
-        <img 
-          src={person.image} 
-          alt={person.name}
-          className="person-image"
-          onError={(e) => {
-            e.target.style.display = 'none';
-          }}
-        />
-        <div className="person-rating">
-          <span className="rating-star">⭐</span>
-          <span className="rating-number">{person.rating}</span>
-          <span className="rating-count">({person.reviews})</span>
-        </div>
-        <div className="person-rate">
-          <span className="rate-text">{person.rate}</span>
-        </div>
-      </div>
-      <div className="person-content">
-        <div className="person-header">
-          <h3 className="person-name">{person.name}</h3>
-          <span className="person-distance">{person.distance}</span>
-        </div>
-        <div className="person-title">
-          <span className="title-icon">💼</span>
-          <span className="title-text">{person.title}</span>
-        </div>
-        <div className="person-location">
-          <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16" style={{ color: 'currentColor', marginRight: '4px' }}>
-            <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
-          </svg>
-          {person.location || 'Location not specified'}
-        </div>
-        <p className="person-description">{person.description}</p>
-        <div className="person-footer">
-          <div className="person-tags">
-            {person.tags.map((tag, index) => (
-              <span key={index} className="person-tag">{tag}</span>
-            ))}
-          </div>
-          <div className="person-availability">
-            <span className="availability-icon">📅</span>
-            <span className="availability-text">{person.availability}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const RecommendedPersonCard = ({ person }) => (
-    <div 
-      className="recommended-person-card"
-      onClick={() => navigate(`/dashboard/person/${person.id}`)}
-      style={{ cursor: 'pointer' }}
-    >
-      <div className="person-image-container">
-        <img 
-          src={person.image} 
-          alt={person.name}
-          className="person-image"
-          onError={(e) => {
-            e.target.style.display = 'none';
-          }}
-        />
-        <div className="person-rating">
-          <span className="rating-star">⭐</span>
-          <span className="rating-number">{person.rating}</span>
-          <span className="rating-count">({person.reviews})</span>
-        </div>
-        <div className="person-rate">
-          <span className="rate-text">{person.rate}</span>
-        </div>
-      </div>
-      <div className="person-content">
-        <div className="person-header">
-          <div className="person-name-container">
-            <h3 className="person-name">{person.name}</h3>
-            <div className="recommended-badge">
-              <span>⭐</span>
-            </div>
-          </div>
-          <span className="person-distance">{person.distance}</span>
-        </div>
-        <div className="person-title">
-          <span className="title-icon">💼</span>
-          <span className="title-text">{person.title}</span>
-        </div>
-        <div className="person-location">
-          <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16" style={{ color: 'currentColor', marginRight: '4px' }}>
-            <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
-          </svg>
-          {person.location || 'Location not specified'}
-        </div>
-        <p className="person-description">{person.description}</p>
-        <div className="recommendation-reason">
-          <span className="reason-text">{person.reason}</span>
-        </div>
-        <div className="person-footer">
-          <div className="person-tags">
-            {person.tags.map((tag, index) => (
-              <span key={index} className="person-tag">{tag}</span>
-            ))}
-          </div>
-          <div className="person-availability">
-            <span className="availability-icon">📅</span>
-            <span className="availability-text">{person.availability}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  }, [transformedPeople, searchQuery, selectedCategory]);
 
   // Show loading screen
   if (isLoading) {

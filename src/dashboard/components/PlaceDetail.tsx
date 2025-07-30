@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { businessLocationService } from '../../services/businessLocationService';
+import { getBusinessTypeLabel, getPriceRangeLabel } from '../../utils/businessUtils';
 
 interface BusinessLocation {
   uuid: string;
@@ -55,9 +56,27 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ placeId }) => {
         // Transform the data to match our interface
         const transformedData: BusinessLocation = {
           ...data,
-          rating: data.business_location_reviews?.length > 0 
-            ? parseFloat((data.business_location_reviews.reduce((sum: number, review: any) => sum + review.rating, 0) / data.business_location_reviews.length).toFixed(1))
-            : 0,
+          rating: (() => {
+            if (!data.business_location_reviews?.length) return 0;
+            
+            // Filter out reviews with invalid or non-numeric ratings
+            const validReviews = data.business_location_reviews.filter((review: any) => {
+              const rating = review.rating;
+              return rating !== null && 
+                     rating !== undefined && 
+                     !isNaN(Number(rating)) && 
+                     Number(rating) >= 0 && 
+                     Number(rating) <= 5;
+            });
+            
+            if (validReviews.length === 0) return 0;
+            
+            // Calculate average rating from valid reviews only
+            const totalRating = validReviews.reduce((sum: number, review: any) => sum + Number(review.rating), 0);
+            const averageRating = totalRating / validReviews.length;
+            
+            return parseFloat(averageRating.toFixed(1));
+          })(),
           review_count: data.business_location_reviews?.length || 0,
           tags: data.business_location_tags?.map((tagObj: any) => tagObj.tag) || []
         };
@@ -121,7 +140,7 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ placeId }) => {
               <h1 className="text-xl font-semibold text-gray-900">{place.name}</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-500">{place.business_type}</span>
+              <span className="text-sm text-gray-500">{getBusinessTypeLabel(place.business_type)}</span>
             </div>
           </div>
         </div>
@@ -153,7 +172,7 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ placeId }) => {
                   </div>
                   {place.price_range && (
                     <span className="text-sm bg-white/20 px-2 py-1 rounded">
-                      {place.price_range}
+                      {getPriceRangeLabel(place.price_range)}
                     </span>
                   )}
                 </div>
@@ -290,7 +309,7 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ placeId }) => {
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <h2 className="text-xl font-semibold mb-4">Business Type</h2>
               <span className="inline-block bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm font-medium">
-                {place.business_type || 'General'}
+                {getBusinessTypeLabel(place.business_type)}
               </span>
             </div>
           </div>

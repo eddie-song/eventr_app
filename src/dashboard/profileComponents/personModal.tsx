@@ -1,8 +1,8 @@
 import React from 'react';
+import { getServiceTypeColor, formatPrice, formatRating, formatDate } from '../utils/personHelpers';
 
 interface Person {
   uuid: string;
-  service: string;
   description?: string;
   location?: string;
   contact_info?: string;
@@ -22,42 +22,35 @@ interface Person {
 interface PersonModalProps {
   person: Person;
   onClose: () => void;
-  userProfile?: any;
 }
 
-const PersonModal: React.FC<PersonModalProps> = ({ person, onClose, userProfile }) => {
-  const getServiceTypeColor = (serviceType: string) => {
-    const colors: { [key: string]: string } = {
-      professional: 'bg-blue-100 text-blue-800',
-      creative: 'bg-purple-100 text-purple-800',
-      technical: 'bg-green-100 text-green-800',
-      healthcare: 'bg-red-100 text-red-800',
-      education: 'bg-yellow-100 text-yellow-800',
-      consulting: 'bg-indigo-100 text-indigo-800',
-      maintenance: 'bg-gray-100 text-gray-800',
-      transportation: 'bg-orange-100 text-orange-800',
-      general: 'bg-gray-100 text-gray-800'
-    };
-    return colors[serviceType] || colors.general;
-  };
+const PersonModal: React.FC<PersonModalProps> = ({ person, onClose }) => {
+  const [copyStatus, setCopyStatus] = React.useState<'idle' | 'copying' | 'success' | 'error'>('idle');
 
-  const formatPrice = (price?: number) => {
-    if (!price) return 'Negotiable';
-    return `$${price.toFixed(2)}/hr`;
-  };
-
-  const formatRating = (rating?: number) => {
-    if (!rating || rating === 0) return null;
-    return rating.toFixed(1);
-  };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Recently';
-    return new Date(dateString).toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
+  const handleCopyContact = async () => {
+    if (!person.contact_info) return;
+    
+    setCopyStatus('copying');
+    
+    try {
+      // Check if clipboard API is supported
+      if (!navigator.clipboard) {
+        throw new Error('Clipboard API not supported');
+      }
+      
+      await navigator.clipboard.writeText(person.contact_info);
+      setCopyStatus('success');
+      
+      // Reset status after 2 seconds
+      setTimeout(() => setCopyStatus('idle'), 2000);
+      
+    } catch (error) {
+      console.error('Failed to copy contact info:', error);
+      setCopyStatus('error');
+      
+      // Reset status after 3 seconds for errors
+      setTimeout(() => setCopyStatus('idle'), 3000);
+    }
   };
 
   return (
@@ -68,10 +61,10 @@ const PersonModal: React.FC<PersonModalProps> = ({ person, onClose, userProfile 
           <div className="flex items-center justify-between">
                          <div className="flex items-center space-x-4">
                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-xl">
-                 {person.service[0]?.toUpperCase() || 'S'}
+                                   {(person.service_type || 'S')[0]?.toUpperCase() || 'S'}
                </div>
                <div>
-                 <h2 className="text-2xl font-bold text-gray-900">{person.service}</h2>
+                                   <h2 className="text-2xl font-bold text-gray-900">{person.service_type || 'Service'}</h2>
                  <p className="text-gray-600">
                    by {person.profiles?.display_name || `@${person.profiles?.username}` || 'You'}
                  </p>
@@ -175,14 +168,22 @@ const PersonModal: React.FC<PersonModalProps> = ({ person, onClose, userProfile 
             </button>
             {person.contact_info && (
               <button
-                onClick={() => {
-                  // Copy contact info to clipboard
-                  navigator.clipboard.writeText(person.contact_info || '');
-                  // You could add a toast notification here
-                }}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                onClick={handleCopyContact}
+                disabled={copyStatus === 'copying'}
+                className={`px-6 py-2 rounded-lg transition-colors ${
+                  copyStatus === 'success' 
+                    ? 'bg-green-600 text-white' 
+                    : copyStatus === 'error'
+                    ? 'bg-red-600 text-white'
+                    : copyStatus === 'copying'
+                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
               >
-                Copy Contact
+                {copyStatus === 'copying' && 'Copying...'}
+                {copyStatus === 'success' && '✓ Copied!'}
+                {copyStatus === 'error' && '✗ Failed'}
+                {copyStatus === 'idle' && 'Copy Contact'}
               </button>
             )}
           </div>

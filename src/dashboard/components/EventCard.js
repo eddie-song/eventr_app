@@ -46,8 +46,10 @@ const EventCard = ({ event, openEditEventModal, setDeleteEventModal, setSelected
             alt={event.event}
             className="event-image"
             onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'flex';
+              const placeholder = e.target.parentElement.querySelector('.event-placeholder');
+              if (placeholder) {
+                placeholder.style.display = 'flex';
+              }
             }}
           />
         ) : null}

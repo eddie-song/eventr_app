@@ -268,14 +268,24 @@ export const messagingService = {
       if (!user) throw new Error('User not authenticated');
 
       // Get unread messages in this conversation
+      // First, get the IDs of messages that have been read by this user
+      const { data: readMessageIds, error: readIdsError } = await supabase
+        .from('message_reads')
+        .select('message_id')
+        .eq('user_id', user.id);
+
+      if (readIdsError) throw readIdsError;
+
+      // Extract the message IDs that have been read
+      const readIds = readMessageIds?.map(record => record.message_id) || [];
+
+      // Get unread messages (messages not sent by user and not in read list)
       const { data: unreadMessages, error: fetchError } = await supabase
         .from('messages')
         .select('uuid')
         .eq('conversation_id', conversationId)
         .neq('sender_id', user.id)
-        .not('uuid', 'in', `(
-          SELECT message_id FROM message_reads WHERE user_id = '${user.id}'
-        )`);
+        .not('uuid', 'in', readIds.length > 0 ? readIds : ['00000000-0000-0000-0000-000000000000']);
 
       if (fetchError) throw fetchError;
 
@@ -323,40 +333,151 @@ export const messagingService = {
   // ========================================
 
   // Subscribe to new messages in a conversation
-  subscribeToMessages(conversationId, callback) {
-    return supabase
-      .channel(`messages:${conversationId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`
-      }, callback)
-      .subscribe();
+  subscribeToMessages(conversationId, callback, errorCallback = null) {
+    try {
+      const channel = supabase
+        .channel(`messages:${conversationId}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`
+        }, callback)
+        .on('error', (error) => {
+          console.error('Real-time subscription error for messages:', error);
+          if (errorCallback) {
+            errorCallback(error);
+          }
+        })
+        .on('disconnect', () => {
+          console.warn('Real-time subscription disconnected for messages');
+          if (errorCallback) {
+            errorCallback(new Error('Real-time connection disconnected'));
+          }
+        });
+
+      const subscription = channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`Successfully subscribed to messages for conversation: ${conversationId}`);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error(`Failed to subscribe to messages for conversation: ${conversationId}`);
+          if (errorCallback) {
+            errorCallback(new Error(`Failed to subscribe to messages for conversation: ${conversationId}`));
+          }
+        } else if (status === 'TIMED_OUT') {
+          console.error(`Subscription timed out for messages in conversation: ${conversationId}`);
+          if (errorCallback) {
+            errorCallback(new Error(`Subscription timed out for messages in conversation: ${conversationId}`));
+          }
+        }
+      });
+
+      return subscription;
+    } catch (error) {
+      console.error('Error setting up real-time subscription for messages:', error);
+      if (errorCallback) {
+        errorCallback(error);
+      }
+      throw error;
+    }
   },
 
   // Subscribe to conversation updates
-  subscribeToConversations(callback) {
-    return supabase
-      .channel('conversations')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'conversations'
-      }, callback)
-      .subscribe();
+  subscribeToConversations(callback, errorCallback = null) {
+    try {
+      const channel = supabase
+        .channel('conversations')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'conversations'
+        }, callback)
+        .on('error', (error) => {
+          console.error('Real-time subscription error for conversations:', error);
+          if (errorCallback) {
+            errorCallback(error);
+          }
+        })
+        .on('disconnect', () => {
+          console.warn('Real-time subscription disconnected for conversations');
+          if (errorCallback) {
+            errorCallback(new Error('Real-time connection disconnected'));
+          }
+        });
+
+      const subscription = channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to conversations');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('Failed to subscribe to conversations');
+          if (errorCallback) {
+            errorCallback(new Error('Failed to subscribe to conversations'));
+          }
+        } else if (status === 'TIMED_OUT') {
+          console.error('Subscription timed out for conversations');
+          if (errorCallback) {
+            errorCallback(new Error('Subscription timed out for conversations'));
+          }
+        }
+      });
+
+      return subscription;
+    } catch (error) {
+      console.error('Error setting up real-time subscription for conversations:', error);
+      if (errorCallback) {
+        errorCallback(error);
+      }
+      throw error;
+    }
   },
 
   // Subscribe to message reads
-  subscribeToMessageReads(conversationId, callback) {
-    return supabase
-      .channel(`reads:${conversationId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'message_reads'
-      }, callback)
-      .subscribe();
+  subscribeToMessageReads(conversationId, callback, errorCallback = null) {
+    try {
+      const channel = supabase
+        .channel(`reads:${conversationId}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'message_reads'
+        }, callback)
+        .on('error', (error) => {
+          console.error('Real-time subscription error for message reads:', error);
+          if (errorCallback) {
+            errorCallback(error);
+          }
+        })
+        .on('disconnect', () => {
+          console.warn('Real-time subscription disconnected for message reads');
+          if (errorCallback) {
+            errorCallback(new Error('Real-time connection disconnected'));
+          }
+        });
+
+      const subscription = channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`Successfully subscribed to message reads for conversation: ${conversationId}`);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error(`Failed to subscribe to message reads for conversation: ${conversationId}`);
+          if (errorCallback) {
+            errorCallback(new Error(`Failed to subscribe to message reads for conversation: ${conversationId}`));
+          }
+        } else if (status === 'TIMED_OUT') {
+          console.error(`Subscription timed out for message reads in conversation: ${conversationId}`);
+          if (errorCallback) {
+            errorCallback(new Error(`Subscription timed out for message reads in conversation: ${conversationId}`));
+          }
+        }
+      });
+
+      return subscription;
+    } catch (error) {
+      console.error('Error setting up real-time subscription for message reads:', error);
+      if (errorCallback) {
+        errorCallback(error);
+      }
+      throw error;
+    }
   },
 
   // ========================================

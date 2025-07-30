@@ -130,8 +130,9 @@ export const imageUploadService = {
   // Upload image to recommendation-images bucket
   async uploadRecommendationImage(file) {
     try {
-      // Ensure bucket exists before uploading (optional, skip if always present)
-      // await this.ensureRecommendationBucketExists();
+      // Validate file before upload
+      this.validateImageFile(file);
+      
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('Could not get current user');
       const userId = user.id;

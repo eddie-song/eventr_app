@@ -59,9 +59,8 @@ FOR DELETE USING (
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
--- Policy to allow authenticated users to view recommendation images
-CREATE POLICY "Authenticated users can view recommendation images" ON storage.objects
+-- Policy to allow public read access to recommendation images
+CREATE POLICY "Public can view recommendation images" ON storage.objects
 FOR SELECT USING (
-  bucket_id = 'recommendations' 
-  AND auth.role() = 'authenticated'
+  bucket_id = 'recommendations'
 ); 

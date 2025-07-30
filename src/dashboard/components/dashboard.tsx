@@ -68,7 +68,7 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
     const urlParams = new URLSearchParams(location.search);
     const serviceParam = urlParams.get('service') as ServiceType;
     
-    if (serviceParam && ['home', 'social', 'explore', 'places', 'events', 'people', 'notifications', 'profile', 'create'].includes(serviceParam)) {
+    if (serviceParam && ['home', 'social', 'explore', 'places', 'events', 'people', 'notifications', 'profile', 'create-service', 'follow-test', 'place-detail', 'event-detail', 'person-detail', 'user-profile'].includes(serviceParam)) {
       setSelectedService(serviceParam);
       localStorage.setItem('dashboard_selected_service', serviceParam);
       
@@ -216,12 +216,14 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
   useEffect(() => {
     if (isCheckingAuth) return; // Don't subscribe until auth is checked
 
+    let subscription: any = null;
+
     const setupNotificationSubscription = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       // Subscribe to notification changes
-      const subscription = supabase
+      subscription = supabase
         .channel('notifications')
         .on('postgres_changes', 
           { 
@@ -241,17 +243,17 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
           }
         )
         .subscribe();
-
-      return subscription;
     };
 
-    setupNotificationSubscription().then(subscription => {
-      return () => {
-        if (subscription) {
-          subscription.unsubscribe();
-        }
-      };
-    });
+    // Set up the subscription
+    setupNotificationSubscription();
+
+    // Return cleanup function that unsubscribes synchronously
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
   }, [isCheckingAuth]);
 
   // Extract placeId or eventId from URL path
@@ -291,53 +293,41 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
     return null;
   };
 
+  // Helper function to render detail views with fallback to default service
+  const renderDetailView = (
+    id: string | null,
+    DetailComponent: React.ComponentType<any>,
+    componentKey: string,
+    props: Record<string, any> = {}
+  ): React.ReactElement => {
+    if (id) {
+      return <DetailComponent key={componentKey} {...props} />;
+    } else {
+      // Fall back to default service if no valid ID
+      const defaultService = getInitialService();
+      return componentCache.current[defaultService] || componentCache.current.explore;
+    }
+  };
+
   const renderServiceContent = (): React.ReactElement => {
     if (selectedService === 'place-detail') {
       const placeId = extractPlaceId();
-      // Only render PlaceDetail if we have a valid placeId
-      if (placeId) {
-        return <PlaceDetail key="place-detail" placeId={placeId} />;
-      } else {
-        // If no placeId, fall back to default service
-        const defaultService = getInitialService();
-        return componentCache.current[defaultService] || componentCache.current.explore;
-      }
+      return renderDetailView(placeId, PlaceDetail, 'place-detail', { placeId });
     }
     
     if (selectedService === 'event-detail') {
       const eventId = extractEventId();
-      // Only render EventDetail if we have a valid eventId
-      if (eventId) {
-        return <EventDetail key="event-detail" eventId={eventId} />;
-      } else {
-        // If no eventId, fall back to default service
-        const defaultService = getInitialService();
-        return componentCache.current[defaultService] || componentCache.current.explore;
-      }
+      return renderDetailView(eventId, EventDetail, 'event-detail', { eventId });
     }
     
     if (selectedService === 'person-detail') {
       const personId = extractPersonId();
-      // Only render PersonDetail if we have a valid personId
-      if (personId) {
-        return <PersonDetail key="person-detail" personId={personId} />;
-      } else {
-        // If no personId, fall back to default service
-        const defaultService = getInitialService();
-        return componentCache.current[defaultService] || componentCache.current.explore;
-      }
+      return renderDetailView(personId, PersonDetail, 'person-detail', { personId });
     }
     
     if (selectedService === 'user-profile') {
       const userId = extractUserId();
-      // Only render UserProfile if we have a valid userId
-      if (userId) {
-        return <UserProfile key="user-profile" />;
-      } else {
-        // If no userId, fall back to default service
-        const defaultService = getInitialService();
-        return componentCache.current[defaultService] || componentCache.current.explore;
-      }
+      return renderDetailView(userId, UserProfile, 'user-profile');
     }
     
     return componentCache.current[selectedService] || componentCache.current.explore;
