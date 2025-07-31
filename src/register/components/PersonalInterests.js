@@ -10,26 +10,16 @@ function PersonalInterests({ nextStep }) {
   const [errors, setErrors] = useState({});
 
   const interestOptions = [
-    'Sports',
-    'Gaming',
-    'Running',
-    'Fitness',
-    'Music',
-    'Art',
-    'Cooking',
-    'Travel',
-    'Reading',
-    'Photography',
-    'Dancing',
-    'Hiking',
-    'Cycling',
-    'Swimming',
-    'Yoga',
     'Technology',
-    'Movies',
-    'Theater',
-    'Volunteering',
-    'Other'
+    'Music',
+    'Sports',
+    'Food',
+    'Travel',
+    'Art',
+    'Fitness',
+    'Reading',
+    'Gaming',
+    'Photography'
   ];
 
   const majorUSCities = [
