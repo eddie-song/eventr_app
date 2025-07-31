@@ -18,49 +18,82 @@ function FinalOnboarding({ nextStep }) {
       // Get current user instead of signing in
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       
-      if (userError) throw userError;
+      if (userError) {
+        console.error('User error:', userError);
+        throw userError;
+      }
       if (!user) {
+        console.error('No authenticated user found');
         throw new Error('No authenticated user found');
       }
 
       // Create user profile in profiles table
+      const profileData = {
+        uuid: user.id, // This should match auth.uid() for RLS
+        email: onboardingData.email || user.email, // Always set email
+        username: onboardingData.username,
+        display_name: onboardingData.displayName || onboardingData.username,
+        phone: onboardingData.phone,
+        bio: onboardingData.bio,
+        avatar_url: onboardingData.profilePicture ? onboardingData.profilePicture.name : null, // Fixed field name
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert([
-          {
-            uuid: user.id,
-            email: onboardingData.email || user.email, // Always set email
-            username: onboardingData.username,
-            display_name: onboardingData.displayName || onboardingData.username,
-            phone: onboardingData.phone,
-            bio: onboardingData.bio,
-            avatar_url: onboardingData.avatar_url || null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }
-        ]);
+        .insert([profileData]);
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        throw profileError;
+      }
 
       // Insert user interests into user_interests junction table
       if (onboardingData.interests && onboardingData.interests.length > 0) {
-        const interestRecords = onboardingData.interests.map(interest => ({
-          user_id: user.id,
-          interest_id: interest,
-          created_at: new Date().toISOString()
-        }));
+        // First, get the UUIDs for the selected interests
+        const { data: interestData, error: interestLookupError } = await supabase
+          .from('interests')
+          .select('uuid, interest')
+          .in('interest', onboardingData.interests);
 
-        const { error: interestsError } = await supabase
-          .from('user_interests')
-          .insert(interestRecords);
+        if (interestLookupError) {
+          console.error('Interest lookup error:', interestLookupError);
+          throw interestLookupError;
+        }
 
-        if (interestsError) throw interestsError;
+        // Create a map of interest name to UUID
+        const interestMap = {};
+        interestData.forEach(interest => {
+          interestMap[interest.interest] = interest.uuid;
+        });
+
+        // Only insert interests that exist in the database
+        const validInterests = onboardingData.interests.filter(interest => interestMap[interest]);
+        
+        if (validInterests.length > 0) {
+          const interestRecords = validInterests.map(interest => ({
+            created_by: user.id, // Changed from user_id to created_by
+            interest_id: interestMap[interest],
+            created_at: new Date().toISOString()
+          }));
+
+          const { error: interestsError } = await supabase
+            .from('user_interests')
+            .insert(interestRecords);
+
+          if (interestsError) {
+            console.error('Interests creation error:', interestsError);
+            throw interestsError;
+          }
+
+        }
       }
 
       // Insert user locations into user_locations junction table
       if (onboardingData.locations && onboardingData.locations.length > 0) {
         const locationRecords = onboardingData.locations.map(location => ({
-          user_id: user.id,
+          created_by: user.id, // Changed from user_id to created_by
           location_name: location,
           created_at: new Date().toISOString()
         }));
@@ -69,7 +102,11 @@ function FinalOnboarding({ nextStep }) {
           .from('user_locations')
           .insert(locationRecords);
 
-        if (locationsError) throw locationsError;
+        if (locationsError) {
+          console.error('Locations creation error:', locationsError);
+          throw locationsError;
+        }
+
       }
 
       // Clear onboarding data from context
@@ -113,37 +150,37 @@ function FinalOnboarding({ nextStep }) {
           margin: '0 auto'
         }}>
           <button 
-            onClick={() => {
-              // Clear onboarding data and navigate to dashboard with home service
-              clear();
-              localStorage.setItem('dashboard_selected_service', 'home');
-              navigate('/dashboard');
-            }}
+            onClick={handleCompleteOnboarding}
+            disabled={isLoading}
             style={{
               width: '100%',
               padding: '12px 24px',
-              backgroundColor: '#007AFF',
+              backgroundColor: isLoading ? '#CCCCCC' : '#007AFF',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
               fontSize: '16px',
               fontWeight: '600',
-              cursor: 'pointer',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s ease',
               boxShadow: '0 2px 8px rgba(0, 122, 255, 0.3)'
             }}
             onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#0056CC';
-              e.target.style.transform = 'translateY(-1px)';
-              e.target.style.boxShadow = '0 4px 12px rgba(0, 122, 255, 0.4)';
+              if (!isLoading) {
+                e.target.style.backgroundColor = '#0056CC';
+                e.target.style.transform = 'translateY(-1px)';
+                e.target.style.boxShadow = '0 4px 12px rgba(0, 122, 255, 0.4)';
+              }
             }}
             onMouseLeave={(e) => {
-              e.target.style.backgroundColor = '#007AFF';
-              e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = '0 2px 8px rgba(0, 122, 255, 0.3)';
+              if (!isLoading) {
+                e.target.style.backgroundColor = '#007AFF';
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 2px 8px rgba(0, 122, 255, 0.3)';
+              }
             }}
           >
-            Start Searching
+            {isLoading ? 'Creating Profile...' : 'Start Searching'}
           </button>
           
           <p style={{
@@ -162,28 +199,33 @@ function FinalOnboarding({ nextStep }) {
               localStorage.setItem('dashboard_selected_service', 'create-service');
               navigate('/dashboard');
             }}
+            disabled={isLoading}
             style={{
               width: '100%',
               padding: '12px 24px',
-              backgroundColor: '#F2F2F7',
-              color: '#007AFF',
+              backgroundColor: isLoading ? '#F0F0F0' : '#F2F2F7',
+              color: isLoading ? '#999999' : '#007AFF',
               border: '1px solid #E5E5EA',
               borderRadius: '8px',
               fontSize: '16px',
               fontWeight: '600',
-              cursor: 'pointer',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s ease',
               boxShadow: '0 1px 4px rgba(0, 0, 0, 0.1)'
             }}
             onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#E5E5EA';
-              e.target.style.transform = 'translateY(-1px)';
-              e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+              if (!isLoading) {
+                e.target.style.backgroundColor = '#E5E5EA';
+                e.target.style.transform = 'translateY(-1px)';
+                e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+              }
             }}
             onMouseLeave={(e) => {
-              e.target.style.backgroundColor = '#F2F2F7';
-              e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = '0 1px 4px rgba(0, 0, 0, 0.1)';
+              if (!isLoading) {
+                e.target.style.backgroundColor = '#F2F2F7';
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 1px 4px rgba(0, 0, 0, 0.1)';
+              }
             }}
           >
             Create a Listing
