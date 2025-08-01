@@ -688,8 +688,6 @@ const Social: React.FC = () => {
                     }}
                     onLike={(uuid) => console.log('Like recommendation:', uuid)}
                     onComment={(uuid) => console.log('Comment on recommendation:', uuid)}
-                    onShare={(uuid) => console.log('Share recommendation:', uuid)}
-                    onSave={(uuid) => console.log('Save recommendation:', uuid)}
                   />
                 ))}
                 {hasMoreRecommendations && (
