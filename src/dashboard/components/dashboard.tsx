@@ -46,7 +46,7 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
   // Initialize selectedService from localStorage if available
   const getInitialService = (): ServiceType => {
     const saved = localStorage.getItem('dashboard_selected_service');
-    return (saved as ServiceType) || 'social';
+    return (saved as ServiceType) || 'places';
   };
 
   // Extract service type from current pathname
