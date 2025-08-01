@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Landing from './landing/Landing.js';
+import Landing from './landing/landing.tsx';
 import Register from './register/Register.js'
 import Login from './login/Login.js';
 import Onboarding from './register/components/Onboarding.js';
