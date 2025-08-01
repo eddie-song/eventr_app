@@ -5,7 +5,7 @@ import Explore from './explore.js';
 import Home from './home';
 import Events from './events.js';
 import People from './people.js';
-import Social from './social.js';
+import Social from './social';
 import Profile from './profile.js';
 import Plan from './plan.js';
 import CreateService from './create.js';
@@ -67,20 +67,28 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
     getServiceFromPathname(location.pathname) || getInitialService()
   );
 
-  // Check for service query parameter and set it as selected service
+  // Check for service or page query parameter and set it as selected service
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const serviceParam = urlParams.get('service') as ServiceType;
+    const pageParam = urlParams.get('page') as ServiceType;
     
+    // Check for service parameter first (legacy support)
     if (serviceParam && ['home', 'social', 'explore', 'places', 'events', 'people', 'notifications', 'profile', 'create-service', 'follow-test', 'place-detail', 'event-detail', 'person-detail', 'user-profile'].includes(serviceParam)) {
       setSelectedService(serviceParam);
       localStorage.setItem('dashboard_selected_service', serviceParam);
       
-      // Remove the query parameter from URL
+      // Remove the service parameter and add page parameter
       urlParams.delete('service');
+      urlParams.set('page', serviceParam);
       const newSearch = urlParams.toString();
       const newUrl = location.pathname + (newSearch ? `?${newSearch}` : '');
       navigate(newUrl, { replace: true });
+    }
+    // Check for page parameter
+    else if (pageParam && ['home', 'social', 'explore', 'places', 'events', 'people', 'notifications', 'profile', 'create-service', 'follow-test', 'place-detail', 'event-detail', 'person-detail', 'user-profile'].includes(pageParam)) {
+      setSelectedService(pageParam);
+      localStorage.setItem('dashboard_selected_service', pageParam);
     }
   }, [location.search, navigate]);
 
@@ -142,7 +150,14 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
         (serviceName === 'social' || serviceName === 'explore' || serviceName === 'events' || 
          serviceName === 'people' || serviceName === 'profile' || serviceName === 'notifications' || 
          serviceName === 'create-service')) {
-      navigate('/dashboard');
+      navigate('/dashboard?page=' + serviceName);
+    } else {
+      // Set the page query parameter for the selected service
+      const urlParams = new URLSearchParams(location.search);
+      urlParams.set('page', serviceName);
+      const newSearch = urlParams.toString();
+      const newUrl = location.pathname + (newSearch ? `?${newSearch}` : '');
+      navigate(newUrl, { replace: true });
     }
     
     if (exploreDropdownOpen && serviceName !== 'explore') {
@@ -161,7 +176,14 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
     // navigate to the base dashboard URL
     if (location.pathname !== '/dashboard' && 
         (option === 'explore' || option === 'places')) {
-      navigate('/dashboard');
+      navigate('/dashboard?page=' + option);
+    } else {
+      // Set the page query parameter for the selected explore option
+      const urlParams = new URLSearchParams(location.search);
+      urlParams.set('page', option);
+      const newSearch = urlParams.toString();
+      const newUrl = location.pathname + (newSearch ? `?${newSearch}` : '');
+      navigate(newUrl, { replace: true });
     }
   };
 
@@ -318,7 +340,17 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
             isSidebarExpanded ? 'w-[200px] min-w-[200px]' : 'w-[60px] min-w-[60px]'
           }`}
           onMouseEnter={() => setIsSidebarExpanded(true)}
-          onMouseLeave={() => setIsSidebarExpanded(false)}
+          onMouseLeave={() => {
+            setIsSidebarExpanded(false);
+            // Close explore dropdown when sidebar closes
+            if (exploreDropdownOpen) {
+              setIsClosing(true);
+              setTimeout(() => {
+                setExploreDropdownOpen(false);
+                setIsClosing(false);
+              }, 250);
+            }
+          }}
         >
           {/* Logo - always visible */}
           <div className="py-5 w-full text-center">

@@ -225,8 +225,41 @@ const UserProfile: React.FC = () => {
           throw new Error(`User with ID ${userId} not found`);
         }
 
+        // Handle avatar URL with fallback - using the same approach as profile component
+        const getAvatarUrl = async (profile: any): Promise<string | null> => {
+          if (profile.avatar_url && profile.avatar_url !== '') {
+            // If it's already a URL (http/https), just use it
+            if (profile.avatar_url.startsWith('http')) {
+              return profile.avatar_url;
+            } else {
+              // Generate signed URL from storage path (same as profile component)
+              try {
+                const { data, error } = await supabase.storage
+                  .from('avatars')
+                  .createSignedUrl(profile.avatar_url, 3600);
+                if (error) {
+                  console.error('Error generating signed URL for user avatar:', error);
+                  return null;
+                } else {
+                  return data.signedUrl;
+                }
+              } catch (error) {
+                console.error('Failed to generate signed URL for user avatar:', error);
+                return null;
+              }
+            }
+          }
+          return null;
+        };
+
+        // Get avatar URL asynchronously
+        const avatarUrl = await getAvatarUrl(profile);
+        
         if (isMounted) {
-          setUser(profile);
+          setUser({
+            ...profile,
+            avatar_url: avatarUrl
+          });
         }
 
         // Check follow status and counts
@@ -407,12 +440,30 @@ const UserProfile: React.FC = () => {
 
         {/* Profile Info */}
         <div className="relative px-6 pb-6">
-          {/* Avatar */}
-          <div className="absolute -top-16 left-6">
-            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-4xl font-medium shadow-lg border-4 border-white">
+                  {/* Avatar */}
+        <div className="absolute -top-16 left-6">
+          <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-4xl font-medium shadow-lg border-4 border-white overflow-hidden">
+            {user.avatar_url && user.avatar_url.startsWith('http') ? (
+              <img
+                src={user.avatar_url}
+                alt={`${displayName}'s avatar`}
+                className="w-full h-full rounded-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  // Show fallback text when image fails to load
+                  const fallback = target.parentElement?.querySelector('.avatar-fallback');
+                  if (fallback) {
+                    fallback.classList.remove('hidden');
+                  }
+                }}
+              />
+            ) : null}
+            <span className={`avatar-fallback ${user.avatar_url && user.avatar_url.startsWith('http') ? 'hidden' : ''}`}>
               {avatarEmoji}
-            </div>
+            </span>
           </div>
+        </div>
 
           {/* User Info */}
           <div className="pt-20">

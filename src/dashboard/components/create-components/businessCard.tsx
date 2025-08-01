@@ -152,39 +152,17 @@ const BusinessLocationCard: React.FC<BusinessLocationCardProps> = ({
           </div>
         </div>
 
-        {/* Action buttons - only at the bottom, never overlay */}
-        <div className="business-actions" style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+        {/* Action buttons - positioned at the bottom */}
+        <div className="business-actions">
           <button
             className="edit-btn"
             onClick={handleEditClick}
-            style={{
-              background: '#007AFF',
-              color: 'white',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              flex: 1
-            }}
           >
             Edit
           </button>
           <button
             className="delete-btn"
             onClick={handleDeleteClick}
-            style={{
-              background: '#ff3b30',
-              color: 'white',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              flex: 1
-            }}
           >
             Delete
           </button>

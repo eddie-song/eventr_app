@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import './social.css';
 import LoadingScreen from './LoadingScreen.js';
 import { usePageCache } from '../context/PageCacheContext.js';
 import UserCard from '../socialComponents/userCard.tsx';

@@ -103,22 +103,48 @@ const UserCard: React.FC<UserCardProps> = ({ user, onFollowChange }) => {
         <div className="flex items-start space-x-4">
           {/* Avatar */}
           <div className="flex-shrink-0">
-            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-medium shadow-lg">
-              {avatarEmoji}
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-medium shadow-lg ring-2 ring-white/20 overflow-hidden">
+              {user.avatar_url && user.avatar_url.startsWith('http') ? (
+                <img
+                  src={user.avatar_url}
+                  alt={`${displayName}'s avatar`}
+                  className="w-full h-full rounded-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    // Show fallback text when image fails to load
+                    const fallback = target.parentElement?.querySelector('.avatar-fallback');
+                    if (fallback) {
+                      fallback.classList.remove('hidden');
+                    }
+                  }}
+                />
+              ) : null}
+              <span className={`avatar-fallback ${user.avatar_url && user.avatar_url.startsWith('http') ? 'hidden' : ''}`}>
+                {avatarEmoji}
+              </span>
             </div>
           </div>
           
-                                {/* User Info */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2 mb-2">
-                <h3 className="text-lg font-semibold text-gray-900 truncate">{displayName}</h3>
-                <span className="text-sm font-medium text-blue-600">@{user.username}</span>
-              </div>
+          {/* User Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-2 mb-2">
+              <h3 className="text-lg font-semibold text-gray-900 truncate">{displayName}</h3>
+              <span className="text-sm font-medium text-blue-600">@{user.username}</span>
             </div>
+            
+            {/* Bio */}
+            <p className="text-sm text-gray-600 mb-3 line-clamp-2">{userBio}</p>
+            
+            {/* Stats */}
+            <div className="flex items-center space-x-4 text-xs text-gray-500">
+              <span>{followCounts.followers} followers</span>
+              <span>{followCounts.following} following</span>
+              <span>Active {lastActive}</span>
+            </div>
+          </div>
         </div>
       </div>
-
-             
 
       {/* Action Buttons */}
       <div className="px-6 pb-6">

@@ -27,8 +27,26 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post }) => {
       <div className="flex justify-between items-center p-6 pb-4">
         <div className="flex items-center gap-4">
           <div className="relative flex-shrink-0">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center text-white text-lg shadow-lg">
-              {post.avatar}
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center text-white text-lg shadow-lg ring-2 ring-white/20 overflow-hidden">
+              {post.avatar.startsWith('http') ? (
+                <img
+                  src={post.avatar}
+                  alt={`${post.author}'s avatar`}
+                  className="w-full h-full rounded-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    // Show fallback text when image fails to load
+                    const fallback = target.parentElement?.querySelector('.avatar-fallback');
+                    if (fallback) {
+                      fallback.classList.remove('hidden');
+                    }
+                  }}
+                />
+              ) : null}
+              <span className={`avatar-fallback ${post.avatar.startsWith('http') ? 'hidden' : ''}`}>
+                {post.avatar}
+              </span>
             </div>
           </div>
           <div className="flex flex-col min-w-0">
@@ -88,22 +106,19 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post }) => {
       <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100/50 bg-gray-50/30">
         <div className="flex items-center gap-6">
           <button className="flex items-center gap-2 bg-transparent border-none py-2 px-4 rounded-2xl cursor-pointer text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-all duration-300">
-            <span className="text-xl transition-transform duration-200 hover:scale-110">❤️</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 hover:scale-110 text-gray-600">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
             <span className="text-sm font-semibold min-w-4 text-center">{post.likes}</span>
           </button>
           <button className="flex items-center gap-2 bg-transparent border-none py-2 px-4 rounded-2xl cursor-pointer text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-all duration-300">
-            <span className="text-xl transition-transform duration-200 hover:scale-110">💬</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 hover:scale-110 text-gray-600">
+              <path d="M12 21a9 9 0 1 0-9-9c0 1.488.36 2.891 1 4.127L3 21l4.873-1c1.236.64 2.64 1 4.127 1"/>
+            </svg>
             <span className="text-sm font-semibold min-w-4 text-center">{post.comments}</span>
           </button>
         </div>
-        <div className="flex items-center gap-4">
-          <button className="flex items-center justify-center w-10 h-10 rounded-2xl bg-gray-100/80 text-gray-600 hover:text-blue-500 hover:bg-blue-50/80 transition-all duration-200 group/btn border border-gray-200/50">
-            <span className="text-lg group-hover/btn:scale-110 transition-transform duration-200">📤</span>
-          </button>
-          <button className="flex items-center justify-center w-10 h-10 rounded-2xl bg-gray-100/80 text-gray-600 hover:text-yellow-500 hover:bg-yellow-50/80 transition-all duration-200 group/btn border border-gray-200/50">
-            <span className="text-lg group-hover/btn:scale-110 transition-transform duration-200">🔖</span>
-          </button>
-        </div>
+
       </div>
     </div>
   );
