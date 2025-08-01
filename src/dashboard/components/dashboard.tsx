@@ -422,7 +422,7 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
               {isSidebarExpanded && (
                 <>
                   <p className={`whitespace-nowrap overflow-hidden text-ellipsis flex-1 min-w-0 ${selectedService === 'explore' || selectedService === 'places' || selectedService === 'events' || selectedService === 'people' ? 'text-white' : ''}`}>Explore</p>
-                  <div className="ml-auto flex-shrink-0">
+                  <div className="ml-auto flex-shrink-0 flex items-center">
                     <svg 
                       className={`transition-transform duration-250 ease-in-out ${exploreDropdownOpen ? 'rotate-180' : ''} ${selectedService === 'explore' || selectedService === 'places' || selectedService === 'events' || selectedService === 'people' ? 'text-white' : ''}`}
                       xmlns="http://www.w3.org/2000/svg" 
