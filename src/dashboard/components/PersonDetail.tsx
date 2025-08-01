@@ -65,10 +65,10 @@ const PersonDetail: React.FC<PersonDetailProps> = ({ personId }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading person details...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg font-medium">Loading person details...</p>
         </div>
       </div>
     );
@@ -76,14 +76,14 @@ const PersonDetail: React.FC<PersonDetailProps> = ({ personId }) => {
 
   if (error || !person) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="text-red-500 text-4xl mb-4">⚠️</div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Person Not Found</h2>
-          <p className="text-gray-600 mb-6">{error || 'The person you are looking for does not exist.'}</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto">
+          <div className="text-red-500 text-6xl mb-6">⚠️</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Person Not Found</h2>
+          <p className="text-gray-600 mb-8 text-lg">{error || 'The person you are looking for does not exist.'}</p>
           <button
             onClick={() => navigate('/dashboard')}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+            className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium text-lg"
           >
             Back to Dashboard
           </button>
@@ -93,35 +93,43 @@ const PersonDetail: React.FC<PersonDetailProps> = ({ personId }) => {
   }
 
   return (
-    <div className="w-full">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b mb-6">
-        <div className="px-6 py-4">
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <button
-                onClick={() => navigate('/dashboard')}
-                className="mr-4 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                onClick={() => navigate('/dashboard?page=people')}
+                className="mr-6 flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all duration-200 font-medium text-sm"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
+                <span>Back</span>
               </button>
-              <h1 className="text-xl font-semibold text-gray-900">{person.profiles?.display_name || person.profiles?.username || 'Service Provider'}</h1>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">{person.profiles?.display_name || person.profiles?.username || 'Service Provider'}</h1>
+                <p className="text-gray-500 text-sm mt-1">{person.service_type}</p>
+              </div>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-500">{person.service_type}</span>
+              <div className="flex items-center bg-yellow-100 px-4 py-2 rounded-full">
+                <span className="text-yellow-600 mr-2">⭐</span>
+                <span className="font-semibold text-yellow-800">{person.rating || 0}</span>
+                <span className="ml-2 text-yellow-700">({person.review_count || 0})</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="px-6">
+      <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
-          <div className="lg:col-span-2">
-            {/* Hero Image */}
-            <div className="relative h-80 rounded-xl overflow-hidden mb-8">
+          <div className="lg:col-span-2 space-y-8">
+            {/* Hero Section */}
+            <div className="relative h-96 rounded-2xl overflow-hidden shadow-lg">
               {person.profiles?.avatar_url ? (
                 <img 
                   src={person.profiles.avatar_url}
@@ -133,88 +141,100 @@ const PersonDetail: React.FC<PersonDetailProps> = ({ personId }) => {
                   }}
                 />
               ) : (
-                <div className="w-full h-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center">
-                  <span className="text-white text-6xl">👤</span>
+                <div className="w-full h-full bg-gradient-to-br from-green-500 via-blue-500 to-purple-600 flex items-center justify-center">
+                  <span className="text-white text-8xl">👤</span>
                 </div>
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-              <div className="absolute bottom-4 left-4 text-white">
-                <h1 className="text-2xl font-bold mb-2">{person.profiles?.display_name || person.profiles?.username || 'Service Provider'}</h1>
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center">
-                    <span className="text-yellow-400 mr-1">⭐</span>
-                    <span className="font-semibold">{person.rating || 0}</span>
-                    <span className="ml-1">({person.review_count || 0} reviews)</span>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+              <div className="absolute bottom-8 left-8 right-8 text-white">
+                <h1 className="text-4xl font-bold mb-4 drop-shadow-lg">{person.profiles?.display_name || person.profiles?.username || 'Service Provider'}</h1>
+                <div className="flex items-center space-x-6">
+                  <div className="flex items-center bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
+                    <span className="text-yellow-400 mr-2 text-lg">⭐</span>
+                    <span className="font-bold text-lg">{person.rating || 0}</span>
+                    <span className="ml-2 opacity-90">({person.review_count || 0} reviews)</span>
                   </div>
                   {person.hourly_rate && (
-                    <span className="text-sm bg-white/20 px-2 py-1 rounded">
-                      ${person.hourly_rate}/hour
-                    </span>
+                    <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
+                      <span className="font-semibold">${person.hourly_rate}/hour</span>
+                    </div>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Service Details */}
-            <div className="bg-white rounded-xl p-6 mb-8 shadow-sm">
-              <h2 className="text-xl font-semibold mb-4">Service Details</h2>
-              <div className="space-y-4">
-                <div className="flex items-start">
-                  <span className="text-gray-500 mr-3 mt-1">💼</span>
+            {/* Service Details Card */}
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Service Details</h2>
+              <div className="space-y-6">
+                <div className="flex items-start p-4 bg-blue-50 rounded-xl">
+                  <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                    <span className="text-blue-600 text-xl">💼</span>
+                  </div>
                   <div>
-                    <p className="text-gray-900 font-medium">{person.service_type}</p>
-                    <p className="text-gray-600 text-sm">Service Type: {person.service_type}</p>
+                    <p className="text-gray-900 font-semibold text-lg">Service Type</p>
+                    <p className="text-gray-600 text-base">{person.service_type}</p>
                   </div>
                 </div>
                 {person.location && (
-                  <div className="flex items-start">
-                    <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 16 16" style={{ color: 'currentColor', marginRight: '12px', marginTop: '4px' }}>
-                      <path fill="currentColor" d="M9.156 14.544C10.899 13.01 14 9.876 14 7A6 6 0 0 0 2 7c0 2.876 3.1 6.01 4.844 7.544a1.736 1.736 0 0 0 2.312 0M6 7a2 2 0 1 1 4 0a2 2 0 0 1-4 0"></path>
-                    </svg>
+                  <div className="flex items-start p-4 bg-green-50 rounded-xl">
+                    <div className="flex-shrink-0 w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-4">
+                      <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
                     <div>
-                      <p className="text-gray-900">{person.location || 'Location not specified'}</p>
+                      <p className="text-gray-900 font-semibold text-lg">Location</p>
+                      <p className="text-gray-600 text-base">{person.location}</p>
                     </div>
                   </div>
                 )}
                 {person.description && (
-                  <div className="flex items-start">
-                    <span className="text-gray-500 mr-3 mt-1">📝</span>
+                  <div className="flex items-start p-4 bg-purple-50 rounded-xl">
+                    <div className="flex-shrink-0 w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mr-4">
+                      <span className="text-purple-600 text-xl">📝</span>
+                    </div>
                     <div>
-                      <p className="text-gray-700 leading-relaxed">{person.description}</p>
+                      <p className="text-gray-900 font-semibold text-lg">Service Description</p>
+                      <p className="text-gray-700 leading-relaxed text-base">{person.description}</p>
                     </div>
                   </div>
                 )}
                 {person.profiles?.bio && (
-                  <div className="flex items-start">
-                    <span className="text-gray-500 mr-3 mt-1">👤</span>
+                  <div className="flex items-start p-4 bg-orange-50 rounded-xl">
+                    <div className="flex-shrink-0 w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mr-4">
+                      <span className="text-orange-600 text-xl">👤</span>
+                    </div>
                     <div>
-                      <p className="text-gray-700 leading-relaxed">{person.profiles.bio}</p>
+                      <p className="text-gray-900 font-semibold text-lg">About</p>
+                      <p className="text-gray-700 leading-relaxed text-base">{person.profiles.bio}</p>
                     </div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Contact Information */}
+            {/* Contact Information Card */}
             {person.contact_info && (
-              <div className="bg-white rounded-xl p-6 mb-8 shadow-sm">
-                <h2 className="text-xl font-semibold mb-4">Contact Information</h2>
-                <div className="space-y-3">
-                  <div className="flex items-start">
-                    <span className="text-gray-500 mr-3 mt-1">📞</span>
-                    <div>
-                      <p className="text-gray-700">{person.contact_info}</p>
-                    </div>
+              <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Contact Information</h2>
+                <div className="flex items-start p-4 bg-gray-50 rounded-xl">
+                  <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                    <span className="text-blue-600 text-xl">📞</span>
+                  </div>
+                  <div>
+                    <p className="text-gray-900 font-semibold text-lg">Contact</p>
+                    <p className="text-gray-700 text-base">{person.contact_info}</p>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Service Type Tags */}
-            <div className="bg-white rounded-xl p-6 shadow-sm">
-              <h2 className="text-xl font-semibold mb-4">Service Type</h2>
-              <div className="flex flex-wrap gap-2">
-                <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+            {/* Service Type Tags Card */}
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Service Type</h2>
+              <div className="flex flex-wrap gap-3">
+                <span className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-sm">
                   {person.service_type || 'General'}
                 </span>
               </div>
@@ -223,68 +243,84 @@ const PersonDetail: React.FC<PersonDetailProps> = ({ personId }) => {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Service Type */}
-            <div className="bg-white rounded-xl p-6 shadow-sm">
-              <h2 className="text-xl font-semibold mb-4">Service Type</h2>
-              <span className="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                {person.service_type || 'General'}
-              </span>
-            </div>
-
-            {/* Hourly Rate */}
-            {person.hourly_rate && (
-              <div className="bg-white rounded-xl p-6 shadow-sm">
-                <h2 className="text-xl font-semibold mb-4">Hourly Rate</h2>
-                <span className="text-2xl font-bold text-gray-900">
-                  ${person.hourly_rate}/hour
-                </span>
-              </div>
-            )}
-
-            {/* Rating */}
-            <div className="bg-white rounded-xl p-6 shadow-sm">
-              <h2 className="text-xl font-semibold mb-4">Rating</h2>
-              <div className="space-y-2">
-                <div className="flex items-center">
-                  <span className="text-yellow-400 mr-2">⭐</span>
-                  <span className="text-2xl font-bold text-gray-900">{person.rating || 0}</span>
+            {/* Quick Info Card */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Info</h2>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600 font-medium">Service Type</span>
+                  <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
+                    {person.service_type || 'General'}
+                  </span>
                 </div>
-                <p className="text-gray-600">({person.review_count || 0} reviews)</p>
+                {person.hourly_rate && (
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span className="text-gray-600 font-medium">Hourly Rate</span>
+                    <span className="text-2xl font-bold text-gray-900">
+                      ${person.hourly_rate}/hour
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600 font-medium">Rating</span>
+                  <div className="flex items-center">
+                    <span className="text-yellow-400 mr-1">⭐</span>
+                    <span className="font-bold text-lg">{person.rating || 0}</span>
+                    <span className="ml-2 text-gray-600">({person.review_count || 0})</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600 font-medium">Member Since</span>
+                  <span className="font-semibold text-gray-900">
+                    {new Date(person.created_at).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long'
+                    })}
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Member Since */}
-            <div className="bg-white rounded-xl p-6 shadow-sm">
-              <h2 className="text-xl font-semibold mb-4">Member Since</h2>
-              <p className="text-gray-700">
-                {new Date(person.created_at).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long'
-                })}
-              </p>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="bg-white rounded-xl p-6 shadow-sm">
-              <h2 className="text-xl font-semibold mb-4">Actions</h2>
+            {/* Action Buttons Card */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Actions</h2>
               <div className="space-y-3">
                 <button
-                  className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                   onClick={() => {
-                    // TODO: Add hire functionality
                     console.log('Hire clicked');
                   }}
                 >
                   Hire This Person
                 </button>
                 <button
-                  className="w-full bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors font-medium"
+                  className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                   onClick={() => {
-                    // TODO: Add message functionality
                     console.log('Message clicked');
                   }}
                 >
                   Send Message
+                </button>
+                <button
+                  className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white px-6 py-3 rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                  onClick={() => {
+                    console.log('Schedule consultation clicked');
+                  }}
+                >
+                  Schedule Consultation
+                </button>
+              </div>
+            </div>
+
+            {/* Share Card */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Share Profile</h2>
+              <div className="space-y-3">
+                <button className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                  Share on Social Media
+                </button>
+                <button className="w-full bg-gradient-to-r from-pink-500 to-pink-600 text-white px-6 py-3 rounded-xl hover:from-pink-600 hover:to-pink-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                  Copy Profile Link
                 </button>
               </div>
             </div>

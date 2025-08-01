@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../../services/authService';
-import Explore from './explore.js';
+import Explore from './explore';
 import Home from './home';
 import Events from './events.js';
 import People from './people.js';
