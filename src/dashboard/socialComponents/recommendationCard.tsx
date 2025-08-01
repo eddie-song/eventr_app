@@ -23,8 +23,6 @@ interface RecommendationCardProps {
   onDelete?: (rec: Recommendation) => void;
   onLike?: (uuid: string) => void;
   onComment?: (uuid: string) => void;
-  onShare?: (uuid: string) => void;
-  onSave?: (uuid: string) => void;
 }
 
 const RecommendationCard: React.FC<RecommendationCardProps> = ({ 
@@ -32,9 +30,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
   onEdit,
   onDelete,
   onLike, 
-  onComment, 
-  onShare, 
-  onSave 
+  onComment
 }) => {
   const [imageError, setImageError] = useState(false);
 
@@ -70,13 +66,17 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-            <span role="img" aria-label="Star rating placeholder" className="text-4xl text-gray-400">⭐</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width={48} height={48} viewBox="0 0 24 24" className="text-gray-400">
+              <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
           </div>
         )}
         
         {/* Rating Badge */}
         <div className="absolute top-3 right-3 bg-white/90 text-gray-800 px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
-          <span role="img" aria-label="Star rating" className="text-yellow-500">⭐</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 24 24" className="text-yellow-500">
+            <path fill="currentColor" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+          </svg>
           <span>{recommendation.rating?.toFixed(1) || '0.0'}</span>
         </div>
       </div>
@@ -127,8 +127,8 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
         )}
         
         {/* Social Action Buttons */}
-        {(onLike || onComment || onShare || onSave) && (
-          <div className="flex items-center gap-4 mt-4 pt-4 border-t border-gray-100">
+        {(onLike || onComment) && (
+          <div className="flex items-center gap-6 pt-5 border-t border-gray-100">
             {onLike && (
               <button
                 onClick={(e) => {
@@ -136,10 +136,12 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
                   onLike(recommendation.uuid);
                 }}
                 aria-label="Like this recommendation"
-                className="flex items-center gap-1 text-gray-600 hover:text-red-500 transition-colors duration-200"
+                className="flex items-center gap-2 bg-transparent border-none py-2 px-4 rounded-2xl cursor-pointer text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-all duration-300"
               >
-                <span role="img" aria-label="Heart icon" className="text-lg">❤️</span>
-                <span className="text-xs font-medium">Like</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+                <span className="text-sm font-semibold">Like</span>
               </button>
             )}
             
@@ -150,38 +152,12 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
                   onComment(recommendation.uuid);
                 }}
                 aria-label="Comment on this recommendation"
-                className="flex items-center gap-1 text-gray-600 hover:text-blue-500 transition-colors duration-200"
+                className="flex items-center gap-2 bg-transparent border-none py-2 px-4 rounded-2xl cursor-pointer text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-all duration-300"
               >
-                <span role="img" aria-label="Comment icon" className="text-lg">💬</span>
-                <span className="text-xs font-medium">Comment</span>
-              </button>
-            )}
-            
-            {onShare && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onShare(recommendation.uuid);
-                }}
-                aria-label="Share this recommendation"
-                className="flex items-center gap-1 text-gray-600 hover:text-green-500 transition-colors duration-200"
-              >
-                <span role="img" aria-label="Share icon" className="text-lg">📤</span>
-                <span className="text-xs font-medium">Share</span>
-              </button>
-            )}
-            
-            {onSave && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSave(recommendation.uuid);
-                }}
-                aria-label="Save this recommendation"
-                className="flex items-center gap-1 text-gray-600 hover:text-yellow-500 transition-colors duration-200"
-              >
-                <span role="img" aria-label="Bookmark icon" className="text-lg">🔖</span>
-                <span className="text-xs font-medium">Save</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24">
+                  <path fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 21a9 9 0 1 0-9-9c0 1.488.36 2.891 1 4.127L3 21l4.873-1c1.236.64 2.64 1 4.127 1"></path>
+                </svg>
+                <span className="text-sm font-semibold">Comment</span>
               </button>
             )}
           </div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../../services/authService';
-import Explore from './explore.js';
+import Explore from './explore';
 import Home from './home';
 import Events from './events.js';
 import People from './people.js';
@@ -46,7 +46,7 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
   // Initialize selectedService from localStorage if available
   const getInitialService = (): ServiceType => {
     const saved = localStorage.getItem('dashboard_selected_service');
-    return (saved as ServiceType) || 'social';
+    return (saved as ServiceType) || 'places';
   };
 
   // Extract service type from current pathname
