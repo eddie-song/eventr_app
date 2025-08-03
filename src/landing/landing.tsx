@@ -48,7 +48,12 @@ function Landing() {
             >
               Features
             </button>
-            <button className="bg-transparent border-white border-solid border h-[35px] mx-[10px] cursor-pointer px-[15px] whitespace-nowrap">How it works</button>
+            <button 
+              onClick={() => navigate('/how-it-works')}
+              className="bg-transparent border-white border-solid border h-[35px] mx-[10px] cursor-pointer px-[15px] whitespace-nowrap"
+            >
+              How it works
+            </button>
             <button 
               onClick={() => navigate('/about')}
               className="bg-transparent border-white border-solid border h-[35px] mx-[10px] cursor-pointer px-[15px] whitespace-nowrap"
