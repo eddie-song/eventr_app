@@ -5,6 +5,7 @@ import Login from './login/Login.js';
 import Onboarding from './register/components/Onboarding.js';
 import EmailConfirmation from './register/components/EmailConfirmation.js';
 import Dashboard from './dashboard/components/dashboard.tsx';
+import AboutPage from './pages/about/page.tsx';
 import { OnboardingProvider } from './register/context/registerContext';
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
         <Route path='/dashboard/place/:placeId' element={<Dashboard />} />
         <Route path='/dashboard/event/:eventId' element={<Dashboard />} />
         <Route path='/dashboard/person/:personId' element={<Dashboard />} />
+        <Route path='/about' element={<AboutPage />} />
       </Routes>
     </Router>
     </OnboardingProvider>

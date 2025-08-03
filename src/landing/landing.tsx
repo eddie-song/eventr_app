@@ -44,7 +44,12 @@ function Landing() {
           <div id="button-container" className="flex flex-row justify-start items-center px-5 box-border">
             <button className="bg-transparent border-white border-solid border h-[35px] mx-[10px] cursor-pointer px-[15px] whitespace-nowrap">Features</button>
             <button className="bg-transparent border-white border-solid border h-[35px] mx-[10px] cursor-pointer px-[15px] whitespace-nowrap">How it works</button>
-            <button className="bg-transparent border-white border-solid border h-[35px] mx-[10px] cursor-pointer px-[15px] whitespace-nowrap">About</button>
+            <button 
+              onClick={() => navigate('/about')}
+              className="bg-transparent border-white border-solid border h-[35px] mx-[10px] cursor-pointer px-[15px] whitespace-nowrap"
+            >
+              About
+            </button>
           </div>
         </div>
         <div id="login-buttons" className="flex flex-row justify-end items-center w-[200px] min-w-[200px] pr-5 ml-auto">
