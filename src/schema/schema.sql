@@ -1239,4 +1239,72 @@ CREATE TRIGGER create_message_notification_trigger
   FOR EACH ROW
   EXECUTE FUNCTION trigger_message_notification();
 
+-- ========================================
+-- LIVE LOCATIONS TABLE
+-- ========================================
+-- Table for storing real-time user locations
+--
+-- Columns:
+--   user_id: UUID (PRIMARY KEY) - User identifier
+--   latitude: NUMERIC(9,6) - Latitude coordinate
+--   longitude: NUMERIC(9,6) - Longitude coordinate
+--   updated_at: TIMESTAMP WITH TIME ZONE - Last location update time
+
+CREATE TABLE IF NOT EXISTS live_locations (
+  user_id UUID PRIMARY KEY REFERENCES profiles(uuid) ON DELETE CASCADE,
+  latitude NUMERIC(9,6) NOT NULL,
+  longitude NUMERIC(9,6) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS for live_locations
+GRANT SELECT, INSERT, UPDATE, DELETE ON live_locations TO authenticated;
+ALTER TABLE live_locations ENABLE ROW LEVEL SECURITY;
+
+-- Policies for live_locations
+CREATE POLICY "Users can view all live locations" ON live_locations FOR SELECT USING (true);
+CREATE POLICY "Users can update their own location" ON live_locations FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own location" ON live_locations FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Function to get nearby users within a specified radius
+CREATE OR REPLACE FUNCTION get_nearby_users(lat NUMERIC, lng NUMERIC, radius_m INTEGER)
+RETURNS TABLE (
+  user_id UUID,
+  latitude NUMERIC(9,6),
+  longitude NUMERIC(9,6),
+  updated_at TIMESTAMP WITH TIME ZONE,
+  distance_m NUMERIC
+) AS $$
+BEGIN
+  SET search_path = public, pg_temp;
+  RETURN QUERY
+  SELECT 
+    ll.user_id,
+    ll.latitude,
+    ll.longitude,
+    ll.updated_at,
+    (
+      6371000 * acos(
+        cos(radians(lat)) * 
+        cos(radians(ll.latitude)) * 
+        cos(radians(ll.longitude) - radians(lng)) + 
+        sin(radians(lat)) * 
+        sin(radians(ll.latitude))
+      )
+    ) as distance_m
+  FROM live_locations ll
+  WHERE (
+    6371000 * acos(
+      cos(radians(lat)) * 
+      cos(radians(ll.latitude)) * 
+      cos(radians(ll.longitude) - radians(lng)) + 
+      sin(radians(lat)) * 
+      sin(radians(ll.latitude))
+    )
+  ) <= radius_m
+  AND ll.user_id != auth.uid() -- Exclude current user
+  ORDER BY distance_m ASC;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
  

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import Explore from './explore';
+import ExploreMap from './exploreMap';
 import Home from './home';
 import Events from './events.js';
 import People from './people.js';
@@ -26,10 +27,7 @@ interface DashboardProps {
 type ServiceType = 
   | 'home'
   | 'social' 
-  | 'explore' 
-  | 'places' 
-  | 'events' 
-  | 'people' 
+  | 'explore-map'
   | 'notifications' 
   | 'profile' 
   | 'create-service' 
@@ -46,7 +44,7 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
   // Initialize selectedService from localStorage if available
   const getInitialService = (): ServiceType => {
     const saved = localStorage.getItem('dashboard_selected_service');
-    return (saved as ServiceType) || 'places';
+    return (saved as ServiceType) || 'explore-map';
   };
 
   // Extract service type from current pathname
@@ -74,7 +72,7 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
     const pageParam = urlParams.get('page') as ServiceType;
     
     // Check for service parameter first (legacy support)
-    if (serviceParam && ['home', 'social', 'explore', 'places', 'events', 'people', 'notifications', 'profile', 'create-service', 'follow-test', 'place-detail', 'event-detail', 'person-detail', 'user-profile'].includes(serviceParam)) {
+    if (serviceParam && ['home', 'social', 'explore-map', 'notifications', 'profile', 'create-service', 'follow-test', 'place-detail', 'event-detail', 'person-detail', 'user-profile'].includes(serviceParam)) {
       setSelectedService(serviceParam);
       localStorage.setItem('dashboard_selected_service', serviceParam);
       
@@ -86,7 +84,7 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
       navigate(newUrl, { replace: true });
     }
     // Check for page parameter
-    else if (pageParam && ['home', 'social', 'explore', 'places', 'events', 'people', 'notifications', 'profile', 'create-service', 'follow-test', 'place-detail', 'event-detail', 'person-detail', 'user-profile'].includes(pageParam)) {
+    else if (pageParam && ['home', 'social', 'explore-map', 'notifications', 'profile', 'create-service', 'follow-test', 'place-detail', 'event-detail', 'person-detail', 'user-profile'].includes(pageParam)) {
       setSelectedService(pageParam);
       localStorage.setItem('dashboard_selected_service', pageParam);
     }
@@ -104,18 +102,13 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
     }
   }, [location.pathname, selectedService]);
 
-  const [exploreDropdownOpen, setExploreDropdownOpen] = useState<boolean>(false);
-  const [isClosing, setIsClosing] = useState<boolean>(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(true);
   const [notificationCount, setNotificationCount] = useState<number>(0);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState<boolean>(false);
 
   // Component cache to prevent re-creation
   const componentCache = useRef<Record<string, React.ReactElement>>({
-    explore: <Explore key="explore" />,
-    places: <Explore key="places" />,
-    events: <Events key="events" />,
-    people: <People key="people" />,
+    'explore-map': <ExploreMap key="explore-map" />,
     social: <Social key="social" />,
     notifications: <Notifications key="notifications" />,
     profile: <Profile key="profile" />,
@@ -130,15 +123,7 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
   }, [selectedService]);
 
   const handleExploreClick = (): void => {
-    if (exploreDropdownOpen) {
-      setIsClosing(true);
-      setTimeout(() => {
-        setExploreDropdownOpen(false);
-        setIsClosing(false);
-      }, 250);
-    } else {
-      setExploreDropdownOpen(true);
-    }
+    handleServiceClick('explore-map');
   };
 
   const handleServiceClick = (serviceName: ServiceType): void => {
@@ -147,8 +132,7 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
     // If we're currently on a detail view (place, event, person, or user profile)
     // and switching to a different service, navigate to the base dashboard URL
     if (location.pathname !== '/dashboard' && 
-        (serviceName === 'social' || serviceName === 'explore' || serviceName === 'events' || 
-         serviceName === 'people' || serviceName === 'profile' || serviceName === 'notifications' || 
+        (serviceName === 'social' || serviceName === 'explore-map' || serviceName === 'profile' || serviceName === 'notifications' || 
          serviceName === 'create-service')) {
       navigate('/dashboard?page=' + serviceName);
     } else {
@@ -160,32 +144,10 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
       navigate(newUrl, { replace: true });
     }
     
-    if (exploreDropdownOpen && serviceName !== 'explore') {
-      setIsClosing(true);
-      setTimeout(() => {
-        setExploreDropdownOpen(false);
-        setIsClosing(false);
-      }, 250);
-    }
+
   };
 
-  const handleExploreOptionClick = (option: ServiceType): void => {
-    setSelectedService(option);
-    
-    // If we're currently on a detail view and switching to an explore option,
-    // navigate to the base dashboard URL
-    if (location.pathname !== '/dashboard' && 
-        (option === 'explore' || option === 'places')) {
-      navigate('/dashboard?page=' + option);
-    } else {
-      // Set the page query parameter for the selected explore option
-      const urlParams = new URLSearchParams(location.search);
-      urlParams.set('page', option);
-      const newSearch = urlParams.toString();
-      const newUrl = location.pathname + (newSearch ? `?${newSearch}` : '');
-      navigate(newUrl, { replace: true });
-    }
-  };
+
 
   // Check authentication on component mount
   useEffect(() => {
@@ -319,7 +281,7 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
       return renderDetailView(userId, UserProfile, 'user-profile');
     }
     
-    return componentCache.current[selectedService] || componentCache.current.explore;
+    return componentCache.current[selectedService] || componentCache.current['explore-map'];
   };
 
   // Show loading while checking authentication
@@ -342,14 +304,6 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
           onMouseEnter={() => setIsSidebarExpanded(true)}
           onMouseLeave={() => {
             setIsSidebarExpanded(false);
-            // Close explore dropdown when sidebar closes
-            if (exploreDropdownOpen) {
-              setIsClosing(true);
-              setTimeout(() => {
-                setExploreDropdownOpen(false);
-                setIsClosing(false);
-              }, 250);
-            }
           }}
         >
           {/* Logo - always visible */}
@@ -408,73 +362,21 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
             {/* Explore */}
             <div 
               className={`flex items-center cursor-pointer relative rounded-[20px] min-w-0 overflow-hidden transition-colors ${
-                selectedService === 'explore' || selectedService === 'places' || selectedService === 'events' || selectedService === 'people' ? 'bg-[#2B0A50]' : 'hover:bg-gray-100'
+                selectedService === 'explore-map' ? 'bg-[#2B0A50]' : 'hover:bg-gray-100'
               } ${
                 isSidebarExpanded ? 'flex-row gap-2.5 h-10 px-2.5' : 'justify-center h-10 w-10'
               }`}
               onClick={handleExploreClick}
             >
               <div className="pt-1.5 flex-shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" className={selectedService === 'explore' || selectedService === 'places' || selectedService === 'events' || selectedService === 'people' ? 'text-white' : ''}>
+                <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" className={selectedService === 'explore-map' ? 'text-white' : ''}>
                   <path fill="currentColor" d="m8.375 16.25l5.05-1.45q.5-.15.863-.513t.512-.862l1.45-5.05q.075-.275-.137-.488t-.488-.137l-5.05 1.45q-.5.15-.862.513t-.513.862l-1.45 5.05q-.075.275.138.488t.487.137M12 13.5q-.625 0-1.062-.437T10.5 12t.438-1.062T12 10.5t1.063.438T13.5 12t-.437 1.063T12 13.5m0 8.5q-2.075 0-3.9-.788t-3.175-2.137T2.788 15.9T2 12t.788-3.9t2.137-3.175T8.1 2.788T12 2t3.9.788t3.175 2.137T21.213 8.1T22 12t-.788 3.9t-2.137 3.175t-3.175 2.138T12 22m0-2q3.325 0 5.663-2.337T20 12t-2.337-5.663T12 4T6.337 6.338T4 12t2.338 5.663T12 20m0-8"></path>
                 </svg>
               </div>
               {isSidebarExpanded && (
-                <>
-                  <p className={`whitespace-nowrap overflow-hidden text-ellipsis flex-1 min-w-0 ${selectedService === 'explore' || selectedService === 'places' || selectedService === 'events' || selectedService === 'people' ? 'text-white' : ''}`}>Explore</p>
-                  <div className="ml-auto flex-shrink-0 flex items-center">
-                    <svg 
-                      className={`transition-transform duration-250 ease-in-out ${exploreDropdownOpen ? 'rotate-180' : ''} ${selectedService === 'explore' || selectedService === 'places' || selectedService === 'events' || selectedService === 'people' ? 'text-white' : ''}`}
-                      xmlns="http://www.w3.org/2000/svg" 
-                      width={24} 
-                      height={24} 
-                      viewBox="0 0 24 24"
-                    >
-                      <g fill="none" fillRule="evenodd">
-                        <path d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"></path>
-                        <path fill="currentColor" d="M12.707 15.707a1 1 0 0 1-1.414 0L5.636 10.05A1 1 0 1 1 7.05 8.636l4.95 4.95l4.95-4.95a1 1 0 0 1 1.414 1.414z"></path>
-                      </g>
-                    </svg>
-                  </div>
-                </>
+                <p className={`whitespace-nowrap overflow-hidden text-ellipsis flex-1 min-w-0 ${selectedService === 'explore-map' ? 'text-white' : ''}`}>Explore</p>
               )}
             </div>
-
-            {/* Explore Dropdown - only show when expanded */}
-            {isSidebarExpanded && (exploreDropdownOpen || isClosing) && (
-              <div className={`mt-[-20px] mb-[-10px] py-1.5 overflow-hidden gap-[100px] transition-all duration-250 ease-in-out ${
-                exploreDropdownOpen && !isClosing 
-                  ? 'max-h-[150px] opacity-100 translate-y-0' 
-                  : isClosing 
-                    ? 'max-h-0 opacity-0 -translate-y-2' 
-                    : 'max-h-0 opacity-0 -translate-y-2'
-              }`}>
-                <div 
-                  className={`py-2 px-5 cursor-pointer transition-all duration-200 ease-in-out text-sm text-gray-900 rounded-lg mx-2 my-0.5 font-normal hover:bg-black/5 hover:translate-x-0.5 ${
-                    selectedService === 'places' ? 'bg-[#2B0A50] text-white font-medium hover:bg-[#2B0A50]/80' : ''
-                  }`}
-                  onClick={() => handleExploreOptionClick('places')}
-                >
-                  Places
-                </div>
-                <div 
-                  className={`py-2 px-5 cursor-pointer transition-all duration-200 ease-in-out text-sm text-gray-900 rounded-lg mx-2 my-0.5 font-normal hover:bg-black/5 hover:translate-x-0.5 ${
-                    selectedService === 'events' ? 'bg-[#2B0A50] text-white font-medium hover:bg-[#2B0A50]/80' : ''
-                  }`}
-                  onClick={() => handleExploreOptionClick('events')}
-                >
-                  Events
-                </div>
-                <div 
-                  className={`py-2 px-5 cursor-pointer transition-all duration-200 ease-in-out text-sm text-gray-900 rounded-lg mx-2 my-0.5 font-normal hover:bg-black/5 hover:translate-x-0.5 ${
-                    selectedService === 'people' ? 'bg-[#2B0A50] text-white font-medium hover:bg-[#2B0A50]/80' : ''
-                  }`}
-                  onClick={() => handleExploreOptionClick('people')}
-                >
-                  People
-                </div>
-              </div>
-            )}
 
             {/* Notifications */}
             <div 
@@ -547,8 +449,8 @@ const Dashboard: React.FC<DashboardProps> = ({ service }) => {
         </div>
 
         {/* Service Container */}
-        <div className="bg-white w-full rounded-tl-[20px] p-8 overflow-y-auto h-screen box-border flex justify-center items-start">
-          <div className="max-w-[1200px] w-full">
+        <div className={`bg-white w-full ${ selectedService === 'explore-map' ? 'p-2' : 'p-8' } overflow-y-auto h-screen box-border flex justify-center items-start`}>
+          <div className={`w-full h-full ${selectedService !== 'explore-map' ? 'max-w-[1200px]' : ''}`}>
             {renderServiceContent()}
           </div>
         </div>
