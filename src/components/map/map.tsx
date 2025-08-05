@@ -66,12 +66,10 @@ export default function Map({ onMarkerClick }: MapProps) {
     const watchId = navigator.geolocation.watchPosition(
       async (pos) => {
         const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
-        console.log("📍 Got position:", coords);
         setUserPos(coords);
 
         try {
           const user = await supabase.auth.getUser();
-          console.log("👤 Got user:", user.data?.user?.id);
 
           if (user.data?.user?.id) {
             const { error } = await supabase.from('live_locations').upsert({
@@ -83,8 +81,6 @@ export default function Map({ onMarkerClick }: MapProps) {
 
             if (error) {
               console.error("❌ Upload error:", error);
-            } else {
-              console.log("✅ Uploaded location to Supabase");
             }
           }
         } catch (e) {
