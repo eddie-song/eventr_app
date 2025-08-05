@@ -144,7 +144,7 @@ function Explore() {
             (e.target as HTMLImageElement).style.display = 'none';
           }}
         />
-        <div className="absolute top-3 right-3 bg-black bg-opacity-70 text-white px-2.5 py-1.5 rounded-full flex items-center gap-1 text-sm font-semibold backdrop-blur-sm">
+        <div className="absolute top-3 right-3 bg-black bg-opacity-70 text-white px-2.5 py-1.5 rounded-full flex items-center gap-1 text-sm font-semibold">
           <span className="text-xs">⭐</span>
           <span className="font-semibold text-white">{place.rating}</span>
           <span className="text-xs opacity-90">({place.review_count})</span>
@@ -195,7 +195,7 @@ function Explore() {
             (e.target as HTMLImageElement).style.display = 'none';
           }}
         />
-        <div className="absolute top-3 right-3 bg-black bg-opacity-70 text-white px-2.5 py-1.5 rounded-full flex items-center gap-1 text-sm font-semibold backdrop-blur-sm">
+        <div className="absolute top-3 right-3 bg-black bg-opacity-70 text-white px-2.5 py-1.5 rounded-full flex items-center gap-1 text-sm font-semibold">
           <span className="text-xs">⭐</span>
           <span className="font-semibold text-white">{place.rating}</span>
         </div>

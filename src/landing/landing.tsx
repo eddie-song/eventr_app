@@ -92,7 +92,7 @@ function Landing() {
         {/* Search Bar */}
         <div className="mb-20">
           <h2 className="font-normal text-[1.5rem] mb-[18px]">Search for a...</h2>
-          <div className="bg-[rgba(255,255,255,0.7)] shadow-[0_4px_32px_0_rgba(43,10,80,0.10)] px-8 rounded-[40px] w-[480px] max-w-[90vw] flex flex-row justify-between items-center border-[1.5px] border-[#e5e5ea] mx-auto backdrop-blur-[8px] transition-[box-shadow_0.2s] focus-within:shadow-[0_8px_40px_0_rgba(43,10,80,0.16)]">
+          <div className="bg-[rgba(255,255,255,0.7)] shadow-[0_4px_32px_0_rgba(43,10,80,0.10)] px-8 rounded-[40px] w-[480px] max-w-[90vw] flex flex-row justify-between items-center border-[1.5px] border-[#e5e5ea] mx-auto transition-[box-shadow_0.2s] focus-within:shadow-[0_8px_40px_0_rgba(43,10,80,0.16)]">
             <h2 className="w-[80%] text-[1.35rem] font-normal text-[#222] tracking-[0.01em] whitespace-nowrap font-inherit text-left">
               <span className="font-normal tracking-[0.01em]">{displayedText}</span>
               <span className="inline-block w-[1ch] animate-[blink_1s_infinite] text-[#2B0A50] font-semibold">|</span>

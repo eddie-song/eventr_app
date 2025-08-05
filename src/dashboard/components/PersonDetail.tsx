@@ -149,13 +149,13 @@ const PersonDetail: React.FC<PersonDetailProps> = ({ personId }) => {
               <div className="absolute bottom-8 left-8 right-8 text-white">
                 <h1 className="text-4xl font-bold mb-4 drop-shadow-lg">{person.profiles?.display_name || person.profiles?.username || 'Service Provider'}</h1>
                 <div className="flex items-center space-x-6">
-                  <div className="flex items-center bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
+                  <div className="flex items-center bg-white/20 px-4 py-2 rounded-full">
                     <span className="text-yellow-400 mr-2 text-lg">⭐</span>
                     <span className="font-bold text-lg">{person.rating || 0}</span>
                     <span className="ml-2 opacity-90">({person.review_count || 0} reviews)</span>
                   </div>
                   {person.hourly_rate && (
-                    <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
+                    <div className="bg-white/20 px-4 py-2 rounded-full">
                       <span className="font-semibold">${person.hourly_rate}/hour</span>
                     </div>
                   )}
